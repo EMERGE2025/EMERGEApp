@@ -1,11 +1,22 @@
 import ClientOnly from "../components/clientOnly";
-import MapLibre3D from "../components/map3d";
-import { MarkerData } from "../components/map3d";
+import MapLibre3D from "../components/mod3D";
+import { MarkerData } from "../components/mod3D";
 
 export type iconType = "earthquake" | "landslide" | "flood" | "responder";
 
-export default function Map3DPage() {
+export default async function Map3DPage() {
   let max = 4;
+
+  const res = await fetch("http://localhost:8000/api/risk/landslide", {
+    cache: "no-store",
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch GeoJSON");
+  }
+
+  const geoJsonData = await res.json();
 
   const iconIndex: Record<number, iconType> = {
     1: "earthquake",
@@ -13,6 +24,8 @@ export default function Map3DPage() {
     3: "landslide",
     4: "responder",
   };
+
+  console.log(geoJsonData);
 
   const markers: MarkerData[] = Array.from({ length: 500 }, (_, i) => ({
     id: i,
@@ -22,11 +35,15 @@ export default function Map3DPage() {
     title: `Marker ${i}`,
   }));
 
-  console.log(markers[0]);
+  // console.log(markers[0]);
   return (
     <main className="w-full h-[90vh]">
       <ClientOnly>
-        <MapLibre3D markers={markers} mapType="positron" />
+        <MapLibre3D
+          selectedRisk="landslide"
+          geoJsonData={geoJsonData}
+          markers={markers}
+        />
       </ClientOnly>
     </main>
   );

@@ -58,6 +58,16 @@ const RotateControl = () => {
   return new Control();
 };
 
+async function addGeoClusters(geodata: GeoJSON, map: maplibregl.Map) {
+  map.addSource("risks", {
+    type: "geojson",
+    data: geodata,
+    cluster: true,
+    clusterMaxZoom: 17,
+    clusterRadius: 50,
+  });
+}
+
 export default function MapLibre3D({
   markers,
   mapType = "liberty",
@@ -109,16 +119,29 @@ export default function MapLibre3D({
       ) as HTMLButtonElement;
 
       if (compass) {
-        compass.onclick = () => {
-          const currentBearing = mapRef.current?.getBearing() ?? 0;
-          const newBearing = currentBearing >= 180 ? 0 : 180;
+        compass.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
 
-          mapRef.current?.easeTo({
-            pitch: currentBearing >= 180 ? 0 : 60,
-            bearing: newBearing,
+          // Old Map Converter!
+
+          // const currentBearing = mapRef.current?.getBearing() ?? 0;
+          // const newBearing = currentBearing >= 180 ? 0 : 180;
+
+          // mapRef.current?.easeTo({
+          //   pitch: currentBearing >= 180 ? 0 : 60,
+          //   bearing: newBearing,
+          //   duration: 1000,
+          // });
+
+          const is2D = mapRef.current?.getPitch() === 0;
+
+          map.easeTo({
+            pitch: is2D ? 60 : 0,
+            bearing: is2D ? 180 : 0,
             duration: 1000,
           });
-        };
+        });
       }
     }, 500);
 
