@@ -3,7 +3,6 @@
 import React, { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import * as turf from "@turf/turf";
 
 export interface MarkerData {
   id: number;
@@ -85,9 +84,9 @@ const MapLibre3D: React.FC<MapLibre3DProps> = ({
 
     mapRef.current = map;
 
-    map.on("style.load", () => {
-      map.setProjection({ type: "globe" });
-    });
+    // map.on("style.load", () => {
+    //   map.setProjection({ type: "globe" });
+    // });
 
     map.on("load", async () => {
       if (map.getSource("geo_data")) {
@@ -103,6 +102,46 @@ const MapLibre3D: React.FC<MapLibre3DProps> = ({
         });
       }
 
+      map
+        .loadImage("/landslide.svg")
+        .then((res) => {
+          const image = res.data;
+          if (!map.hasImage("marker-icon")) {
+            map.addImage("marker-icon", image);
+          }
+
+          map.addLayer({
+            id: "landslide",
+            type: "symbol",
+            source: "geo_data",
+            layout: {
+              "icon-image": "marker-icon",
+              "icon-size": 0.5,
+            },
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to load image:", error);
+        });
+
+      map.addLayer({
+        id: "landslide",
+        type: "symbol",
+        source: "geo_data",
+        layout: {
+          // If you want to display text:
+          "text-field": ["get", "ADM4_EN"], // adjust this to your property key
+          "text-size": 12,
+          "text-offset": [0, 1.2],
+          "text-anchor": "top",
+          // Or if you want to display an icon:
+          "icon-image": "my-icon-name", // make sure it's in your sprite
+        },
+        paint: {
+          "text-color": "#d63031",
+        },
+      });
+
       for (const marker of markers) {
         if (marker.icon && !map.hasImage(marker.icon)) {
           try {
@@ -114,104 +153,104 @@ const MapLibre3D: React.FC<MapLibre3DProps> = ({
         }
       }
 
-      if (!map.getLayer("clusters")) {
-        map.addLayer({
-          id: "clusters",
-          type: "circle",
-          source: "geo_data",
-          filter: ["has", "point_count"],
-          paint: {
-            "circle-color": [
-              "step",
-              ["get", "point_count"],
-              "#51bbd655",
-              100,
-              "#f1f07555",
-              750,
-              "#f28cb155",
-            ],
-            "circle-radius": [
-              "step",
-              ["get", "point_count"],
-              20,
-              100,
-              30,
-              750,
-              40,
-            ],
-            "circle-stroke-width": [
-              "step",
-              ["get", "point_count"],
-              1,
-              100,
-              1,
-              750,
-              1,
-            ],
-            "circle-stroke-color": [
-              "step",
-              ["get", "point_count"],
-              "#000",
-              100,
-              "#000",
-              750,
-              "#000",
-            ],
-          },
-        });
+      // if (!map.getLayer("clusters")) {
+      //   map.addLayer({
+      //     id: "clusters",
+      //     type: "circle",
+      //     source: "geo_data",
+      //     filter: ["has", "point_count"],
+      //     paint: {
+      //       "circle-color": [
+      //         "step",
+      //         ["get", "point_count"],
+      //         "#51bbd655",
+      //         100,
+      //         "#f1f07555",
+      //         750,
+      //         "#f28cb155",
+      //       ],
+      //       "circle-radius": [
+      //         "step",
+      //         ["get", "point_count"],
+      //         20,
+      //         100,
+      //         30,
+      //         750,
+      //         40,
+      //       ],
+      //       "circle-stroke-width": [
+      //         "step",
+      //         ["get", "point_count"],
+      //         1,
+      //         100,
+      //         1,
+      //         750,
+      //         1,
+      //       ],
+      //       "circle-stroke-color": [
+      //         "step",
+      //         ["get", "point_count"],
+      //         "#000",
+      //         100,
+      //         "#000",
+      //         750,
+      //         "#000",
+      //       ],
+      //     },
+      //   });
 
-        map.addLayer({
-          id: "cluster-count",
-          type: "symbol",
-          source: "geo_data",
-          filter: ["has", "point_count"],
-          layout: {
-            "text-field": "{point_count_abbreviated}",
-            "text-font": ["Noto Sans Regular"],
-            "text-size": 25,
-          },
-        });
+      //   map.addLayer({
+      //     id: "cluster-count",
+      //     type: "symbol",
+      //     source: "geo_data",
+      //     filter: ["has", "point_count"],
+      //     layout: {
+      //       "text-field": "{point_count_abbreviated}",
+      //       "text-font": ["Noto Sans Regular"],
+      //       "text-size": 25,
+      //     },
+      //   });
 
-        map.addLayer({
-          id: "unclustered-point",
-          source: "geo_data",
-          filter: [
-            "all",
-            ["!", ["has", "point_count"]],
-            ["==", ["get", "risk_type"], selectedRisk],
-          ],
-          type: "symbol",
-          layout: {
-            "icon-overlap": "always",
-            "icon-image": ["get", "icon"],
-            "icon-size": 0.1,
-          },
-        });
-      }
+      //   map.addLayer({
+      //     id: "unclustered-point",
+      //     source: "geo_data",
+      //     filter: [
+      //       "all",
+      //       ["!", ["has", "point_count"]],
+      //       ["==", ["get", "risk_type"], selectedRisk],
+      //     ],
+      //     type: "symbol",
+      //     layout: {
+      //       "icon-overlap": "always",
+      //       "icon-image": ["get", "icon"],
+      //       "icon-size": 0.1,
+      //     },
+      //   });
+      // }
 
-      const responderPoints = markers.map((marker) =>
-        turf.point([marker.lng, marker.lat])
-      );
-      const voronoiPolygons = turf.voronoi(
-        turf.featureCollection(responderPoints)
-      );
+      // const responderPoints = markers.map((marker) =>
+      //   turf.point([marker.lng, marker.lat])
+      // );
+      // const voronoiPolygons = turf.voronoi(
+      //   turf.featureCollection(responderPoints)
+      // );
 
-      if (voronoiPolygons && !map.getSource("voronoi")) {
-        map.addSource("voronoi", {
-          type: "geojson",
-          data: voronoiPolygons,
-        });
+      // if (voronoiPolygons && !map.getSource("voronoi")) {
+      //   map.addSource("voronoi", {
+      //     type: "geojson",
+      //     data: voronoiPolygons,
+      //   });
 
-        map.addLayer({
-          id: "voronoi-layer",
-          type: "fill",
-          source: "voronoi",
-          paint: {
-            "fill-color": "#00ffff33",
-            "fill-outline-color": "#00ffff",
-          },
-        });
-      }
+      //   map.addLayer({
+      //     id: "voronoi-layer",
+      //     type: "fill",
+      //     source: "voronoi",
+      //     paint: {
+      //       "fill-color": "#00ffff33",
+      //       "fill-outline-color": "#00ffff",
+      //     },
+      //   });
+      // }
     });
 
     map.addControl(
@@ -223,18 +262,18 @@ const MapLibre3D: React.FC<MapLibre3DProps> = ({
     return () => map.remove();
   }, []);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
+  // useEffect(() => {
+  //   const map = mapRef.current;
+  //   if (!map) return;
 
-    if (map.getLayer("unclustered-point")) {
-      map.setFilter("unclustered-point", [
-        "all",
-        ["!", ["has", "point_count"]],
-        ["==", ["get", "risk_type"], selectedRisk],
-      ]);
-    }
-  }, [selectedRisk]);
+  //   if (map.getLayer("unclustered-point")) {
+  //     map.setFilter("unclustered-point", [
+  //       "all",
+  //       ["!", ["has", "point_count"]],
+  //       ["==", ["get", "risk_type"], selectedRisk],
+  //     ]);
+  //   }
+  // }, [selectedRisk]);
 
   return (
     <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
