@@ -2,9 +2,9 @@ import { ListIcon } from "@phosphor-icons/react/dist/ssr";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr";
 import CustomButton from "../components/customButton";
 import ClientOnly from "../components/clientOnly";
-import MapLibre3D from "../components/map3d";
-import { MarkerData } from "../components/map3d";
-import { iconType } from "../components/map3d";
+import MapLibre3D from "../components/mapModule";
+import { MarkerData } from "../components/mapModule";
+import { iconType } from "../components/mapModule";
 
 export default async function Hazards() {
   let max = 4;
@@ -16,12 +16,17 @@ export default async function Hazards() {
     4: "responder",
   };
 
-  const res = await fetch("http://localhost:8000/api/risk/flooding", {
+  const flooding = await fetch("http://localhost:8000/api/risk/flooding", {
     cache: "no-store",
     method: "POST",
   });
 
-  if (!res.ok) {
+  const landslide = await fetch("http://localhost:8000/api/risk/landslide", {
+    cache: "no-store",
+    method: "POST",
+  });
+
+  if (!flooding.ok && !landslide.ok) {
     throw new Error("Failed to fetch GeoJSON");
   }
 
@@ -33,7 +38,8 @@ export default async function Hazards() {
   //   title: `Marker ${i}`,
   // }));
 
-  const geoJsonData = await res.json();
+  const floodJson = await flooding.json();
+  const landslideJson = await landslide.json();
 
   return (
     <main className="flex flex-col bg-white justify-between">
@@ -64,7 +70,9 @@ export default async function Hazards() {
           <MapLibre3D
             // markers={markers}
             mapType="liberty"
-            geoJsonData={geoJsonData}
+            selectedRisk="flooding"
+            floodingGeoJson={floodJson}
+            landslideGeoJson={landslideJson}
           />
         </ClientOnly>
       </div>
