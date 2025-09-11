@@ -84,10 +84,12 @@ export default function MapLibre3D({
   mapType = "liberty",
   selectedRisk,
   riskDatabase,
+  searchLocation,
 }: {
   mapType: mapType;
   selectedRisk: string;
   riskDatabase: Record<string, any>;
+  searchLocation?: { lng: number; lat: number } | null;
 }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([]);
@@ -691,6 +693,40 @@ export default function MapLibre3D({
       console.error("Error switching hazard:", error);
     }
   }, [selectedRisk, riskDatabase, currentHazard]);
+
+  // Handle search location zooming
+  useEffect(() => {
+    if (!mapRef.current || !searchLocation) return;
+
+    const map = mapRef.current;
+    console.log("Zooming to search location:", searchLocation);
+
+    map.easeTo({
+      center: [searchLocation.lng, searchLocation.lat],
+      zoom: 15, // Closer zoom for searched locations
+      duration: 1000,
+    });
+
+    // Add a marker at the searched location
+    const markerElement = document.createElement("div");
+    markerElement.className = "searched-location-marker";
+    markerElement.style.width = "20px";
+    markerElement.style.height = "20px";
+    markerElement.style.backgroundColor = "#ff0000";
+    markerElement.style.border = "2px solid #fff";
+    markerElement.style.borderRadius = "50%";
+    markerElement.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
+
+    const marker = new maplibregl.Marker({ element: markerElement })
+      .setLngLat([searchLocation.lng, searchLocation.lat])
+      .addTo(map);
+
+    // Remove marker after 5 seconds
+    setTimeout(() => {
+      marker.remove();
+    }, 5000);
+
+  }, [searchLocation]);
 
   return <div id="map" className="w-full h-[90vh] z-0 rounded-xl shadow-lg" />;
 }

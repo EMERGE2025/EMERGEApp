@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useAuth } from '../contexts/AuthContext';
-import { useHazard } from '../contexts/HazardContext';
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useAuth } from "../contexts/AuthContext";
+import { useHazard } from "../contexts/HazardContext";
 
 export default function NavBar() {
   const [mapsOpen, setMapsOpen] = useState(false);
@@ -16,20 +16,28 @@ export default function NavBar() {
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Element;
-      if (!target.closest('.dropdown')) {
+      if (!target.closest(".dropdown")) {
         setMapsOpen(false);
         setProfileOpen(false);
       }
     }
-    if (mapsOpen || profileOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (mapsOpen || profileOpen)
+      document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mapsOpen, profileOpen]);
 
   return (
     <nav className="sticky top-0 bg-[#faf5f5] px-6 py-2 flex items-center justify-between z-50 shadow">
- 
       <div className="flex items-center">
-        <Link href="/"> <Image src="/logo.svg" alt="EMERGE Logo" width={35} height={35} /> </Link>
+        <Link href="/">
+          {" "}
+          <Image
+            src="/logo.svg"
+            alt="EMERGE Logo"
+            width={35}
+            height={35}
+          />{" "}
+        </Link>
       </div>
 
       <button
@@ -37,14 +45,31 @@ export default function NavBar() {
         onClick={() => setMobileOpen((open) => !open)}
         aria-label="Toggle navigation"
       >
-        <span className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${mobileOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
-        <span className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${mobileOpen ? 'opacity-0' : ''}`}></span>
-        <span className={`block h-1 w-7 rounded bg-[#b92727] transition-all duration-300 ${mobileOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
+        <span
+          className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${
+            mobileOpen ? "rotate-45 translate-y-2" : ""
+          }`}
+        ></span>
+        <span
+          className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${
+            mobileOpen ? "opacity-0" : ""
+          }`}
+        ></span>
+        <span
+          className={`block h-1 w-7 rounded bg-[#b92727] transition-all duration-300 ${
+            mobileOpen ? "-rotate-45 -translate-y-2" : ""
+          }`}
+        ></span>
       </button>
 
       <ul className="hidden md:flex list-none gap-8 flex-grow justify-center items-center">
         <li>
-          <Link href="/" className="font-medium text-black hover:text-[#B92727] transition-colors">Home</Link>
+          <Link
+            href="/"
+            className="font-medium text-black hover:text-[#B92727] transition-colors"
+          >
+            Home
+          </Link>
         </li>
         <li className="relative group">
           <button
@@ -57,12 +82,20 @@ export default function NavBar() {
           {mapsOpen && (
             <ul className="absolute left-0 top-8 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
               <li>
-                <Link href="/risk-map" className="block px-4 py-2 text-black hover:text-[#B92727]" onClick={() => setMapsOpen(false)}>
+                <Link
+                  href="/risk-map"
+                  className="block px-4 py-2 text-black hover:text-[#B92727]"
+                  onClick={() => setMapsOpen(false)}
+                >
                   Risk Map
                 </Link>
               </li>
               <li>
-                <Link href="/hazard-visualization" className="block px-4 py-2 text-black hover:text-[#B92727]" onClick={() => setMapsOpen(false)}>
+                <Link
+                  href="/hazard-visualization"
+                  className="block px-4 py-2 text-black hover:text-[#B92727]"
+                  onClick={() => setMapsOpen(false)}
+                >
                   Hazard Visualization
                 </Link>
               </li>
@@ -70,40 +103,32 @@ export default function NavBar() {
           )}
         </li>
         <li>
-          <Link href="/responder-allocation" className="font-medium text-black hover:text-[#B92727] transition-colors">Responder Allocation</Link>
+          <Link
+            href="/responder-allocation"
+            className="font-medium text-black hover:text-[#B92727] transition-colors"
+          >
+            Responder Allocation
+          </Link>
         </li>
-         <li>
-           <Link href="/about" className="font-medium text-black hover:text-[#B92727] transition-colors">About</Link>
-         </li>
-         {user?.email?.includes('admin') && (
-           <li>
-             <Link href="/admin" className="font-medium text-black hover:text-[#B92727] transition-colors">Admin</Link>
-           </li>
-         )}
-       </ul>
-
-       <div className="hidden md:flex items-center gap-2 ml-8">
-         <button
-           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-             hazardType === 'landslide'
-               ? 'bg-[#B92727] text-white'
-               : 'bg-gray-200 text-black hover:bg-gray-300'
-           }`}
-           onClick={() => setHazardType('landslide')}
-         >
-           Landslide
-         </button>
-         <button
-           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-             hazardType === 'flooding'
-               ? 'bg-[#B92727] text-white'
-               : 'bg-gray-200 text-black hover:bg-gray-300'
-           }`}
-           onClick={() => setHazardType('flooding')}
-         >
-           Flooding
-         </button>
-       </div>
+        <li>
+          <Link
+            href="/about"
+            className="font-medium text-black hover:text-[#B92727] transition-colors"
+          >
+            About
+          </Link>
+        </li>
+        {user?.email?.includes("admin") && (
+          <li>
+            <Link
+              href="/admin"
+              className="font-medium text-black hover:text-[#B92727] transition-colors"
+            >
+              Admin
+            </Link>
+          </li>
+        )}
+      </ul>
 
       {user ? (
         <div className="relative dropdown">
@@ -112,18 +137,18 @@ export default function NavBar() {
             onClick={() => setProfileOpen(!profileOpen)}
           >
             <div className="flex flex-col items-end mr-2">
-              <span>{user.displayName || user.email?.split('@')[0]}</span>
+              <span>{user.displayName || user.email?.split("@")[0]}</span>
               <span className="text-xs font-normal opacity-85 -mt-1">
-                {user.email?.includes('admin') ? 'Administrator' : 'User'}
+                {user.email?.includes("admin") ? "Administrator" : "User"}
               </span>
             </div>
             <div className="w-9 h-9 rounded-full overflow-hidden">
               <Image
-                src={user.photoURL || '/profile.jpg'}
+                src={user.photoURL || "/profile.jpg"}
                 alt="Profile"
                 width={36}
                 height={36}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             </div>
           </button>
@@ -154,17 +179,34 @@ export default function NavBar() {
       )}
 
       {mobileOpen && (
-        <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setMobileOpen(false)}></div>
+        <div
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        ></div>
       )}
 
-      <div className={`fixed top-0 right-0 h-full w-64 bg-[#faf5f5] shadow-lg z-50 transform transition-transform duration-300 md:hidden ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div
+        className={`fixed top-0 right-0 h-full w-64 bg-[#faf5f5] shadow-lg z-50 transform transition-transform duration-300 md:hidden ${
+          mobileOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="flex flex-col h-full p-6">
-          <button className="self-end mb-6" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+          <button
+            className="self-end mb-6"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+          >
             <span className="text-3xl text-[#b92727]">×</span>
           </button>
           <ul className="flex flex-col gap-6 text-lg">
             <li>
-              <Link href="/" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>Home</Link>
+              <Link
+                href="/"
+                className="font-medium text-black hover:text-[#B92727]"
+                onClick={() => setMobileOpen(false)}
+              >
+                Home
+              </Link>
             </li>
             <li>
               <button
@@ -176,12 +218,26 @@ export default function NavBar() {
               {mapsOpen && (
                 <ul className="ml-4 mt-2 flex flex-col gap-2">
                   <li>
-                    <Link href="/risk-map" className="text-black hover:text-[#B92727]" onClick={() => { setMapsOpen(false); setMobileOpen(false); }}>
+                    <Link
+                      href="/risk-map"
+                      className="text-black hover:text-[#B92727]"
+                      onClick={() => {
+                        setMapsOpen(false);
+                        setMobileOpen(false);
+                      }}
+                    >
                       Risk Map
                     </Link>
                   </li>
                   <li>
-                    <Link href="/hazard-visualization" className="text-black hover:text-[#B92727] text-center" onClick={() => { setMapsOpen(false); setMobileOpen(false); }}>
+                    <Link
+                      href="/hazard-visualization"
+                      className="text-black hover:text-[#B92727] text-center"
+                      onClick={() => {
+                        setMapsOpen(false);
+                        setMobileOpen(false);
+                      }}
+                    >
                       Hazard Visualization
                     </Link>
                   </li>
@@ -189,55 +245,51 @@ export default function NavBar() {
               )}
             </li>
             <li>
-              <Link href="/responder-allocation" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>Responder Allocation</Link>
+              <Link
+                href="/responder-allocation"
+                className="font-medium text-black hover:text-[#B92727]"
+                onClick={() => setMobileOpen(false)}
+              >
+                Responder Allocation
+              </Link>
             </li>
-             <li>
-               <Link href="/about" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>About</Link>
-             </li>
-             {user?.email?.includes('admin') && (
-               <li>
-                 <Link href="/admin" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>Admin</Link>
-               </li>
-             )}
-           </ul>
+            <li>
+              <Link
+                href="/about"
+                className="font-medium text-black hover:text-[#B92727]"
+                onClick={() => setMobileOpen(false)}
+              >
+                About
+              </Link>
+            </li>
+            {user?.email?.includes("admin") && (
+              <li>
+                <Link
+                  href="/admin"
+                  className="font-medium text-black hover:text-[#B92727]"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Admin
+                </Link>
+              </li>
+            )}
+          </ul>
 
-           <div className="flex flex-col gap-2 mt-4">
-             <button
-               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                 hazardType === 'landslide'
-                   ? 'bg-[#B92727] text-white'
-                   : 'bg-gray-200 text-black hover:bg-gray-300'
-               }`}
-               onClick={() => setHazardType('landslide')}
-             >
-               Landslide
-             </button>
-             <button
-               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                 hazardType === 'flooding'
-                   ? 'bg-[#B92727] text-white'
-                   : 'bg-gray-200 text-black hover:bg-gray-300'
-               }`}
-               onClick={() => setHazardType('flooding')}
-             >
-               Flooding
-             </button>
-           </div>
           {user ? (
             <div className="mt-auto flex items-center bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold gap-2">
               <div className="flex flex-col items-end mr-2">
-                <span>{user.displayName || user.email?.split('@')[0]}</span>
+                <span>{user.displayName || user.email?.split("@")[0]}</span>
                 <span className="text-xs font-normal opacity-85 -mt-1">
-                  {user.email?.includes('admin') ? 'Administrator' : 'User'}
+                  {user.email?.includes("admin") ? "Administrator" : "User"}
                 </span>
               </div>
               <div className="w-9 h-9 rounded-full overflow-hidden">
                 <Image
-                  src={user.photoURL || '/profile.jpg'}
+                  src={user.photoURL || "/profile.jpg"}
                   alt="Profile"
                   width={36}
                   height={36}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               </div>
             </div>

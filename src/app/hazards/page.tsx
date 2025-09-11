@@ -14,6 +14,9 @@ import { collection, getDocs } from "firebase/firestore";
 export default function Hazards() {
   const [selectedRisk, setSelectedRisk] = useState("flooding");
   const [riskData, setRiskData] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<{ lng: number; lat: number } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,6 +73,114 @@ export default function Hazards() {
     };
     fetchData();
   }, []);
+
+  // OpenStreetMap Geocoding Search
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) return;
+
+    setIsSearching(true);
+    try {
+      // Santa Barbara, Iloilo bounding box (approximate)
+      const bbox = "122.0,10.6,122.8,10.9"; // [min_lon,min_lat,max_lon,max_lat]
+
+      // Use Nominatim API (OpenStreetMap geocoding)
+      const searchQuery = encodeURIComponent(query);
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&bounded=1&viewbox=${bbox}&limit=5&countrycodes=PH&addressdetails=1`;
+
+      console.log("Searching for:", query);
+      console.log("API URL:", url);
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'EMERGE-Hazards-App/1.0'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Geocoding API error: ${response.status}`);
+      }
+
+      const results = await response.json();
+      console.log("Geocoding results:", results);
+
+      if (results && results.length > 0) {
+        // Find the best match (prioritize places in Santa Barbara, Iloilo)
+        let bestResult = results[0];
+
+        // Look for results in Santa Barbara, Iloilo
+        const santaBarbaraResult = results.find((result: any) =>
+          result.display_name?.toLowerCase().includes('santa barbara') ||
+          result.display_name?.toLowerCase().includes('iloilo')
+        );
+
+        if (santaBarbaraResult) {
+          bestResult = santaBarbaraResult;
+        }
+
+        const { lat, lon, display_name, type, importance } = bestResult;
+
+        console.log(`Found location: ${display_name} at [${lon}, ${lat}]`);
+        console.log(`Type: ${type}, Importance: ${importance}`);
+
+        return {
+          lng: parseFloat(lon),
+          lat: parseFloat(lat),
+          found: true,
+          displayName: display_name,
+          type: type
+        };
+      }
+
+      // If no results found, try a broader search without bounding box
+      console.log("No results in Santa Barbara area, trying broader search...");
+      const broadUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&limit=3&countrycodes=PH&addressdetails=1`;
+
+      const broadResponse = await fetch(broadUrl, {
+        headers: {
+          'User-Agent': 'EMERGE-Hazards-App/1.0'
+        }
+      });
+
+      if (broadResponse.ok) {
+        const broadResults = await broadResponse.json();
+        if (broadResults && broadResults.length > 0) {
+          const { lat, lon, display_name, type } = broadResults[0];
+          console.log(`Found location (broad search): ${display_name} at [${lon}, ${lat}]`);
+
+          return {
+            lng: parseFloat(lon),
+            lat: parseFloat(lat),
+            found: true,
+            displayName: display_name,
+            type: type,
+            note: "Location found outside Santa Barbara area"
+          };
+        }
+      }
+
+      return { found: false };
+
+    } catch (error) {
+      console.error("Search error:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return { found: false, error: errorMessage };
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await handleSearch(searchQuery);
+    if (result && result.found && result.lng !== undefined && result.lat !== undefined) {
+      setSearchResult({ lng: result.lng, lat: result.lat });
+      console.log("Zooming to:", result);
+      // Clear search result after a delay to allow re-searching
+      setTimeout(() => setSearchResult(null), 100);
+    } else {
+      alert(`Location "${searchQuery}" not found in Santa Barbara, Iloilo area. Try searching for:\n• Barangay names (e.g., "Barangay 1", "Poblacion")\n• Landmarks (e.g., "church", "school", "market")\n• Streets or neighborhoods\n• Check spelling and try again`);
+    }
+  };
 
   // const snapshot = await adminDb.collection("PH063043000").get();
   // console.log(snapshot.docs);
@@ -141,9 +252,24 @@ export default function Hazards() {
             <input
               type="text"
               className="bg-red-50 w-full rounded-full px-5 py-1"
-              placeholder="Search Location"
+              placeholder="Search Santa Barbara, Iloilo (e.g., Barangay 1, Poblacion, landmarks)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit(e)}
             />
-            <MagnifyingGlassIcon size={32} weight="bold" color="#fff" />
+            <button
+              type="button"
+              onClick={handleSearchSubmit}
+              disabled={isSearching}
+              className="disabled:opacity-50 hover:bg-red-600 transition-colors rounded-full p-1"
+              title={isSearching ? "Searching..." : "Search location"}
+            >
+              {isSearching ? (
+                <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full"></div>
+              ) : (
+                <MagnifyingGlassIcon size={32} weight="bold" color="#fff" />
+              )}
+            </button>
           </div>
         </div>
         <div className="flex w-1/2 justify-end gap-5 px-10 py-2">
@@ -173,6 +299,7 @@ export default function Hazards() {
             mapType="liberty"
             selectedRisk={selectedRisk}
             riskDatabase={riskData}
+            searchLocation={searchResult}
           />
         </ClientOnly>
       </div>
