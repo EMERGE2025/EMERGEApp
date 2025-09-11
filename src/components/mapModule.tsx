@@ -132,259 +132,11 @@ export default function MapLibre3D({
     if (!mapRef.current) return;
 
     map.on("load", () => {
-      // Getting Source Data
-      // if (map.getSource("flooding")) {
-      //   const source = map.getSource("flooding") as maplibregl.GeoJSONSource;
-      //   source.setData(floodingGeoJson);
-      // } else {
-      //   // Flooding Geojson Data
-      //   map.addSource("flooding", {
-      //     type: "geojson",
-      //     data: floodingGeoJson,
-      //     cluster: true,
-      //     clusterMaxZoom: 17,
-      //     clusterRadius: 50,
-      //   });
-      // }
+      console.log("Map loaded, waiting for risk database...");
 
-      const boundary = riskDatabase.find(
-        (d: { id: string }) => d.id === "boundary"
-      ) as BoundaryEntry;
-
-      if (map.getSource("boundary")) {
-        const boundarySource = map.getSource(
-          "boundary"
-        ) as maplibregl.GeoJSONSource;
-        boundarySource.setData(boundary.boundary);
-      } else {
-        map.addSource("boundary", {
-          type: "geojson",
-          data:
-            typeof boundary.boundary === "string"
-              ? JSON.parse(boundary.boundary)
-              : boundary.boundary,
-        });
-      }
-
-      map.addLayer({
-        id: "boundary",
-        type: "line",
-        source: "boundary",
-        paint: {
-          "line-color": "#ff0000",
-          "line-width": 3,
-        },
-      });
-
-      // Specific Risk Data - Default to flooding if no hazard selected
-      const hazard = selectedRisk || "flooding";
-      const riskData = riskDatabase.find(
-        (d: { id: string }) => d.id === hazard
-      ) as HazardEntry;
-
-      // Set current hazard for tracking
-      setCurrentHazard(hazard);
-
-      console.log(`Loading initial hazard: ${hazard}`);
-      console.log("Risk data:", riskData);
-
-      if (map.getSource(hazard)) {
-        const riskSource = map.getSource(hazard) as maplibregl.GeoJSONSource;
-        riskSource.setData(riskData.risk);
-      } else {
-        map.addSource(`${hazard}-risk`, {
-          type: "geojson",
-          data:
-            typeof riskData.risk === "string"
-              ? JSON.parse(riskData.risk)
-              : riskData.risk,
-          cluster: true,
-          clusterMaxZoom: 17,
-          clusterRadius: 50,
-        });
-      }
-
-      map
-        .loadImage(`icons/${hazard}.png`)
-        .then((res) => {
-          const image = res.data;
-          if (!map.hasImage(`icons/${hazard}.png`)) {
-            map.addImage(hazard, image);
-          }
-
-          map.addLayer({
-            id: `${hazard}-risk`,
-            type: "symbol",
-            source: `${hazard}-risk`,
-            filter: ["!", ["has", "point_count"]],
-            layout: {
-              "icon-image": hazard,
-              "icon-size": 0.5,
-            },
-          });
-        })
-        .catch((error) => {
-          console.error("Failed to load image:", error);
-        });
-
-      // Loading Responder Data
-      if (map.getSource("responderLocation")) {
-        const responderLoc = map.getSource(
-          "responderLocation"
-        ) as maplibregl.GeoJSONSource;
-        if (riskData.responderLocation !== undefined) {
-          responderLoc.setData(
-            typeof riskData.responderLocation === "string"
-              ? JSON.parse(riskData.responderLocation)
-              : riskData.responderLocation
-          );
-        }
-      } else {
-        map.addSource(`${hazard}-responder`, {
-          type: "geojson",
-          data:
-            typeof riskData.responderLocation === "string"
-              ? JSON.parse(riskData.responderLocation)
-              : riskData.responderLocation,
-        });
-      }
-
-      map
-        .loadImage("icons/responder.png")
-        .then((res) => {
-          const image = res.data;
-          if (!map.hasImage("icons/flooding.png")) {
-            map.addImage("responder", image);
-          }
-
-          map.addLayer({
-            id: "responderLocation",
-            type: "symbol",
-            source: `${hazard}-responder`,
-            // filter: ["has", "point_count"],
-            layout: {
-              "icon-image": "responder",
-              "icon-size": 0.5,
-            },
-          });
-        })
-        .catch((error) => {
-          console.error("Failed to load image:", error);
-        });
-
-      // Loading Responder Data
-      if (map.getSource("responderRange")) {
-        const responderLoc = map.getSource(
-          "responderRange"
-        ) as maplibregl.GeoJSONSource;
-        if (riskData.responderRange !== undefined) {
-          responderLoc.setData(
-            typeof riskData.responderRange === "string"
-              ? JSON.parse(riskData.responderRange)
-              : riskData.responderRange
-          );
-        }
-      } else {
-        map.addSource(`${hazard}-range`, {
-          type: "geojson",
-          data:
-            typeof riskData.responderRange === "string"
-              ? JSON.parse(riskData.responderRange)
-              : riskData.responderRange,
-        });
-      }
-
-      map.addLayer({
-        id: "responderRange",
-        type: "line",
-        source: `${hazard}-range`,
-        paint: { "line-color": "#008000", "line-width": 3 },
-      });
-
-      // Adding Cluster Layers
-      map.addLayer({
-        id: "clusters",
-        type: "circle",
-        source: `${hazard}-risk`,
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            "#f23411",
-            100,
-            "#f1f075",
-            750,
-            "#f28cb1",
-          ],
-          "circle-radius": [
-            "step",
-            ["get", "point_count"],
-            20,
-            100,
-            30,
-            750,
-            40,
-          ],
-        },
-      });
-
-      // Cluster Counts
-      map.addLayer({
-        id: "cluster-count",
-        type: "symbol",
-        source: `${hazard}-risk`,
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-font": ["Noto Sans Regular"],
-          "text-size": 12,
-        },
-      });
-
-      // Unclustered Points
-      map.addLayer({
-        id: "unclustered-point",
-        type: "circle",
-        source: `${hazard}-risk`,
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": "#11b4da",
-          "circle-radius": 4,
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#fff",
-        },
-      });
-
-      // Inspect cluster on click
-      map.on("click", "clusters", async (e) => {
-        const features = map.queryRenderedFeatures(e.point, {
-          layers: ["clusters"],
-        });
-        const clusterFeature = features[0] as ClusterFeature;
-        const clusterId = clusterFeature.properties.cluster_id;
-        const source = map.getSource(
-          `${hazard}-risk`
-        ) as maplibregl.GeoJSONSource & {
-          getClusterExpansionZoom: (clusterId: number) => Promise<number>;
-        };
-
-        const zoom = await source.getClusterExpansionZoom(clusterId);
-        const coordinates = (clusterFeature.geometry as GeoJSON.Point)
-          .coordinates;
-        map.easeTo({
-          center: coordinates as [number, number],
-          zoom,
-        });
-      });
-
-      // Cluster Controls
-      map.on("mouseenter", "clusters", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "clusters", () => {
-        map.getCanvas().style.cursor = "";
-      });
+      // Load initial hazard data (will be updated when riskDatabase becomes available)
+      const initialHazard = selectedRisk || "flooding";
+      console.log(`Map ready for hazard: ${initialHazard}`);
     });
 
     map.addControl(
@@ -403,17 +155,6 @@ export default function MapLibre3D({
           e.preventDefault();
           e.stopPropagation();
 
-          // Old Map Converter!
-
-          // const currentBearing = mapRef.current?.getBearing() ?? 0;
-          // const newBearing = currentBearing >= 180 ? 0 : 180;
-
-          // mapRef.current?.easeTo({
-          //   pitch: currentBearing >= 180 ? 0 : 60,
-          //   bearing: newBearing,
-          //   duration: 1000,
-          // });
-
           const is2D = mapRef.current?.getPitch() === 0;
 
           map.easeTo({
@@ -425,25 +166,94 @@ export default function MapLibre3D({
       }
     }, 500);
 
-    // // Add markers
-    // markers.forEach((marker) => {
-    //   const el = document.createElement("div");
-    //   el.className = "";
-    //   el.style.backgroundImage = `url(/icons/${marker.type}.svg)`; // e.g., responder.png
-    //   el.style.width = "32px";
-    //   el.style.height = "32px";
-    //   el.style.backgroundSize = "contain";
-
-    //   new maplibregl.Marker({ element: el })
-    //     .setLngLat([marker.lng, marker.lat])
-    //     .setPopup(new maplibregl.Popup().setText(marker.title || marker.type))
-    //     .addTo(map);
-    // });
-
     return () => {
       map.remove();
     };
   }, []);
+
+  // Handle boundary loading separately from hazard switching
+  useEffect(() => {
+    if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) {
+      console.log("Boundary loading skipped - map or data not ready", {
+        mapReady: !!mapRef.current,
+        dataReady: !!(riskDatabase && riskDatabase.length > 0)
+      });
+      return;
+    }
+
+    const map = mapRef.current;
+    console.log("🔄 Loading boundary data...");
+    console.log("📊 Risk database contents:", riskDatabase);
+
+    const boundary = riskDatabase.find(
+      (d: any) => d.id === "boundary"
+    ) as BoundaryEntry;
+
+    console.log("🎯 Boundary entry found:", boundary);
+
+    if (!boundary) {
+      console.warn("❌ Boundary entry not found in riskDatabase");
+      console.log("Available IDs:", riskDatabase.map((d: any) => d.id));
+      return;
+    }
+
+    if (!boundary.boundary) {
+      console.warn("❌ Boundary data is empty or undefined");
+      return;
+    }
+
+    try {
+      let boundaryData;
+      if (typeof boundary.boundary === "string") {
+        boundaryData = JSON.parse(boundary.boundary);
+        console.log("✅ Parsed boundary data from string");
+      } else {
+        boundaryData = boundary.boundary;
+        console.log("✅ Using boundary data directly");
+      }
+
+      console.log("🎯 Final boundary data:", boundaryData);
+
+      // Check if boundary data is valid GeoJSON
+      if (!boundaryData || !boundaryData.type) {
+        console.error("❌ Invalid boundary data - missing type property");
+        return;
+      }
+
+      if (map.getSource("boundary")) {
+        const boundarySource = map.getSource(
+          "boundary"
+        ) as maplibregl.GeoJSONSource;
+        boundarySource.setData(boundaryData);
+        console.log("🔄 Updated existing boundary source");
+      } else {
+        map.addSource("boundary", {
+          type: "geojson",
+          data: boundaryData,
+        });
+        console.log("➕ Added new boundary source");
+      }
+
+      if (!map.getLayer("boundary")) {
+        map.addLayer({
+          id: "boundary",
+          type: "line",
+          source: "boundary",
+          paint: {
+            "line-color": "#ff0000",
+            "line-width": 3,
+          },
+        });
+        console.log("✅ Added boundary layer successfully");
+      } else {
+        console.log("ℹ️ Boundary layer already exists");
+      }
+
+    } catch (error) {
+      console.error("❌ Error loading boundary:", error);
+      console.error("📄 Boundary data that caused error:", boundary.boundary);
+    }
+  }, [riskDatabase]);
 
   // Handle hazard switching without reloading the map
   useEffect(() => {
@@ -451,7 +261,7 @@ export default function MapLibre3D({
 
     const map = mapRef.current;
 
-    // Remove existing hazard layers and sources
+    // Remove existing hazard layers and sources (but NOT boundary)
     const layersToRemove = [
       `${currentHazard}-risk`,
       "responderLocation",

@@ -16,7 +16,10 @@ export default function Hazards() {
   const [riskData, setRiskData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResult, setSearchResult] = useState<{ lng: number; lat: number } | null>(null);
+  const [searchResult, setSearchResult] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,11 +32,49 @@ export default function Hazards() {
         }));
         console.log("Fetched data:", data);
         console.log("Data length:", data.length);
+        console.log(
+          "Document IDs:",
+          data.map((d) => d.id)
+        );
 
         // Check if boundary exists
-        const boundaryEntry = data.find(item => item.id === "boundary");
+        const boundaryEntry = data.find((item) => item.id === "boundary");
         console.log("Boundary entry:", boundaryEntry);
 
+        // Ensure boundary exists even with real data
+        const hasBoundary = data.some((item: any) => item.id === "boundary");
+        if (!hasBoundary) {
+          console.warn(
+            "No boundary in Firestore data, adding fallback boundary"
+          );
+          const fallbackBoundary = {
+            id: "boundary",
+            boundary: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  geometry: {
+                    type: "Polygon",
+                    coordinates: [
+                      [
+                        [122.4, 10.7],
+                        [122.6, 10.7],
+                        [122.6, 10.8],
+                        [122.4, 10.8],
+                        [122.4, 10.7],
+                      ],
+                    ],
+                  },
+                  properties: {
+                    name: "Santa Barbara Boundary (Fallback)",
+                  },
+                },
+              ],
+            },
+          };
+          data.unshift(fallbackBoundary);
+        }
         setRiskData(data);
       } catch (error) {
         console.error("Error fetching risk data:", error);
@@ -43,29 +84,41 @@ export default function Hazards() {
             id: "boundary",
             boundary: {
               type: "FeatureCollection",
-              features: [{
-                type: "Feature",
-                geometry: {
-                  type: "Polygon",
-                  coordinates: [[[122.4, 10.7], [122.6, 10.7], [122.6, 10.8], [122.4, 10.8], [122.4, 10.7]]]
-                }
-              }]
-            }
+              features: [
+                {
+                  type: "Feature",
+                  geometry: {
+                    type: "Polygon",
+                    coordinates: [
+                      [
+                        [122.4, 10.7],
+                        [122.6, 10.7],
+                        [122.6, 10.8],
+                        [122.4, 10.8],
+                        [122.4, 10.7],
+                      ],
+                    ],
+                  },
+                },
+              ],
+            },
           },
           {
             id: "flooding",
             risk: {
               type: "FeatureCollection",
-              features: [{
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [122.5, 10.75]
+              features: [
+                {
+                  type: "Feature",
+                  geometry: {
+                    type: "Point",
+                    coordinates: [122.5, 10.75],
+                  },
+                  properties: { riskScore: 0.8 },
                 },
-                properties: { riskScore: 0.8 }
-              }]
-            }
-          }
+              ],
+            },
+          },
         ];
         console.log("Using fallback data:", fallbackData);
         setRiskData(fallbackData);
@@ -92,8 +145,8 @@ export default function Hazards() {
 
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'EMERGE-Hazards-App/1.0'
-        }
+          "User-Agent": "EMERGE-Hazards-App/1.0",
+        },
       });
 
       if (!response.ok) {
@@ -108,9 +161,10 @@ export default function Hazards() {
         let bestResult = results[0];
 
         // Look for results in Santa Barbara, Iloilo
-        const santaBarbaraResult = results.find((result: any) =>
-          result.display_name?.toLowerCase().includes('santa barbara') ||
-          result.display_name?.toLowerCase().includes('iloilo')
+        const santaBarbaraResult = results.find(
+          (result: any) =>
+            result.display_name?.toLowerCase().includes("santa barbara") ||
+            result.display_name?.toLowerCase().includes("iloilo")
         );
 
         if (santaBarbaraResult) {
@@ -127,7 +181,7 @@ export default function Hazards() {
           lat: parseFloat(lat),
           found: true,
           displayName: display_name,
-          type: type
+          type: type,
         };
       }
 
@@ -137,15 +191,17 @@ export default function Hazards() {
 
       const broadResponse = await fetch(broadUrl, {
         headers: {
-          'User-Agent': 'EMERGE-Hazards-App/1.0'
-        }
+          "User-Agent": "EMERGE-Hazards-App/1.0",
+        },
       });
 
       if (broadResponse.ok) {
         const broadResults = await broadResponse.json();
         if (broadResults && broadResults.length > 0) {
           const { lat, lon, display_name, type } = broadResults[0];
-          console.log(`Found location (broad search): ${display_name} at [${lon}, ${lat}]`);
+          console.log(
+            `Found location (broad search): ${display_name} at [${lon}, ${lat}]`
+          );
 
           return {
             lng: parseFloat(lon),
@@ -153,16 +209,16 @@ export default function Hazards() {
             found: true,
             displayName: display_name,
             type: type,
-            note: "Location found outside Santa Barbara area"
+            note: "Location found outside Santa Barbara area",
           };
         }
       }
 
       return { found: false };
-
     } catch (error) {
       console.error("Search error:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       return { found: false, error: errorMessage };
     } finally {
       setIsSearching(false);
@@ -172,13 +228,20 @@ export default function Hazards() {
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await handleSearch(searchQuery);
-    if (result && result.found && result.lng !== undefined && result.lat !== undefined) {
+    if (
+      result &&
+      result.found &&
+      result.lng !== undefined &&
+      result.lat !== undefined
+    ) {
       setSearchResult({ lng: result.lng, lat: result.lat });
       console.log("Zooming to:", result);
       // Clear search result after a delay to allow re-searching
       setTimeout(() => setSearchResult(null), 100);
     } else {
-      alert(`Location "${searchQuery}" not found in Santa Barbara, Iloilo area. Try searching for:\n• Barangay names (e.g., "Barangay 1", "Poblacion")\n• Landmarks (e.g., "church", "school", "market")\n• Streets or neighborhoods\n• Check spelling and try again`);
+      alert(
+        `Location "${searchQuery}" not found in Santa Barbara, Iloilo area. Try searching for:\n• Barangay names (e.g., "Barangay 1", "Poblacion")\n• Landmarks (e.g., "church", "school", "market")\n• Streets or neighborhoods\n• Check spelling and try again`
+      );
     }
   };
 
@@ -255,7 +318,7 @@ export default function Hazards() {
               placeholder="Search Santa Barbara, Iloilo (e.g., Barangay 1, Poblacion, landmarks)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit(e)}
+              onKeyPress={(e) => e.key === "Enter" && handleSearchSubmit(e)}
             />
             <button
               type="button"
