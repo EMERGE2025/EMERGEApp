@@ -18,14 +18,54 @@ export default function Hazards() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("Fetching data from Firestore...");
         const querySnapshot = await getDocs(collection(db, "PH063043000"));
         const data = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
+        console.log("Fetched data:", data);
+        console.log("Data length:", data.length);
+
+        // Check if boundary exists
+        const boundaryEntry = data.find(item => item.id === "boundary");
+        console.log("Boundary entry:", boundaryEntry);
+
         setRiskData(data);
       } catch (error) {
         console.error("Error fetching risk data:", error);
+        // Set fallback data for testing
+        const fallbackData = [
+          {
+            id: "boundary",
+            boundary: {
+              type: "FeatureCollection",
+              features: [{
+                type: "Feature",
+                geometry: {
+                  type: "Polygon",
+                  coordinates: [[[122.4, 10.7], [122.6, 10.7], [122.6, 10.8], [122.4, 10.8], [122.4, 10.7]]]
+                }
+              }]
+            }
+          },
+          {
+            id: "flooding",
+            risk: {
+              type: "FeatureCollection",
+              features: [{
+                type: "Feature",
+                geometry: {
+                  type: "Point",
+                  coordinates: [122.5, 10.75]
+                },
+                properties: { riskScore: 0.8 }
+              }]
+            }
+          }
+        ];
+        console.log("Using fallback data:", fallbackData);
+        setRiskData(fallbackData);
       }
     };
     fetchData();

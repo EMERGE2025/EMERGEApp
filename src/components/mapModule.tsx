@@ -91,6 +91,7 @@ export default function MapLibre3D({
 }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([]);
+  const [currentHazard, setCurrentHazard] = useState<string>("");
 
   // console.log(riskDatabase);
 
@@ -173,15 +174,17 @@ export default function MapLibre3D({
         },
       });
 
-      // Specific Risk Data
-      const hazard = selectedRisk;
-
-      // Loading Hazard Layer
+      // Specific Risk Data - Default to flooding if no hazard selected
+      const hazard = selectedRisk || "flooding";
       const riskData = riskDatabase.find(
         (d: { id: string }) => d.id === hazard
       ) as HazardEntry;
 
-      // console.log(riskData);
+      // Set current hazard for tracking
+      setCurrentHazard(hazard);
+
+      console.log(`Loading initial hazard: ${hazard}`);
+      console.log("Risk data:", riskData);
 
       if (map.getSource(hazard)) {
         const riskSource = map.getSource(hazard) as maplibregl.GeoJSONSource;
@@ -438,7 +441,256 @@ export default function MapLibre3D({
     return () => {
       map.remove();
     };
-  }, [selectedRisk]);
+  }, []);
 
-  return <div id="map" className="w-full h-[90vh] z-0 rounded-xl shadow-lg" key={selectedRisk} />;
+  // Handle hazard switching without reloading the map
+  useEffect(() => {
+    if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) return;
+
+    const map = mapRef.current;
+
+    // Remove existing hazard layers and sources
+    const layersToRemove = [
+      `${currentHazard}-risk`,
+      "responderLocation",
+      "responderRange",
+      "clusters",
+      "cluster-count",
+      "unclustered-point"
+    ];
+
+    layersToRemove.forEach(layerId => {
+      if (map.getLayer(layerId)) {
+        map.removeLayer(layerId);
+      }
+    });
+
+    const sourcesToRemove = [
+      `${currentHazard}-risk`,
+      `${currentHazard}-responder`,
+      `${currentHazard}-range`
+    ];
+
+    sourcesToRemove.forEach(sourceId => {
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+    });
+
+    // Load new hazard data
+    const hazard = selectedRisk;
+    const riskData = riskDatabase.find(
+      (d: { id: string }) => d.id === hazard
+    ) as HazardEntry;
+
+    if (!riskData || !riskData.risk) {
+      console.warn(`Risk data for ${hazard} not found`);
+      return;
+    }
+
+    // Add new sources and layers
+    try {
+      if (map.getSource(`${hazard}-risk`)) {
+        const riskSource = map.getSource(`${hazard}-risk`) as maplibregl.GeoJSONSource;
+        riskSource.setData(
+          typeof riskData.risk === "string"
+            ? JSON.parse(riskData.risk)
+            : riskData.risk
+        );
+      } else {
+        map.addSource(`${hazard}-risk`, {
+          type: "geojson",
+          data:
+            typeof riskData.risk === "string"
+              ? JSON.parse(riskData.risk)
+              : riskData.risk,
+          cluster: true,
+          clusterMaxZoom: 17,
+          clusterRadius: 50,
+        });
+      }
+
+      // Load hazard icon
+      map
+        .loadImage(`icons/${hazard}.png`)
+        .then((res) => {
+          const image = res.data;
+          if (!map.hasImage(hazard)) {
+            map.addImage(hazard, image);
+          }
+
+          map.addLayer({
+            id: `${hazard}-risk`,
+            type: "symbol",
+            source: `${hazard}-risk`,
+            filter: ["!", ["has", "point_count"]],
+            layout: {
+              "icon-image": hazard,
+              "icon-size": 0.5,
+            },
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to load hazard image:", error);
+        });
+
+      // Add responder data
+      if (map.getSource(`${hazard}-responder`)) {
+        const responderLoc = map.getSource(`${hazard}-responder`) as maplibregl.GeoJSONSource;
+        if (riskData.responderLocation) {
+          responderLoc.setData(
+            typeof riskData.responderLocation === "string"
+              ? JSON.parse(riskData.responderLocation)
+              : riskData.responderLocation
+          );
+        }
+      } else {
+        map.addSource(`${hazard}-responder`, {
+          type: "geojson",
+          data:
+            typeof riskData.responderLocation === "string"
+              ? JSON.parse(riskData.responderLocation)
+              : riskData.responderLocation,
+        });
+      }
+
+      map
+        .loadImage("icons/responder.png")
+        .then((res) => {
+          const image = res.data;
+          if (!map.hasImage("responder")) {
+            map.addImage("responder", image);
+          }
+
+          map.addLayer({
+            id: "responderLocation",
+            type: "symbol",
+            source: `${hazard}-responder`,
+            layout: {
+              "icon-image": "responder",
+              "icon-size": 0.5,
+            },
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to load responder image:", error);
+        });
+
+      // Add responder range
+      if (map.getSource(`${hazard}-range`)) {
+        const responderRange = map.getSource(`${hazard}-range`) as maplibregl.GeoJSONSource;
+        if (riskData.responderRange) {
+          responderRange.setData(
+            typeof riskData.responderRange === "string"
+              ? JSON.parse(riskData.responderRange)
+              : riskData.responderRange
+          );
+        }
+      } else {
+        map.addSource(`${hazard}-range`, {
+          type: "geojson",
+          data:
+            typeof riskData.responderRange === "string"
+              ? JSON.parse(riskData.responderRange)
+              : riskData.responderRange,
+        });
+      }
+
+      map.addLayer({
+        id: "responderRange",
+        type: "line",
+        source: `${hazard}-range`,
+        paint: { "line-color": "#008000", "line-width": 3 },
+      });
+
+      // Add cluster layers
+      map.addLayer({
+        id: "clusters",
+        type: "circle",
+        source: `${hazard}-risk`,
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": [
+            "step",
+            ["get", "point_count"],
+            "#f23411",
+            100,
+            "#f1f075",
+            750,
+            "#f28cb1",
+          ],
+          "circle-radius": [
+            "step",
+            ["get", "point_count"],
+            20,
+            100,
+            30,
+            750,
+            40,
+          ],
+        },
+      });
+
+      map.addLayer({
+        id: "cluster-count",
+        type: "symbol",
+        source: `${hazard}-risk`,
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": "{point_count_abbreviated}",
+          "text-font": ["Noto Sans Regular"],
+          "text-size": 12,
+        },
+      });
+
+      map.addLayer({
+        id: "unclustered-point",
+        type: "circle",
+        source: `${hazard}-risk`,
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": "#11b4da",
+          "circle-radius": 4,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      // Update click handlers
+      map.on("click", "clusters", async (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ["clusters"],
+        });
+        const clusterFeature = features[0] as ClusterFeature;
+        const clusterId = clusterFeature.properties.cluster_id;
+        const source = map.getSource(
+          `${hazard}-risk`
+        ) as maplibregl.GeoJSONSource & {
+          getClusterExpansionZoom: (clusterId: number) => Promise<number>;
+        };
+
+        const zoom = await source.getClusterExpansionZoom(clusterId);
+        const coordinates = (clusterFeature.geometry as GeoJSON.Point)
+          .coordinates;
+        map.easeTo({
+          center: coordinates as [number, number],
+          zoom,
+        });
+      });
+
+      // Update mouse events
+      map.on("mouseenter", "clusters", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "clusters", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      setCurrentHazard(selectedRisk);
+    } catch (error) {
+      console.error("Error switching hazard:", error);
+    }
+  }, [selectedRisk, riskDatabase, currentHazard]);
+
+  return <div id="map" className="w-full h-[90vh] z-0 rounded-xl shadow-lg" />;
 }
