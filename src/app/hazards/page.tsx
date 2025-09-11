@@ -1,10 +1,15 @@
+"use server";
+
 import { ListIcon } from "@phosphor-icons/react/dist/ssr";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr";
-import CustomButton from "../components/customButton";
-import ClientOnly from "../components/clientOnly";
-import MapLibre3D from "../components/mapModule";
-import { MarkerData } from "../components/mapModule";
-import { iconType } from "../components/mapModule";
+import CustomButton from "@/components/customButton";
+import ClientOnly from "@/components/clientOnly";
+import MapLibre3D from "@/components/mapModule";
+import { iconType } from "@/components/mapModule";
+
+import { adminDb } from "@/utils/firebaseAdmin";
+import fs from "fs";
+import path from "path";
 
 export default async function Hazards() {
   let max = 4;
@@ -16,19 +21,87 @@ export default async function Hazards() {
     4: "responder",
   };
 
-  const flooding = await fetch("http://localhost:8000/api/risk/flooding", {
-    cache: "no-store",
-    method: "POST",
-  });
+  // Simple daily cache using a file (for server-side, not for client-side)
+  const cacheFile = path.resolve("/tmp/hazard_cache.json");
+  let riskData: any[] = [];
 
-  const landslide = await fetch("http://localhost:8000/api/risk/landslide", {
-    cache: "no-store",
-    method: "POST",
-  });
+  const now = new Date();
+  let cacheValid = false;
 
-  if (!flooding.ok && !landslide.ok) {
-    throw new Error("Failed to fetch GeoJSON");
+  if (fs.existsSync(cacheFile)) {
+    const cache = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
+    const lastFetched = new Date(cache.timestamp);
+    // Check if cache is from today
+    cacheValid =
+      lastFetched.getFullYear() === now.getFullYear() &&
+      lastFetched.getMonth() === now.getMonth() &&
+      lastFetched.getDate() === now.getDate();
+
+    if (cacheValid) {
+      riskData = cache.data;
+    }
   }
+
+  if (!cacheValid) {
+    const snapshot = await adminDb.collection("PH063043000").get();
+    riskData = snapshot.docs.map((docs) => ({
+      id: docs.id,
+      ...docs.data(),
+    }));
+    fs.writeFileSync(
+      cacheFile,
+      JSON.stringify({ timestamp: now.toISOString(), data: riskData })
+    );
+  }
+
+  // const snapshot = await adminDb.collection("PH063043000").get();
+  // console.log(snapshot.docs);
+  // const riskData = snapshot.docs.map((docs) => ({
+  //   id: docs.id,
+  //   ...docs.data(),
+  // }));
+
+  // console.log(riskData);
+
+  // console.log(riskData[0].boundary);
+  // console.log(riskData[1].responderLocation);
+  // console.log(riskData[2].responderRange);
+
+  // const riskData = snapshot.docs.map((doc) => {
+  //   const data = doc.data();
+
+  //   return {
+  //     id: doc.id,
+  //     ...Object.fromEntries(
+  //       Object.entries(data).map(([key, value]) => {
+  //         try {
+  //           // Try to parse value as JSON, if possible
+  //           return [key, JSON.parse(value)];
+  //         } catch {
+  //           // Otherwise just return as-is
+  //           return [key, value];
+  //         }
+  //       })
+  //     ),
+  //   };
+  // });
+  // console.log(riskData);
+
+  // console.log(riskData[0]?.boundary);
+
+  // const flooding = await fetch("http://localhost:8000/api/risk/flooding", {
+  //   cache: "no-store",
+  //   method: "POST",
+  // });
+
+  // const landslide = await fetch("http://localhost:8000/api/risk/landslide", {
+  //   cache: "no-store",
+  //   method: "POST",
+  // });
+
+  // if (!flooding.ok && !landslide.ok) {
+  //   throw new Error("Failed to fetch GeoJSON");
+  // }
 
   // const markers: MarkerData[] = Array.from({ length: 500 }, (_, i) => ({
   //   id: i,
@@ -38,8 +111,8 @@ export default async function Hazards() {
   //   title: `Marker ${i}`,
   // }));
 
-  const floodJson = await flooding.json();
-  const landslideJson = await landslide.json();
+  // const floodJson = await flooding.json();
+  // const landslideJson = await landslide.json();
 
   return (
     <main className="flex flex-col bg-white justify-between">
@@ -71,8 +144,7 @@ export default async function Hazards() {
             // markers={markers}
             mapType="liberty"
             selectedRisk="flooding"
-            floodingGeoJson={floodJson}
-            landslideGeoJson={landslideJson}
+            riskDatabase={riskData}
           />
         </ClientOnly>
       </div>

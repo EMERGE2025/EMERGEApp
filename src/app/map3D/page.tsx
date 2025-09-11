@@ -1,6 +1,6 @@
-import ClientOnly from "../components/clientOnly";
-import MapLibre3D from "../components/mod3D";
-import { MarkerData } from "../components/mod3D";
+import ClientOnly from "../../components/clientOnly";
+import MapLibre3D from "../../components/mod3D";
+import { MarkerData } from "../../components/mod3D";
 
 export type iconType = "earthquake" | "landslide" | "flood" | "responder";
 

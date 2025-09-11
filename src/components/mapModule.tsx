@@ -2,7 +2,7 @@
 
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type MarkerData = {
   id: number;
@@ -66,22 +66,37 @@ const RotateControl = () => {
   return new Control();
 };
 
+type GJ = GeoJSON.FeatureCollection | GeoJSON.Feature | string;
+
+interface BoundaryEntry {
+  id: "boundary";
+  boundary: GJ;
+}
+
+interface HazardEntry {
+  id: "flooding" | "landslide" | (string & {});
+  risk: GJ;
+  responderRange?: GJ;
+  responderLocation?: GJ;
+}
+
 export default function MapLibre3D({
   // markers,
   mapType = "liberty",
   // selectedRisk = "flooding",
-  floodingGeoJson,
-  landslideGeoJson,
+  riskDatabase,
 }: {
   // markers: MarkerData[];
-  mapType: string;
+  mapType: mapType;
   selectedRisk: string;
-  floodingGeoJson: string;
-  landslideGeoJson: string;
+  riskDatabase: Record<string, any>;
 }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const [activeLayers, setActiveLayers] = useState<string[]>([]);
 
-  console.log(floodingGeoJson);
+  // console.log(riskDatabase);
+
+  // console.log(riskDatabase[0].boundary);
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -94,6 +109,8 @@ export default function MapLibre3D({
       dragRotate: true,
       dragPan: true,
     });
+
+    // console.log()
 
     // map.addSource("geojson", {
     //   type: "geojson",
@@ -115,14 +132,69 @@ export default function MapLibre3D({
 
     map.on("load", () => {
       // Getting Source Data
-      if (map.getSource("flooding")) {
-        const source = map.getSource("flooding") as maplibregl.GeoJSONSource;
-        source.setData(floodingGeoJson);
+      // if (map.getSource("flooding")) {
+      //   const source = map.getSource("flooding") as maplibregl.GeoJSONSource;
+      //   source.setData(floodingGeoJson);
+      // } else {
+      //   // Flooding Geojson Data
+      //   map.addSource("flooding", {
+      //     type: "geojson",
+      //     data: floodingGeoJson,
+      //     cluster: true,
+      //     clusterMaxZoom: 17,
+      //     clusterRadius: 50,
+      //   });
+      // }
+
+      const boundary = riskDatabase.find(
+        (d: { id: string }) => d.id === "boundary"
+      ) as BoundaryEntry;
+
+      if (map.getSource("boundary")) {
+        const boundarySource = map.getSource(
+          "boundary"
+        ) as maplibregl.GeoJSONSource;
+        boundarySource.setData(boundary.boundary);
       } else {
-        // Flooding Geojson Data
-        map.addSource("flooding", {
+        map.addSource("boundary", {
           type: "geojson",
-          data: floodingGeoJson,
+          data:
+            typeof boundary.boundary === "string"
+              ? JSON.parse(boundary.boundary)
+              : boundary.boundary,
+        });
+      }
+
+      map.addLayer({
+        id: "boundary",
+        type: "line",
+        source: "boundary",
+        paint: {
+          "line-color": "#ff0000",
+          "line-width": 3,
+        },
+      });
+
+      // Specific Risk Data
+      const hazard = "flooding";
+
+      // Loading Flooding Layer
+      const riskData = riskDatabase.find(
+        (d: { id: string }) => d.id === hazard
+      ) as HazardEntry;
+
+      // console.log(riskData);
+
+      if (map.getSource(hazard)) {
+        const riskSource = map.getSource(hazard) as maplibregl.GeoJSONSource;
+        riskSource.setData(riskData.risk);
+      } else {
+        map.addSource(`${hazard}-risk`, {
+          type: "geojson",
+          data:
+            typeof riskData.risk === "string"
+              ? JSON.parse(riskData.risk)
+              : riskData.risk,
           cluster: true,
           clusterMaxZoom: 17,
           clusterRadius: 50,
@@ -130,20 +202,20 @@ export default function MapLibre3D({
       }
 
       map
-        .loadImage("icons/flooding.png")
+        .loadImage(`icons/${hazard}.png`)
         .then((res) => {
           const image = res.data;
-          if (!map.hasImage("icons/flooding.png")) {
-            map.addImage("flooding", image);
+          if (!map.hasImage(`icons/${hazard}.png`)) {
+            map.addImage(hazard, image);
           }
 
           map.addLayer({
-            id: "flooding",
+            id: `${hazard}-risk`,
             type: "symbol",
-            source: "flooding",
+            source: `${hazard}-risk`,
             filter: ["!", ["has", "point_count"]],
             layout: {
-              "icon-image": "flooding",
+              "icon-image": hazard,
               "icon-size": 0.5,
             },
           });
@@ -152,11 +224,85 @@ export default function MapLibre3D({
           console.error("Failed to load image:", error);
         });
 
+      // Loading Responder Data
+      if (map.getSource("responderLocation")) {
+        const responderLoc = map.getSource(
+          "responderLocation"
+        ) as maplibregl.GeoJSONSource;
+        if (riskData.responderLocation !== undefined) {
+          responderLoc.setData(
+            typeof riskData.responderLocation === "string"
+              ? JSON.parse(riskData.responderLocation)
+              : riskData.responderLocation
+          );
+        }
+      } else {
+        map.addSource(`${hazard}-responder`, {
+          type: "geojson",
+          data:
+            typeof riskData.responderLocation === "string"
+              ? JSON.parse(riskData.responderLocation)
+              : riskData.responderLocation,
+        });
+      }
+
+      map
+        .loadImage("icons/responder.png")
+        .then((res) => {
+          const image = res.data;
+          if (!map.hasImage("icons/flooding.png")) {
+            map.addImage("responder", image);
+          }
+
+          map.addLayer({
+            id: "responderLocation",
+            type: "symbol",
+            source: `${hazard}-responder`,
+            // filter: ["has", "point_count"],
+            layout: {
+              "icon-image": "responder",
+              "icon-size": 0.5,
+            },
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to load image:", error);
+        });
+
+      // Loading Responder Data
+      if (map.getSource("responderRange")) {
+        const responderLoc = map.getSource(
+          "responderRange"
+        ) as maplibregl.GeoJSONSource;
+        if (riskData.responderRange !== undefined) {
+          responderLoc.setData(
+            typeof riskData.responderRange === "string"
+              ? JSON.parse(riskData.responderRange)
+              : riskData.responderRange
+          );
+        }
+      } else {
+        map.addSource(`${hazard}-range`, {
+          type: "geojson",
+          data:
+            typeof riskData.responderRange === "string"
+              ? JSON.parse(riskData.responderRange)
+              : riskData.responderRange,
+        });
+      }
+
+      map.addLayer({
+        id: "responderRange",
+        type: "line",
+        source: `${hazard}-range`,
+        paint: { "line-color": "#008000", "line-width": 3 },
+      });
+
       // Adding Cluster Layers
       map.addLayer({
         id: "clusters",
         type: "circle",
-        source: "flooding",
+        source: `${hazard}-risk`,
         filter: ["has", "point_count"],
         paint: {
           "circle-color": [
@@ -184,7 +330,7 @@ export default function MapLibre3D({
       map.addLayer({
         id: "cluster-count",
         type: "symbol",
-        source: "flooding",
+        source: `${hazard}-risk`,
         filter: ["has", "point_count"],
         layout: {
           "text-field": "{point_count_abbreviated}",
@@ -197,7 +343,7 @@ export default function MapLibre3D({
       map.addLayer({
         id: "unclustered-point",
         type: "circle",
-        source: "flooding",
+        source: `${hazard}-risk`,
         filter: ["!", ["has", "point_count"]],
         paint: {
           "circle-color": "#11b4da",
@@ -214,7 +360,9 @@ export default function MapLibre3D({
         });
         const clusterFeature = features[0] as ClusterFeature;
         const clusterId = clusterFeature.properties.cluster_id;
-        const source = map.getSource("flooding") as maplibregl.GeoJSONSource & {
+        const source = map.getSource(
+          `${hazard}-risk`
+        ) as maplibregl.GeoJSONSource & {
           getClusterExpansionZoom: (clusterId: number) => Promise<number>;
         };
 
