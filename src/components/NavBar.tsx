@@ -3,19 +3,27 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useAuth } from '../contexts/AuthContext';
+import { useHazard } from '../contexts/HazardContext';
 
 export default function NavBar() {
   const [mapsOpen, setMapsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const { hazardType, setHazardType } = useHazard();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Element;
-      if (!target.closest('.dropdown')) setMapsOpen(false);
+      if (!target.closest('.dropdown')) {
+        setMapsOpen(false);
+        setProfileOpen(false);
+      }
     }
-    if (mapsOpen) document.addEventListener('mousedown', handleClickOutside);
+    if (mapsOpen || profileOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [mapsOpen]);
+  }, [mapsOpen, profileOpen]);
 
   return (
     <nav className="sticky top-0 bg-[#faf5f5] px-6 py-2 flex items-center justify-between z-50 shadow">
@@ -64,20 +72,86 @@ export default function NavBar() {
         <li>
           <Link href="/responder-allocation" className="font-medium text-black hover:text-[#B92727] transition-colors">Responder Allocation</Link>
         </li>
-        <li>
-          <Link href="/about" className="font-medium text-black hover:text-[#B92727] transition-colors">About</Link>
-        </li>
-      </ul>
+         <li>
+           <Link href="/about" className="font-medium text-black hover:text-[#B92727] transition-colors">About</Link>
+         </li>
+         {user?.email?.includes('admin') && (
+           <li>
+             <Link href="/admin" className="font-medium text-black hover:text-[#B92727] transition-colors">Admin</Link>
+           </li>
+         )}
+       </ul>
 
-      <button className="hidden md:flex items-center bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold gap-2">
-        <div className="flex flex-col items-end mr-2">
-          <span>Anna Freeman</span>
-          <span className="text-xs font-normal opacity-85 -mt-1">Responder</span>
+       <div className="hidden md:flex items-center gap-2 ml-8">
+         <button
+           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+             hazardType === 'landslide'
+               ? 'bg-[#B92727] text-white'
+               : 'bg-gray-200 text-black hover:bg-gray-300'
+           }`}
+           onClick={() => setHazardType('landslide')}
+         >
+           Landslide
+         </button>
+         <button
+           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+             hazardType === 'flooding'
+               ? 'bg-[#B92727] text-white'
+               : 'bg-gray-200 text-black hover:bg-gray-300'
+           }`}
+           onClick={() => setHazardType('flooding')}
+         >
+           Flooding
+         </button>
+       </div>
+
+      {user ? (
+        <div className="relative dropdown">
+          <button
+            className="hidden md:flex items-center bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold gap-2"
+            onClick={() => setProfileOpen(!profileOpen)}
+          >
+            <div className="flex flex-col items-end mr-2">
+              <span>{user.displayName || user.email?.split('@')[0]}</span>
+              <span className="text-xs font-normal opacity-85 -mt-1">
+                {user.email?.includes('admin') ? 'Administrator' : 'User'}
+              </span>
+            </div>
+            <div className="w-9 h-9 rounded-full overflow-hidden">
+              <Image
+                src={user.photoURL || '/profile.jpg'}
+                alt="Profile"
+                width={36}
+                height={36}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
+          </button>
+          {profileOpen && (
+            <ul className="absolute right-0 top-12 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
+              <li>
+                <button className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left">
+                  Edit Profile
+                </button>
+              </li>
+              <li>
+                <button
+                  className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left"
+                  onClick={logout}
+                >
+                  Logout
+                </button>
+              </li>
+            </ul>
+          )}
         </div>
-        <div className="w-9 h-9 rounded-full overflow-hidden">
-          <Image src="/profile.jpg" alt="Profile" width={36} height={36} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-      </button>
+      ) : (
+        <Link href="/login">
+          <button className="hidden md:flex items-center bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold">
+            Login
+          </button>
+        </Link>
+      )}
 
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setMobileOpen(false)}></div>
@@ -117,19 +191,63 @@ export default function NavBar() {
             <li>
               <Link href="/responder-allocation" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>Responder Allocation</Link>
             </li>
-            <li>
-              <Link href="/about" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>About</Link>
-            </li>
-          </ul>
-          <div className="mt-auto flex items-center bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold gap-2">
-            <div className="flex flex-col items-end mr-2">
-              <span>Anna Freeman</span>
-              <span className="text-xs font-normal opacity-85 -mt-1">Responder</span>
+             <li>
+               <Link href="/about" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>About</Link>
+             </li>
+             {user?.email?.includes('admin') && (
+               <li>
+                 <Link href="/admin" className="font-medium text-black hover:text-[#B92727]" onClick={() => setMobileOpen(false)}>Admin</Link>
+               </li>
+             )}
+           </ul>
+
+           <div className="flex flex-col gap-2 mt-4">
+             <button
+               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                 hazardType === 'landslide'
+                   ? 'bg-[#B92727] text-white'
+                   : 'bg-gray-200 text-black hover:bg-gray-300'
+               }`}
+               onClick={() => setHazardType('landslide')}
+             >
+               Landslide
+             </button>
+             <button
+               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                 hazardType === 'flooding'
+                   ? 'bg-[#B92727] text-white'
+                   : 'bg-gray-200 text-black hover:bg-gray-300'
+               }`}
+               onClick={() => setHazardType('flooding')}
+             >
+               Flooding
+             </button>
+           </div>
+          {user ? (
+            <div className="mt-auto flex items-center bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold gap-2">
+              <div className="flex flex-col items-end mr-2">
+                <span>{user.displayName || user.email?.split('@')[0]}</span>
+                <span className="text-xs font-normal opacity-85 -mt-1">
+                  {user.email?.includes('admin') ? 'Administrator' : 'User'}
+                </span>
+              </div>
+              <div className="w-9 h-9 rounded-full overflow-hidden">
+                <Image
+                  src={user.photoURL || '/profile.jpg'}
+                  alt="Profile"
+                  width={36}
+                  height={36}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
             </div>
-            <div className="w-9 h-9 rounded-full overflow-hidden">
-              <Image src="/profile.jpg" alt="Profile" width={36} height={36} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          </div>
+          ) : (
+            <Link href="/login" onClick={() => setMobileOpen(false)}>
+              <button className="mt-auto bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold">
+                Login
+              </button>
+            </Link>
+          )}
         </div>
       </div>
     </nav>

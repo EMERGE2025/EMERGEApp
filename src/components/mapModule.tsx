@@ -81,12 +81,10 @@ interface HazardEntry {
 }
 
 export default function MapLibre3D({
-  // markers,
   mapType = "liberty",
-  // selectedRisk = "flooding",
+  selectedRisk,
   riskDatabase,
 }: {
-  // markers: MarkerData[];
   mapType: mapType;
   selectedRisk: string;
   riskDatabase: Record<string, any>;
@@ -176,9 +174,9 @@ export default function MapLibre3D({
       });
 
       // Specific Risk Data
-      const hazard = "flooding";
+      const hazard = selectedRisk;
 
-      // Loading Flooding Layer
+      // Loading Hazard Layer
       const riskData = riskDatabase.find(
         (d: { id: string }) => d.id === hazard
       ) as HazardEntry;
@@ -440,7 +438,7 @@ export default function MapLibre3D({
     return () => {
       map.remove();
     };
-  }, []);
+  }, [selectedRisk]);
 
-  return <div id="map" className="w-full h-[90vh] z-0 rounded-xl shadow-lg" />;
+  return <div id="map" className="w-full h-[90vh] z-0 rounded-xl shadow-lg" key={selectedRisk} />;
 }

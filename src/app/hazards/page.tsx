@@ -1,5 +1,6 @@
-"use server";
+"use client";
 
+import { useState, useEffect } from "react";
 import { ListIcon } from "@phosphor-icons/react/dist/ssr";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr";
 import CustomButton from "@/components/customButton";
@@ -7,52 +8,28 @@ import ClientOnly from "@/components/clientOnly";
 import MapLibre3D from "@/components/mapModule";
 import { iconType } from "@/components/mapModule";
 
-import { adminDb } from "@/utils/firebaseAdmin";
-import fs from "fs";
-import path from "path";
+import { db } from "@/utils/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
-export default async function Hazards() {
-  let max = 4;
+export default function Hazards() {
+  const [selectedRisk, setSelectedRisk] = useState("flooding");
+  const [riskData, setRiskData] = useState<any[]>([]);
 
-  const iconIndex: Record<number, iconType> = {
-    1: "earthquake",
-    2: "flood",
-    3: "landslide",
-    4: "responder",
-  };
-
-  // Simple daily cache using a file (for server-side, not for client-side)
-  const cacheFile = path.resolve("/tmp/hazard_cache.json");
-  let riskData: any[] = [];
-
-  const now = new Date();
-  let cacheValid = false;
-
-  if (fs.existsSync(cacheFile)) {
-    const cache = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
-    const lastFetched = new Date(cache.timestamp);
-    // Check if cache is from today
-    cacheValid =
-      lastFetched.getFullYear() === now.getFullYear() &&
-      lastFetched.getMonth() === now.getMonth() &&
-      lastFetched.getDate() === now.getDate();
-
-    if (cacheValid) {
-      riskData = cache.data;
-    }
-  }
-
-  if (!cacheValid) {
-    const snapshot = await adminDb.collection("PH063043000").get();
-    riskData = snapshot.docs.map((docs) => ({
-      id: docs.id,
-      ...docs.data(),
-    }));
-    fs.writeFileSync(
-      cacheFile,
-      JSON.stringify({ timestamp: now.toISOString(), data: riskData })
-    );
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "PH063043000"));
+        const data = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setRiskData(data);
+      } catch (error) {
+        console.error("Error fetching risk data:", error);
+      }
+    };
+    fetchData();
+  }, []);
 
   // const snapshot = await adminDb.collection("PH063043000").get();
   // console.log(snapshot.docs);
@@ -130,20 +107,31 @@ export default async function Hazards() {
           </div>
         </div>
         <div className="flex w-1/2 justify-end gap-5 px-10 py-2">
-          {/* Flood dw */}
-          <CustomButton text={"Flood"} status={"active"} />
+          {/* Flood */}
+          <CustomButton
+            text={"Flood"}
+            status={selectedRisk === "flooding" ? "active" : "default"}
+            onClick={() => setSelectedRisk("flooding")}
+          />
           {/* Landslide */}
-          <CustomButton text={"Landslide"} status={"default"} />
+          <CustomButton
+            text={"Landslide"}
+            status={selectedRisk === "landslide" ? "active" : "default"}
+            onClick={() => setSelectedRisk("landslide")}
+          />
           {/* Earthquake */}
-          <CustomButton text={"Earthquake"} status={"default"} />
+          <CustomButton
+            text={"Earthquake"}
+            status={selectedRisk === "earthquake" ? "active" : "default"}
+            onClick={() => setSelectedRisk("earthquake")}
+          />
         </div>
       </div>
       <div id="map">
         <ClientOnly>
           <MapLibre3D
-            // markers={markers}
             mapType="liberty"
-            selectedRisk="flooding"
+            selectedRisk={selectedRisk}
             riskDatabase={riskData}
           />
         </ClientOnly>

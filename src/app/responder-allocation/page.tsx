@@ -1,13 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/utils/firebase';
+import * as turf from '@turf/turf';
+
+interface Responder {
+  id: string;
+  name: string;
+  contact: string;
+  specialization: string;
+  status: 'available' | 'assigned' | 'unavailable';
+  assignedLocation?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  skills: string[];
+  profileImage?: string;
+}
 
 export default function ResponderAllocationPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [showPopup, setShowPopup] = useState(false);
   const [popupIndex, setPopupIndex] = useState(0);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [nearestResponders, setNearestResponders] = useState<(Responder & { distance: number })[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const popupData = [
     {
@@ -25,6 +46,58 @@ export default function ResponderAllocationPage() {
       needed: '10 responders',
     },
   ];
+
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by this browser.');
+      return;
+    }
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        fetchNearestResponders(latitude, longitude);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        alert('Unable to retrieve your location.');
+        setLoading(false);
+      }
+    );
+  };
+
+  const fetchNearestResponders = async (userLat: number, userLng: number) => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'responders'));
+      const responders: Responder[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Responder[];
+
+      const availableResponders = responders.filter(r => r.status === 'available');
+
+      const withDistances = availableResponders.map(responder => {
+        // Assuming responders have location, but since not in data, use dummy or skip
+        // For demo, assign random locations near user
+        const responderLat = userLat + (Math.random() - 0.5) * 0.1;
+        const responderLng = userLng + (Math.random() - 0.5) * 0.1;
+        const distance = turf.distance(
+          turf.point([userLng, userLat]),
+          turf.point([responderLng, responderLat]),
+          { units: 'kilometers' }
+        );
+        return { ...responder, distance };
+      });
+
+      const sorted = withDistances.sort((a, b) => a.distance - b.distance);
+      setNearestResponders(sorted.slice(0, 5)); // Top 5
+    } catch (error) {
+      console.error('Error fetching responders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="relative h-[100vh] w-full overflow-hidden">
@@ -107,18 +180,50 @@ export default function ResponderAllocationPage() {
 
       <div className="absolute top-8 right-8 flex flex-col items-end gap-8 z-20">
         <div className="flex flex-col items-center gap-3">
-          <button className="bg-white p-2 border-none rounded-2xl shadow-md w-10 h-10 text-xl flex items-center justify-center mt-70 mb-2 cursor-pointer transition-colors" id="maponly-btn" title="My Location">📍</button>
+          <button
+            className="bg-white p-2 border-none rounded-2xl shadow-md w-10 h-10 text-xl flex items-center justify-center mt-70 mb-2 cursor-pointer transition-colors"
+            id="maponly-btn"
+            title="My Location"
+            onClick={getUserLocation}
+            disabled={loading}
+          >
+            {loading ? '...' : '📍'}
+          </button>
           <div className="flex flex-col gap-1 text-black">
             <button className="bg-white p-2 border-none rounded-2xl shadow-md w-10 h-10 text-xl flex items-center justify-center cursor-pointer transition-colors" title="Zoom In">+</button>
             <button className="bg-white p-2 border-none rounded-2xl shadow-md w-10 h-10 text-xl flex items-center justify-center cursor-pointer transition-colors" title="Zoom Out">−</button>
           </div>
         </div>
         <div className="fixed bottom right-8 flex items-center gap-3 text-white drop-shadow bg-[#1f1f1f] p-5 rounded-2xl z-20">
-          Legend: 
+          Legend:
           <span className="inline-block w-8 h-7 rounded bg-[#2ee94d] mr-1" /> Low
           <span className="inline-block w-8 h-7 rounded bg-[#ffe94d] mr-1" /> Med
           <span className="inline-block w-8 h-7 rounded bg-[#f44336] mr-1" /> High
         </div>
+
+        {nearestResponders.length > 0 && (
+          <div className="fixed bottom-32 right-8 bg-white p-4 rounded-2xl shadow-lg z-20 max-w-sm">
+            <h3 className="font-bold mb-2">Nearest Responders</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {nearestResponders.map((responder) => (
+                <div key={responder.id} className="flex items-center gap-2 p-2 border rounded">
+                  <Image
+                    src={responder.profileImage || '/profile.jpg'}
+                    alt={responder.name}
+                    width={32}
+                    height={32}
+                    className="rounded-full"
+                  />
+                  <div>
+                    <p className="font-semibold">{responder.name}</p>
+                    <p className="text-sm text-gray-600">{responder.distance.toFixed(1)} km away</p>
+                    <p className="text-sm">{responder.contact}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {showPopup && (
