@@ -29,3 +29,62 @@ body {
   font-family: 'Archivo', sans-serif;
 }
 
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .mobile-safe-area {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Ensure touch targets are at least 44px */
+  button, .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Improve text readability on mobile */
+  body {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+}
+
+/* Hide scrollbar on mobile but keep functionality */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+}
+
+/* Fix for MapLibre GL canvas interference with controls */
+.maplibregl-canvas,
+.maplibregl-canvas-container,
+.mapboxgl-canvas {
+  z-index: 1 !important;
+}
+
+/* Ensure controls stay visible and on top */
+.controls-overlay,
+.controls-overlay * {
+  z-index: 100 !important;
+  position: absolute !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Emergency visibility fix for any hidden elements */
+[style*="display: none"],
+[style*="visibility: hidden"],
+[style*="opacity: 0"] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Specific override for our controls */
+.absolute.z-\\ * {
+  z-index: 100 !important;
+}
+

@@ -27,7 +27,7 @@ export default function NavBar() {
   }, [mapsOpen, profileOpen]);
 
   return (
-    <nav className="sticky top-0 bg-[#faf5f5] px-6 py-2 flex items-center justify-between z-50 shadow">
+    <nav className="sticky top-0 bg-[#faf5f5] px-4 md:px-6 py-2 md:py-3 flex items-center justify-between z-50 shadow min-h-[60px] md:min-h-[64px]">
       <div className="flex items-center">
         <Link href="/">
           {" "}
@@ -185,11 +185,11 @@ export default function NavBar() {
         ></div>
       )}
 
-      <div
-        className={`fixed top-0 right-0 h-full w-64 bg-[#faf5f5] shadow-lg z-50 transform transition-transform duration-300 md:hidden ${
-          mobileOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
+        <div
+          className={`fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-[#faf5f5] shadow-lg z-50 transform transition-transform duration-300 md:hidden ${
+            mobileOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
         <div className="flex flex-col h-full p-6">
           <button
             className="self-end mb-6"

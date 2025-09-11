@@ -3,6 +3,7 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
+import { MagnifyingGlassIcon, X } from "@phosphor-icons/react/dist/ssr";
 
 export type MarkerData = {
   id: number;
@@ -85,11 +86,21 @@ export default function MapLibre3D({
   selectedRisk,
   riskDatabase,
   searchLocation,
+  searchQuery,
+  setSearchQuery,
+  onSearchSubmit,
+  isSearching,
+  onHazardChange,
 }: {
   mapType: mapType;
   selectedRisk: string;
   riskDatabase: Record<string, any>;
   searchLocation?: { lng: number; lat: number } | null;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  onSearchSubmit: () => void;
+  isSearching: boolean;
+  onHazardChange: (hazard: string) => void;
 }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([]);
@@ -176,7 +187,7 @@ export default function MapLibre3D({
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) {
       console.log("Boundary loading skipped - map or data not ready", {
         mapReady: !!mapRef.current,
-        dataReady: !!(riskDatabase && riskDatabase.length > 0)
+        dataReady: !!(riskDatabase && riskDatabase.length > 0),
       });
       return;
     }
@@ -193,7 +204,10 @@ export default function MapLibre3D({
 
     if (!boundary) {
       console.warn("❌ Boundary entry not found in riskDatabase");
-      console.log("Available IDs:", riskDatabase.map((d: any) => d.id));
+      console.log(
+        "Available IDs:",
+        riskDatabase.map((d: any) => d.id)
+      );
       return;
     }
 
@@ -248,7 +262,6 @@ export default function MapLibre3D({
       } else {
         console.log("ℹ️ Boundary layer already exists");
       }
-
     } catch (error) {
       console.error("❌ Error loading boundary:", error);
       console.error("📄 Boundary data that caused error:", boundary.boundary);
@@ -268,10 +281,10 @@ export default function MapLibre3D({
       "responderRange",
       "clusters",
       "cluster-count",
-      "unclustered-point"
+      "unclustered-point",
     ];
 
-    layersToRemove.forEach(layerId => {
+    layersToRemove.forEach((layerId) => {
       if (map.getLayer(layerId)) {
         map.removeLayer(layerId);
       }
@@ -280,10 +293,10 @@ export default function MapLibre3D({
     const sourcesToRemove = [
       `${currentHazard}-risk`,
       `${currentHazard}-responder`,
-      `${currentHazard}-range`
+      `${currentHazard}-range`,
     ];
 
-    sourcesToRemove.forEach(sourceId => {
+    sourcesToRemove.forEach((sourceId) => {
       if (map.getSource(sourceId)) {
         map.removeSource(sourceId);
       }
@@ -303,7 +316,9 @@ export default function MapLibre3D({
     // Add new sources and layers
     try {
       if (map.getSource(`${hazard}-risk`)) {
-        const riskSource = map.getSource(`${hazard}-risk`) as maplibregl.GeoJSONSource;
+        const riskSource = map.getSource(
+          `${hazard}-risk`
+        ) as maplibregl.GeoJSONSource;
         riskSource.setData(
           typeof riskData.risk === "string"
             ? JSON.parse(riskData.risk)
@@ -348,7 +363,9 @@ export default function MapLibre3D({
 
       // Add responder data
       if (map.getSource(`${hazard}-responder`)) {
-        const responderLoc = map.getSource(`${hazard}-responder`) as maplibregl.GeoJSONSource;
+        const responderLoc = map.getSource(
+          `${hazard}-responder`
+        ) as maplibregl.GeoJSONSource;
         if (riskData.responderLocation) {
           responderLoc.setData(
             typeof riskData.responderLocation === "string"
@@ -390,7 +407,9 @@ export default function MapLibre3D({
 
       // Add responder range
       if (map.getSource(`${hazard}-range`)) {
-        const responderRange = map.getSource(`${hazard}-range`) as maplibregl.GeoJSONSource;
+        const responderRange = map.getSource(
+          `${hazard}-range`
+        ) as maplibregl.GeoJSONSource;
         if (riskData.responderRange) {
           responderRange.setData(
             typeof riskData.responderRange === "string"
@@ -535,8 +554,165 @@ export default function MapLibre3D({
     setTimeout(() => {
       marker.remove();
     }, 5000);
-
   }, [searchLocation]);
 
-  return <div id="map" className="w-full h-[90vh] z-0 rounded-xl shadow-lg" />;
+  // Ensure controls remain visible after map loads
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const ensureControlsVisible = () => {
+      const controls = document.querySelector(".controls-overlay");
+      if (controls) {
+        (controls as HTMLElement).style.display = "block";
+        (controls as HTMLElement).style.visibility = "visible";
+        (controls as HTMLElement).style.opacity = "1";
+        (controls as HTMLElement).style.zIndex = "100";
+        (controls as HTMLElement).style.position = "absolute";
+      }
+    };
+
+    // Force visibility after map load
+    mapRef.current.on("load", () => {
+      setTimeout(ensureControlsVisible, 100);
+    });
+
+    // Also ensure visibility on any map interaction
+    mapRef.current.on("moveend", ensureControlsVisible);
+    mapRef.current.on("zoomend", ensureControlsVisible);
+    mapRef.current.on("rotateend", ensureControlsVisible);
+  }, []);
+
+  return (
+    <>
+      <div className="relative w-full h-[calc(100vh-120px)] md:h-[90vh] z-0 rounded-xl shadow-lg">
+        {/* Map Container */}
+        <div id="map" className="w-full h-full" />
+      </div>
+
+      {/* Integrated Controls Overlay - Distributed positioning */}
+      {/* Search Bar - Top Left */}
+      <div className="absolute top-2 md:top-4 left-2 md:left-4 z-[100] pointer-events-none">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 max-w-full md:max-w-md pointer-events-auto border border-white/20">
+          <div className="flex items-center gap-1 md:gap-2">
+            <div className="bg-red-500 rounded-full p-1.5 md:p-2">
+              <MagnifyingGlassIcon size={14} weight="bold" color="#fff" />
+            </div>
+            <input
+              type="text"
+              className="flex-1 bg-transparent outline-none text-xs md:text-sm placeholder-gray-500"
+              placeholder="Search locations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && onSearchSubmit()}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-gray-400 hover:text-gray-600 p-1 min-w-[24px] min-h-[24px] flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            )}
+            <button
+              onClick={onSearchSubmit}
+              disabled={isSearching}
+              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full p-1.5 md:p-2 transition-colors min-w-[36px] min-h-[36px] md:min-w-[40px] md:min-h-[40px] flex items-center justify-center"
+            >
+              {isSearching ? (
+                <div className="animate-spin w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full"></div>
+              ) : (
+                <MagnifyingGlassIcon size={14} weight="bold" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Hazard Control Buttons - Top Center */}
+      <div className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 z-[100] pointer-events-none">
+        <div className="flex flex-row gap-1 md:gap-2 pointer-events-auto">
+          <button
+            onClick={() => onHazardChange("flooding")}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
+              selectedRisk === "flooding"
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-blue-200"
+                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
+            }`}
+            title="Flood Hazard"
+          >
+            <img
+              src="/icons/flooding.png"
+              alt="Flood"
+              className="w-5 h-5 md:w-6 md:h-6"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/icons/flooding.svg";
+              }}
+            />
+          </button>
+
+          <button
+            onClick={() => onHazardChange("landslide")}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
+              selectedRisk === "landslide"
+                ? "ring-2 ring-orange-500 bg-orange-50 shadow-orange-200"
+                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
+            }`}
+            title="Landslide Hazard"
+          >
+            <img
+              src="/icons/landslide.png"
+              alt="Landslide"
+              className="w-5 h-5 md:w-6 md:h-6"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/icons/landslide.svg";
+              }}
+            />
+          </button>
+
+          <button
+            onClick={() => onHazardChange("earthquake")}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
+              selectedRisk === "earthquake"
+                ? "ring-2 ring-red-500 bg-red-50 shadow-red-200"
+                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
+            }`}
+            title="Earthquake Hazard"
+          >
+            <img
+              src="/icons/earthquake.png"
+              alt="Earthquake"
+              className="w-5 h-5 md:w-6 md:h-6"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/icons/earthquake.svg";
+              }}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Legend - Bottom Right */}
+      <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20">
+        <div className="text-xs font-semibold text-gray-700 mb-1 md:mb-2">
+          Legend
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1 md:gap-2">
+            <div className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></div>
+            <span className="text-xs text-gray-600">High Risk</span>
+          </div>
+          <div className="flex items-center gap-1 md:gap-2">
+            <div className="w-2 h-2 md:w-3 md:h-3 bg-yellow-500 rounded-full"></div>
+            <span className="text-xs text-gray-600">Medium Risk</span>
+          </div>
+          <div className="flex items-center gap-1 md:gap-2">
+            <div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full"></div>
+            <span className="text-xs text-gray-600">Low Risk</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }

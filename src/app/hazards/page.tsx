@@ -1,12 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ListIcon } from "@phosphor-icons/react/dist/ssr";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr";
-import CustomButton from "@/components/customButton";
 import ClientOnly from "@/components/clientOnly";
 import MapLibre3D from "@/components/mapModule";
-import { iconType } from "@/components/mapModule";
 
 import { db } from "@/utils/firebase";
 import { collection, getDocs } from "firebase/firestore";
@@ -225,8 +221,8 @@ export default function Hazards() {
     }
   };
 
-  const handleSearchSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearchSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault;
     const result = await handleSearch(searchQuery);
     if (
       result &&
@@ -306,63 +302,19 @@ export default function Hazards() {
   // const landslideJson = await landslide.json();
 
   return (
-    <main className="flex flex-col bg-white justify-between">
-      <div className="flex w-full items-center text-black z-100 absolute p-5">
-        {/* Search Bar Here */}
-        <div className="flex w-1/2 items-center gap-2">
-          <ListIcon size={32} />
-          <div className="rounded-full w-1/2 bg-red-500 flex items-center p-2 gap-2">
-            <input
-              type="text"
-              className="bg-red-50 w-full rounded-full px-5 py-1"
-              placeholder="Search Santa Barbara, Iloilo (e.g., Barangay 1, Poblacion, landmarks)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSearchSubmit(e)}
-            />
-            <button
-              type="button"
-              onClick={handleSearchSubmit}
-              disabled={isSearching}
-              className="disabled:opacity-50 hover:bg-red-600 transition-colors rounded-full p-1"
-              title={isSearching ? "Searching..." : "Search location"}
-            >
-              {isSearching ? (
-                <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full"></div>
-              ) : (
-                <MagnifyingGlassIcon size={32} weight="bold" color="#fff" />
-              )}
-            </button>
-          </div>
-        </div>
-        <div className="flex w-1/2 justify-end gap-5 px-10 py-2">
-          {/* Flood */}
-          <CustomButton
-            text={"Flood"}
-            status={selectedRisk === "flooding" ? "active" : "default"}
-            onClick={() => setSelectedRisk("flooding")}
-          />
-          {/* Landslide */}
-          <CustomButton
-            text={"Landslide"}
-            status={selectedRisk === "landslide" ? "active" : "default"}
-            onClick={() => setSelectedRisk("landslide")}
-          />
-          {/* Earthquake */}
-          <CustomButton
-            text={"Earthquake"}
-            status={selectedRisk === "earthquake" ? "active" : "default"}
-            onClick={() => setSelectedRisk("earthquake")}
-          />
-        </div>
-      </div>
-      <div id="map">
+    <main className="flex flex-col bg-white justify-between min-h-screen relative">
+      <div id="map" className="relative">
         <ClientOnly>
           <MapLibre3D
             mapType="liberty"
             selectedRisk={selectedRisk}
             riskDatabase={riskData}
             searchLocation={searchResult}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onSearchSubmit={() => handleSearchSubmit({} as React.FormEvent)}
+            isSearching={isSearching}
+            onHazardChange={setSelectedRisk}
           />
         </ClientOnly>
       </div>
