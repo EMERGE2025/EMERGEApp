@@ -3,8 +3,15 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import { MagnifyingGlassIcon, X, Flame } from "@phosphor-icons/react/dist/ssr";
-import * as turf from '@turf/turf';
+import {
+  MagnifyingGlassIcon,
+  X,
+  Flame,
+  Eye,
+  EyeSlash,
+  Info,
+  Globe,
+} from "@phosphor-icons/react/dist/ssr";
 
 export type MarkerData = {
   id: number;
@@ -28,45 +35,45 @@ interface ClusterFeature extends maplibregl.MapGeoJSONFeature {
 export type iconType = "earthquake" | "landslide" | "flood" | "responder";
 export type mapType = "liberty" | "positron" | "bright";
 
-const RotateControl = () => {
-  class Control {
-    _map: maplibregl.Map | undefined;
-    _container!: HTMLElement;
+// const RotateControl = () => {
+//   class Control {
+//     _map: maplibregl.Map | undefined;
+//     _container!: HTMLElement;
 
-    onAdd(map: maplibregl.Map) {
-      this._map = map;
-      this._container = document.createElement("div");
-      this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+//     onAdd(map: maplibregl.Map) {
+//       this._map = map;
+//       this._container = document.createElement("div");
+//       this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
 
-      const button = document.createElement("button");
-      button.className = "maplibregl-ctrl-icon text-black font-bold";
-      button.type = "button";
-      button.title = "Rotate Map";
-      button.innerHTML = "⟳";
+//       const button = document.createElement("button");
+//       button.className = "maplibregl-ctrl-icon text-black font-bold";
+//       button.type = "button";
+//       button.title = "Rotate Map";
+//       button.innerHTML = "⟳";
 
-      button.onclick = () => {
-        const currentBearing = map.getBearing();
-        map.easeTo({
-          bearing: currentBearing + 90,
-          duration: 800,
-        });
-      };
+//       button.onclick = () => {
+//         const currentBearing = map.getBearing();
+//         map.easeTo({
+//           bearing: currentBearing + 90,
+//           duration: 800,
+//         });
+//       };
 
-      this._container.appendChild(button);
-      return this._container;
-    }
+//       this._container.appendChild(button);
+//       return this._container;
+//     }
 
-    onRemove() {
-      this._container.parentNode?.removeChild(this._container);
-      this._map = undefined;
-    }
+//     onRemove() {
+//       this._container.parentNode?.removeChild(this._container);
+//       this._map = undefined;
+//     }
 
-    getDefaultPosition(): maplibregl.ControlPosition {
-      return "top-right";
-    }
-  }
-  return new Control();
-};
+//     getDefaultPosition(): maplibregl.ControlPosition {
+//       return "top-right";
+//     }
+//   }
+//   return new Control();
+// };
 
 type GJ = GeoJSON.FeatureCollection | GeoJSON.Feature | string;
 
@@ -107,14 +114,14 @@ export default function MapLibre3D({
   const [activeLayers, setActiveLayers] = useState<string[]>([]);
   const [currentHazard, setCurrentHazard] = useState<string>("");
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState<boolean>(false);
-  const [gridSize, setGridSize] = useState<number>(0.01); // Grid cell size in degrees
+  const [areMarkersVisible, setAreMarkersVisible] = useState<boolean>(true);
+  const [isLegendVisible, setIsLegendVisible] = useState<boolean>(false);
+  const [is3D, setIs3D] = useState<boolean>(true);
 
   // Toggle heatmap visibility
   const toggleHeatmap = () => {
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) {
-      console.warn('Cannot toggle heatmap: map or data not ready');
-      console.log('Map ready:', !!mapRef.current);
-      console.log('Risk database:', riskDatabase);
+      console.warn("Cannot toggle heatmap: map or data not ready");
       return;
     }
 
@@ -122,22 +129,25 @@ export default function MapLibre3D({
     const hazard = selectedRisk;
     const heatmapLayerId = `${hazard}-heatmap`;
 
-    console.log(`🔥 Toggling grid heatmap for ${hazard}, current state: ${isHeatmapEnabled}`);
-    console.log('Available layers:', map.getStyle().layers.map(l => l.id));
+    console.log(
+      `🔥 Toggling enhanced vulnerability heatmap for ${hazard}, current state: ${isHeatmapEnabled}`
+    );
 
     if (isHeatmapEnabled) {
       // Hide heatmap
       if (map.getLayer(heatmapLayerId)) {
-        map.setLayoutProperty(heatmapLayerId, 'visibility', 'none');
+        map.setLayoutProperty(heatmapLayerId, "visibility", "none");
         console.log(`👁️ Hidden grid heatmap: ${heatmapLayerId}`);
       } else {
-        console.log(`⚠️ Tried to hide ${heatmapLayerId} but layer doesn't exist`);
+        console.log(
+          `⚠️ Tried to hide ${heatmapLayerId} but layer doesn't exist`
+        );
       }
       setIsHeatmapEnabled(false);
     } else {
       // Show heatmap
       if (map.getLayer(heatmapLayerId)) {
-        map.setLayoutProperty(heatmapLayerId, 'visibility', 'visible');
+        map.setLayoutProperty(heatmapLayerId, "visibility", "visible");
         console.log(`👁️ Shown existing grid heatmap: ${heatmapLayerId}`);
       } else {
         // Create heatmap if it doesn't exist
@@ -148,21 +158,74 @@ export default function MapLibre3D({
     }
   };
 
-  // Create simple test heatmap layer
-  const createHeatmapLayer = (hazard: string) => {
-    if (!mapRef.current || !riskDatabase) {
-      console.error('Map or risk database not available');
+  // Toggle marker visibility
+  const toggleMarkers = () => {
+    if (!mapRef.current) {
+      console.warn("Cannot toggle markers: map not ready");
       return;
     }
 
     const map = mapRef.current;
-    console.log('Creating simple test heatmap with riskDatabase:', riskDatabase.map((d: any) => d.id));
+    const hazard = selectedRisk;
+
+    console.log(
+      `📍 Toggling markers for ${hazard}, current state: ${areMarkersVisible}`
+    );
+
+    // Layer IDs to toggle
+    const markerLayers = [
+      `${hazard}-risk`,
+      "responderLocation",
+      "clusters",
+      "cluster-count",
+      "unclustered-point",
+    ];
+
+    if (areMarkersVisible) {
+      // Hide markers
+      markerLayers.forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, "visibility", "none");
+          console.log(`👁️ Hidden marker layer: ${layerId}`);
+        }
+      });
+      setAreMarkersVisible(false);
+    } else {
+      // Show markers
+      markerLayers.forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, "visibility", "visible");
+          console.log(`👁️ Shown marker layer: ${layerId}`);
+        }
+      });
+      setAreMarkersVisible(true);
+    }
+  };
+
+  // Create enhanced density-based heatmap with population vulnerability
+  const createHeatmapLayer = (hazard: string) => {
+    if (!mapRef.current || !riskDatabase) {
+      console.error("Map or risk database not available");
+      return;
+    }
+
+    const map = mapRef.current;
+    console.log(
+      "Creating enhanced vulnerability heatmap with riskDatabase:",
+      riskDatabase.map((d: any) => d.id)
+    );
 
     const riskData = riskDatabase.find(
       (d: { id: string }) => d.id === hazard
     ) as HazardEntry;
 
+    // Get population vulnerability data
+    const vulnerabilityData = riskDatabase.find(
+      (d: any) => d.id === "population_vulnerability"
+    ) as any;
+
     console.log(`Risk data for ${hazard}:`, riskData);
+    console.log(`Population vulnerability data:`, vulnerabilityData);
 
     if (!riskData || !riskData.risk) {
       console.error(`No risk data found for ${hazard}`);
@@ -174,166 +237,244 @@ export default function MapLibre3D({
 
     try {
       // Parse hazard data
-      const hazardGeoJSON = typeof riskData.risk === 'string'
-        ? JSON.parse(riskData.risk)
-        : riskData.risk;
+      const hazardGeoJSON =
+        typeof riskData.risk === "string"
+          ? JSON.parse(riskData.risk)
+          : riskData.risk;
 
-      console.log(`🔥 Creating simple test heatmap for ${hazard}`);
+      console.log(`🔥 Creating enhanced vulnerability heatmap for ${hazard}`);
       console.log(`📊 Hazard points: ${hazardGeoJSON.features?.length || 0}`);
+      console.log(
+        `👥 Population vulnerability data available:`,
+        !!vulnerabilityData
+      );
 
-      // Create a simple colored overlay for testing
-      // Use the bounding box of all hazard points
       if (!hazardGeoJSON.features || hazardGeoJSON.features.length === 0) {
-        console.error('No hazard features found');
+        console.error("No hazard features found");
         return;
       }
 
-      // Calculate bounding box from hazard points
-      let minLng = Infinity, maxLng = -Infinity;
-      let minLat = Infinity, maxLat = -Infinity;
+      // Enhance hazard data with population vulnerability
+      const enhancedFeatures = hazardGeoJSON.features.map((feature: any) => {
+        const coords = feature.geometry.coordinates;
+        let vulnerabilityScore = 0.5; // Default vulnerability
 
-      hazardGeoJSON.features.forEach((feature: any) => {
-        const [lng, lat] = feature.geometry.coordinates;
-        minLng = Math.min(minLng, lng);
-        maxLng = Math.max(maxLng, lng);
-        minLat = Math.min(minLat, lat);
-        maxLat = Math.max(maxLat, lat);
+        // If we have population vulnerability data, find the closest vulnerability point
+        if (vulnerabilityData && vulnerabilityData.vulnerability) {
+          const vulnData =
+            typeof vulnerabilityData.vulnerability === "string"
+              ? JSON.parse(vulnerabilityData.vulnerability)
+              : vulnerabilityData.vulnerability;
+
+          if (vulnData && vulnData.features) {
+            // Find closest vulnerability point (simplified - in production you'd use spatial indexing)
+            let closestDistance = Infinity;
+            let closestVulnerability = 0.5;
+
+            vulnData.features.forEach((vulnFeature: any) => {
+              const vulnCoords = vulnFeature.geometry.coordinates;
+              const distance = Math.sqrt(
+                Math.pow(coords[0] - vulnCoords[0], 2) +
+                  Math.pow(coords[1] - vulnCoords[1], 2)
+              );
+
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                closestVulnerability =
+                  vulnFeature.properties?.vulnerabilityIndex || 0.5;
+              }
+            });
+
+            vulnerabilityScore = closestVulnerability;
+          }
+        }
+
+        // Calculate combined risk score (hazard intensity * population vulnerability)
+        const hazardScore = feature.properties?.riskScore || 0.5;
+        const combinedRiskScore = hazardScore * vulnerabilityScore;
+
+        return {
+          ...feature,
+          properties: {
+            ...feature.properties,
+            vulnerabilityScore: vulnerabilityScore,
+            combinedRiskScore: combinedRiskScore,
+            originalRiskScore: hazardScore,
+          },
+        };
       });
 
-      console.log('Calculated bounds:', { minLng, maxLng, minLat, maxLat });
-
-      // Create a simple grid of colored squares
-      const gridFeatures: GeoJSON.Feature[] = [];
-      const gridSize = 0.01; // 0.01 degrees ≈ 1km
-
-      for (let lng = minLng; lng < maxLng; lng += gridSize) {
-        for (let lat = minLat; lat < maxLat; lat += gridSize) {
-          // Count points in this grid cell
-          let pointCount = 0;
-          hazardGeoJSON.features.forEach((point: any) => {
-            const [pLng, pLat] = point.geometry.coordinates;
-            if (pLng >= lng && pLng < lng + gridSize &&
-                pLat >= lat && pLat < lat + gridSize) {
-              pointCount++;
-            }
-          });
-
-          // Determine color based on point count
-          let color = '#00ff00'; // Green - low
-          let riskLevel = 'low';
-
-          if (pointCount === 0) {
-            color = 'rgba(0,255,0,0.1)';
-            riskLevel = 'none';
-          } else if (pointCount <= 2) {
-            color = '#00ff00';
-            riskLevel = 'low';
-          } else if (pointCount <= 5) {
-            color = '#ffff00';
-            riskLevel = 'medium';
-          } else {
-            color = '#ff0000';
-            riskLevel = 'high';
-          }
-
-          // Create square polygon for this grid cell
-          const square: GeoJSON.Feature = {
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: [[
-                [lng, lat],
-                [lng + gridSize, lat],
-                [lng + gridSize, lat + gridSize],
-                [lng, lat + gridSize],
-                [lng, lat]
-              ]]
-            },
-            properties: {
-              pointCount: pointCount,
-              riskLevel: riskLevel,
-              color: color
-            }
-          };
-
-          gridFeatures.push(square);
-        }
-      }
-
-      console.log(`Created ${gridFeatures.length} grid squares`);
-
-      // Create heatmap GeoJSON
-      const heatmapData: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: gridFeatures
+      const enhancedGeoJSON = {
+        ...hazardGeoJSON,
+        features: enhancedFeatures,
       };
+
+      console.log(
+        `📈 Enhanced ${enhancedFeatures.length} features with vulnerability data`
+      );
+      console.log(`🎯 Combined risk scores calculated`);
+      console.log(
+        `📊 Sample combined risk scores:`,
+        enhancedFeatures.slice(0, 3).map((f: any) => ({
+          hazard: f.properties.originalRiskScore,
+          vulnerability: f.properties.vulnerabilityScore,
+          combined: f.properties.combinedRiskScore,
+        }))
+      );
 
       // Remove existing layers if they exist
       if (map.getLayer(heatmapLayerId)) {
         map.removeLayer(heatmapLayerId);
-        console.log('Removed existing heatmap layer');
+        console.log("Removed existing heatmap layer");
       }
       if (map.getSource(heatmapSourceId)) {
         map.removeSource(heatmapSourceId);
-        console.log('Removed existing heatmap source');
+        console.log("Removed existing heatmap source");
       }
 
-      // Add heatmap source
+      // Add heatmap source with enhanced data
       map.addSource(heatmapSourceId, {
-        type: 'geojson',
-        data: heatmapData,
+        type: "geojson",
+        data: enhancedGeoJSON,
       });
-      console.log('Added heatmap source');
+      console.log("Added enhanced heatmap source");
 
       // Find the right position to insert layer
       const layers = map.getStyle().layers || [];
       let insertBeforeLayer = undefined;
 
-      // Place before hazard markers or boundary
+      // Place before hazard markers for better visibility
       for (const layer of layers) {
-        if (layer.type === 'symbol' && layer.id.includes('-risk')) {
+        if (layer.type === "symbol" && layer.id.includes("-risk")) {
           insertBeforeLayer = layer.id;
           break;
         }
       }
 
       if (!insertBeforeLayer) {
-        const boundaryLayer = layers.find(layer => layer.id === 'boundary');
+        const boundaryLayer = layers.find((layer) => layer.id === "boundary");
         insertBeforeLayer = boundaryLayer ? boundaryLayer.id : undefined;
       }
 
-      console.log('Inserting heatmap layer before:', insertBeforeLayer);
+      console.log(
+        "Inserting enhanced heatmap layer before:",
+        insertBeforeLayer
+      );
 
-      // Add heatmap layer
-      map.addLayer({
-        id: heatmapLayerId,
-        type: 'fill',
-        source: heatmapSourceId,
-        paint: {
-          'fill-color': [
-            'match',
-            ['get', 'riskLevel'],
-            'none', 'rgba(0,255,0,0.1)',
-            'low', '#00ff00',
-            'medium', '#ffff00',
-            'high', '#ff0000',
-            'rgba(0,255,0,0.1)' // default
-          ],
-          'fill-opacity': [
-            'match',
-            ['get', 'riskLevel'],
-            'none', 0.1,
-            'low', 0.4,
-            'medium', 0.5,
-            'high', 0.6,
-            0.1 // default
-          ],
-          'fill-outline-color': 'rgba(0,0,0,0.1)'
-        }
-      }, insertBeforeLayer);
+      // Add enhanced density heatmap layer
+      map.addLayer(
+        {
+          id: heatmapLayerId,
+          type: "heatmap",
+          source: heatmapSourceId,
+          maxzoom: 18,
+          paint: {
+            // Weight based on combined risk score (hazard * vulnerability)
+            "heatmap-weight": [
+              "interpolate",
+              ["linear"],
+              ["get", "combinedRiskScore"],
+              0,
+              0,
+              0.1,
+              0.1,
+              0.25,
+              0.25,
+              0.5,
+              0.5,
+              0.75,
+              0.75,
+              1,
+              1,
+            ],
+            // Intensity increases with zoom level
+            "heatmap-intensity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              0.5,
+              10,
+              1,
+              15,
+              2,
+              18,
+              3,
+            ],
+            // Enhanced color gradient for combined risk assessment
+            "heatmap-color": [
+              "interpolate",
+              ["linear"],
+              ["heatmap-density"],
+              0,
+              "rgba(34,197,94,0)", // No risk - transparent green
+              0.1,
+              "rgba(34,197,94,0.4)", // Very low - light green
+              0.2,
+              "rgba(34,197,94,0.6)", // Low - green
+              0.3,
+              "rgba(251,191,36,0.6)", // Low-medium - yellow
+              0.4,
+              "rgba(251,191,36,0.7)", // Medium - yellow
+              0.5,
+              "rgba(245,158,11,0.8)", // Medium-high - orange
+              0.6,
+              "rgba(239,68,68,0.8)", // High - red
+              0.7,
+              "rgba(220,38,38,0.9)", // Very high - dark red
+              0.8,
+              "rgba(185,28,28,0.9)", // Critical - darker red
+              0.9,
+              "rgba(153,27,27,0.95)", // Extreme - very dark red
+              1,
+              "rgba(127,29,29,1)", // Maximum - darkest red
+            ],
+            // Radius adjusts with zoom for optimal viewing
+            "heatmap-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              8,
+              12,
+              12,
+              25,
+              15,
+              35,
+              18,
+              55,
+            ],
+            // Opacity for smooth transitions
+            "heatmap-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              8,
+              0.7,
+              12,
+              0.9,
+              18,
+              0.8,
+            ],
+          },
+        },
+        insertBeforeLayer
+      );
 
-      console.log(`✅ Created simple test heatmap for ${hazard}`);
-      console.log('Available layers:', map.getStyle().layers.map(l => l.id));
+      console.log(`✅ Created enhanced vulnerability heatmap for ${hazard}`);
+      console.log(
+        "Available layers:",
+        map.getStyle().layers.map((l: any) => l.id)
+      );
+
+      // Log data structure expectations
+      if (!vulnerabilityData) {
+        console.log(
+          `ℹ️ No population vulnerability data found. To enable enhanced risk assessment, add data with id: "population_vulnerability"`
+        );
+        console.log(
+          `📋 Expected structure: { id: "population_vulnerability", vulnerability: GeoJSON with features having properties.vulnerabilityIndex (0-1) }`
+        );
+      }
 
       // Test if layer was added successfully
       setTimeout(() => {
@@ -343,12 +484,17 @@ export default function MapLibre3D({
         console.log(`Source ${heatmapSourceId} exists:`, !!sourceExists);
 
         if (layerExists) {
-          console.log('Layer visibility:', map.getLayoutProperty(heatmapLayerId, 'visibility'));
+          console.log(
+            "Layer visibility:",
+            map.getLayoutProperty(heatmapLayerId, "visibility")
+          );
         }
       }, 1000);
-
     } catch (error) {
-      console.error(`❌ Error creating simple test heatmap for ${hazard}:`, error);
+      console.error(
+        `❌ Error creating enhanced vulnerability heatmap for ${hazard}:`,
+        error
+      );
     }
   };
 
@@ -394,34 +540,59 @@ export default function MapLibre3D({
       // Load initial hazard data (will be updated when riskDatabase becomes available)
       const initialHazard = selectedRisk || "flooding";
       console.log(`Map ready for hazard: ${initialHazard}`);
+
+      // Add mobile-specific styles for controls
+      const style = document.createElement('style');
+      style.textContent = `
+        @media (max-width: 768px) {
+          .maplibregl-ctrl {
+            font-size: 8px !important;
+            padding: 1px !important;
+          }
+          .maplibregl-ctrl-icon {
+            width: 16px !important;
+            height: 16px !important;
+          }
+          .maplibregl-ctrl-group {
+            margin: 1px !important;
+          }
+          .maplibregl-ctrl button {
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            min-height: 24px !important;
+          }
+        }
+      `;
+      document.head.appendChild(style);
     });
 
     map.addControl(
       new maplibregl.NavigationControl({ visualizePitch: true }),
       "bottom-right"
     );
-    map.addControl(RotateControl(), "bottom-right");
+    // map.addControl(RotateControl(), "bottom-right");
 
-    setTimeout(() => {
-      const compass = document.querySelector(
-        ".maplibregl-ctrl-compass"
-      ) as HTMLButtonElement;
+    // setTimeout(() => {
+    //   const compass = document.querySelector(
+    //     ".maplibregl-ctrl-compass"
+    //   ) as HTMLButtonElement;
 
-      if (compass) {
-        compass.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+    //   if (compass) {
+    //     compass.addEventListener("click", (e) => {
+    //       e.preventDefault();
+    //       e.stopPropagation();
 
-          const is2D = mapRef.current?.getPitch() === 0;
+    //       const is2D = mapRef.current?.getPitch() === 0;
 
-          map.easeTo({
-            pitch: is2D ? 60 : 0,
-            bearing: is2D ? 180 : 0,
-            duration: 1000,
-          });
-        });
-      }
-    }, 500);
+    //       map.easeTo({
+    //         pitch: is2D ? 60 : 0,
+    //         bearing: is2D ? 180 : 0,
+    //         duration: 1000,
+    //       });
+    //     });
+    //   }
+    // }, 500);
 
     return () => {
       map.remove();
@@ -514,49 +685,56 @@ export default function MapLibre3D({
     }
   }, [riskDatabase]);
 
-  // Adjust grid size based on zoom level
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = mapRef.current;
-
-    const updateGridSize = () => {
-      const zoom = map.getZoom();
-      // Smaller grid at higher zoom levels for better detail
-      const newGridSize = zoom > 14 ? 0.005 : zoom > 12 ? 0.01 : 0.02;
-      setGridSize(newGridSize);
-    };
-
-    // Initial grid size
-    updateGridSize();
-
-    // Update grid size when zoom changes
-    map.on('zoomend', updateGridSize);
-
-    return () => {
-      map.off('zoomend', updateGridSize);
-    };
-  }, []);
-
   // Create initial heatmap when data is loaded and heatmap is enabled
   useEffect(() => {
-    console.log('Initial heatmap effect triggered:', {
+    console.log("Initial heatmap effect triggered:", {
       hasMap: !!mapRef.current,
       hasRiskDatabase: !!riskDatabase,
       riskDatabaseLength: riskDatabase?.length,
       isHeatmapEnabled,
-      selectedRisk
+      selectedRisk,
     });
 
-    if (!mapRef.current || !riskDatabase || riskDatabase.length === 0 || !isHeatmapEnabled) {
-      console.log('Skipping initial heatmap creation - conditions not met');
+    if (
+      !mapRef.current ||
+      !riskDatabase ||
+      riskDatabase.length === 0 ||
+      !isHeatmapEnabled
+    ) {
+      console.log("Skipping initial heatmap creation - conditions not met");
       return;
     }
 
     const hazard = selectedRisk;
-    console.log(`🚀 Creating initial grid heatmap for ${hazard}`);
+    console.log(
+      `🚀 Creating initial enhanced vulnerability heatmap for ${hazard}`
+    );
     createHeatmapLayer(hazard);
-  }, [riskDatabase, isHeatmapEnabled, selectedRisk, gridSize]);
+  }, [riskDatabase, isHeatmapEnabled, selectedRisk]);
+
+  // Handle marker visibility when hazards change
+  useEffect(() => {
+    if (!mapRef.current || !areMarkersVisible) return;
+
+    const map = mapRef.current;
+    const hazard = selectedRisk;
+
+    // Ensure markers are visible for the current hazard
+    const markerLayers = [
+      `${hazard}-risk`,
+      "responderLocation",
+      "clusters",
+      "cluster-count",
+      "unclustered-point",
+    ];
+
+    markerLayers.forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", "visible");
+        console.log(`✅ Ensured marker layer is visible: ${layerId}`);
+      }
+    });
+  }, [selectedRisk, areMarkersVisible]);
 
   // Handle hazard switching without reloading the map
   useEffect(() => {
@@ -926,8 +1104,8 @@ export default function MapLibre3D({
       </div>
 
       {/* Hazard Control Buttons - Top Center */}
-      <div className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 z-[100] pointer-events-none">
-        <div className="flex flex-row gap-1 md:gap-2 pointer-events-auto">
+      <div className="absolute flex top-2 md:top-4 right-10 transform  z-[100] pointer-events-none">
+        <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
           <button
             onClick={() => onHazardChange("flooding")}
             className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
@@ -991,7 +1169,7 @@ export default function MapLibre3D({
           {/* Heatmap Toggle Button */}
           <button
             onClick={() => {
-              console.log('Heatmap button clicked');
+              console.log("Heatmap button clicked");
               toggleHeatmap();
             }}
             className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
@@ -1001,43 +1179,124 @@ export default function MapLibre3D({
             }`}
             title={isHeatmapEnabled ? "Disable Heatmap" : "Enable Heatmap"}
           >
-            <Flame size={20} weight="bold" className={isHeatmapEnabled ? "text-orange-600" : "text-gray-600"} />
+            <Flame
+              size={20}
+              weight="bold"
+              className={isHeatmapEnabled ? "text-orange-600" : "text-gray-600"}
+            />
+          </button>
+
+          {/* Marker Toggle Button */}
+          <button
+            onClick={() => {
+              console.log("Marker toggle button clicked");
+              toggleMarkers();
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
+              areMarkersVisible
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-blue-200"
+                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
+            }`}
+            title={areMarkersVisible ? "Hide Markers" : "Show Markers"}
+          >
+            {areMarkersVisible ? (
+              <Eye size={20} weight="bold" className="text-blue-600" />
+            ) : (
+              <EyeSlash size={20} weight="bold" className="text-gray-600" />
+            )}
+          </button>
+
+          {/* Legend Toggle Button */}
+          <button
+            onClick={() => setIsLegendVisible(!isLegendVisible)}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
+              isLegendVisible
+                ? "ring-2 ring-green-500 bg-green-50 shadow-green-200"
+                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
+            }`}
+            title={isLegendVisible ? "Hide Legend" : "Show Legend"}
+          >
+            <Info
+              size={20}
+              weight="bold"
+              className={isLegendVisible ? "text-green-600" : "text-gray-600"}
+            />
+          </button>
+
+          {/* 3D/2D Toggle Button */}
+          <button
+            onClick={() => {
+              if (!mapRef.current) return;
+              const map = mapRef.current;
+              const currentPitch = map.getPitch();
+              const newPitch = currentPitch === 0 ? 60 : 0;
+              const newBearing = currentPitch === 0 ? 180 : 0;
+              map.easeTo({
+                pitch: newPitch,
+                bearing: newBearing,
+                duration: 1000,
+              });
+              setIs3D(newPitch !== 0);
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
+              is3D
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-blue-200"
+                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
+            }`}
+            title={is3D ? "Switch to 2D" : "Switch to 3D"}
+          >
+            <Globe
+              size={20}
+              weight="bold"
+              className={is3D ? "text-blue-600" : "text-gray-600"}
+            />
           </button>
         </div>
       </div>
 
       {/* Legend - Bottom Right */}
-      <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20">
-        <div className="text-xs font-semibold text-gray-700 mb-1 md:mb-2">
+      <div
+        className={`absolute bottom-2 left-5 w-80 md:bottom-4 right-2 md:right-4 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20 ${
+          isLegendVisible ? "" : "hidden"
+        }`}
+      >
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 mb-1 md:mb-2">
+          <Info size={14} />
           Legend
         </div>
+        <div className="text-xs text-gray-500 mb-2">
+          Use buttons above to toggle heatmap and markers
+        </div>
         <div className="space-y-1">
-          {/* Heatmap Legend */}
+          {/* Enhanced Heatmap Legend */}
           <div className="mb-2">
-            <div className="text-xs font-medium text-gray-600 mb-1">Grid Heatmap Risk Levels</div>
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1 md:gap-2">
-                <div className="w-3 h-2 md:w-4 md:h-3 bg-red-500 rounded-sm border border-red-600"></div>
-                <span className="text-xs text-gray-600">High Risk</span>
+            <div className="text-xs font-medium text-gray-600 mb-2">
+              Combined Risk Assessment
+            </div>
+            <div className="space-y-1">
+              {/* Color gradient bar */}
+              <div className="w-full h-3 rounded-sm bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 to-red-600 border border-gray-300"></div>
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Low Risk</span>
+                <span>High Risk</span>
               </div>
-              <div className="flex items-center gap-1 md:gap-2">
-                <div className="w-3 h-2 md:w-4 md:h-3 bg-yellow-400 rounded-sm border border-yellow-500"></div>
-                <span className="text-xs text-gray-600">Medium Risk</span>
-              </div>
-              <div className="flex items-center gap-1 md:gap-2">
-                <div className="w-3 h-2 md:w-4 md:h-3 bg-green-500 rounded-sm border border-green-600"></div>
-                <span className="text-xs text-gray-600">Low Risk</span>
-              </div>
-              <div className="flex items-center gap-1 md:gap-2">
-                <div className="w-3 h-2 md:w-4 md:h-3 bg-green-100 rounded-sm border border-green-200"></div>
-                <span className="text-xs text-gray-600">No Risk</span>
+              <div className="text-xs text-gray-500 text-center space-y-1">
+                <div>Hazard Intensity × Population Vulnerability</div>
+                <div className="text-xs text-blue-600">
+                  🔵 Low vulnerability areas
+                </div>
+                <div className="text-xs text-red-600">
+                  🔴 High vulnerability areas
+                </div>
               </div>
             </div>
           </div>
 
           {/* Hazard Points Legend */}
           <div className="border-t border-gray-200 pt-2">
-            <div className="text-xs font-medium text-gray-600 mb-1">Hazard Points</div>
+            <div className="text-xs font-medium text-gray-600 mb-1">
+              Hazard Points
+            </div>
             <div className="space-y-0.5">
               <div className="flex items-center gap-1 md:gap-2">
                 <div className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></div>
