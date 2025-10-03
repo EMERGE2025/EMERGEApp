@@ -1,6 +1,6 @@
 "use client";
 
-import maplibregl from "maplibre-gl";
+import maplibregl, { Popup } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { Menu } from "@headlessui/react";
@@ -121,6 +121,65 @@ export default function MapLibre3D({
   const [areMarkersVisible, setAreMarkersVisible] = useState<boolean>(true);
   const [isLegendVisible, setIsLegendVisible] = useState<boolean>(false);
   const [is3D, setIs3D] = useState<boolean>(true);
+
+  // Enhance features with vulnerability data
+  const enhanceFeaturesWithVulnerability = (
+    features: any[],
+    vulnerabilityData: any
+  ) => {
+    return features.map((feature: any) => {
+      const coords = feature.geometry.coordinates;
+      let vulnerabilityScore = 0.5; // Default vulnerability
+
+      // If we have population vulnerability data, find the closest vulnerability point
+      if (vulnerabilityData && vulnerabilityData.vulnerability) {
+        const vulnData =
+          typeof vulnerabilityData.vulnerability === "string"
+            ? JSON.parse(vulnerabilityData.vulnerability)
+            : vulnerabilityData.vulnerability;
+
+        if (vulnData && vulnData.features) {
+          // Find closest vulnerability point (simplified - in production you'd use spatial indexing)
+          let closestDistance = Infinity;
+          let closestVulnerability = 0.5;
+
+          vulnData.features
+            .forEach((vulnFeature: any) => {
+              const vulnCoords = vulnFeature.geometry.coordinates;
+              const distance = Math.sqrt(
+                Math.pow(coords[0] - vulnCoords[0], 2) +
+                  Math.pow(coords[1] - vulnCoords[1], 2)
+              );
+
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                closestVulnerability =
+                  vulnFeature.properties?.vulnerabilityIndex || 0.5;
+              }
+            })
+            .catch((error: any) => {
+              console.error("Error in cluster click handler:", error);
+            });
+
+          vulnerabilityScore = closestVulnerability;
+        }
+      }
+
+      // Calculate combined risk score (hazard intensity * population vulnerability)
+      const hazardScore = feature.properties?.riskScore || 0.5;
+      const combinedRiskScore = hazardScore * vulnerabilityScore;
+
+      return {
+        ...feature,
+        properties: {
+          ...feature.properties,
+          vulnerabilityScore: vulnerabilityScore,
+          combinedRiskScore: combinedRiskScore,
+          originalRiskScore: hazardScore,
+        },
+      };
+    });
+  };
 
   // Toggle heatmap visibility
   const toggleHeatmap = () => {
@@ -246,8 +305,8 @@ export default function MapLibre3D({
           ? JSON.parse(riskData.risk)
           : riskData.risk;
 
-      console.log(`🔥 Creating enhanced vulnerability heatmap for ${hazard}`);
-      console.log(`📊 Hazard points: ${hazardGeoJSON.features?.length || 0}`);
+      console.log(`Creating enhanced vulnerability heatmap for ${hazard}`);
+      console.log(`Hazard points: ${hazardGeoJSON.features?.length || 0}`);
       console.log(
         `👥 Population vulnerability data available:`,
         !!vulnerabilityData
@@ -259,54 +318,10 @@ export default function MapLibre3D({
       }
 
       // Enhance hazard data with population vulnerability
-      const enhancedFeatures = hazardGeoJSON.features.map((feature: any) => {
-        const coords = feature.geometry.coordinates;
-        let vulnerabilityScore = 0.5; // Default vulnerability
-
-        // If we have population vulnerability data, find the closest vulnerability point
-        if (vulnerabilityData && vulnerabilityData.vulnerability) {
-          const vulnData =
-            typeof vulnerabilityData.vulnerability === "string"
-              ? JSON.parse(vulnerabilityData.vulnerability)
-              : vulnerabilityData.vulnerability;
-
-          if (vulnData && vulnData.features) {
-            // Find closest vulnerability point (simplified - in production you'd use spatial indexing)
-            let closestDistance = Infinity;
-            let closestVulnerability = 0.5;
-
-            vulnData.features.forEach((vulnFeature: any) => {
-              const vulnCoords = vulnFeature.geometry.coordinates;
-              const distance = Math.sqrt(
-                Math.pow(coords[0] - vulnCoords[0], 2) +
-                  Math.pow(coords[1] - vulnCoords[1], 2)
-              );
-
-              if (distance < closestDistance) {
-                closestDistance = distance;
-                closestVulnerability =
-                  vulnFeature.properties?.vulnerabilityIndex || 0.5;
-              }
-            });
-
-            vulnerabilityScore = closestVulnerability;
-          }
-        }
-
-        // Calculate combined risk score (hazard intensity * population vulnerability)
-        const hazardScore = feature.properties?.riskScore || 0.5;
-        const combinedRiskScore = hazardScore * vulnerabilityScore;
-
-        return {
-          ...feature,
-          properties: {
-            ...feature.properties,
-            vulnerabilityScore: vulnerabilityScore,
-            combinedRiskScore: combinedRiskScore,
-            originalRiskScore: hazardScore,
-          },
-        };
-      });
+      const enhancedFeatures = enhanceFeaturesWithVulnerability(
+        hazardGeoJSON.features,
+        vulnerabilityData
+      );
 
       const enhancedGeoJSON = {
         ...hazardGeoJSON,
@@ -473,10 +488,10 @@ export default function MapLibre3D({
       // Log data structure expectations
       if (!vulnerabilityData) {
         console.log(
-          `ℹ️ No population vulnerability data found. To enable enhanced risk assessment, add data with id: "population_vulnerability"`
+          `No population vulnerability data found. To enable enhanced risk assessment, add data with id: "population_vulnerability"`
         );
         console.log(
-          `📋 Expected structure: { id: "population_vulnerability", vulnerability: GeoJSON with features having properties.vulnerabilityIndex (0-1) }`
+          `Expected structure: { id: "population_vulnerability", vulnerability: GeoJSON with features having properties.vulnerabilityIndex (0-1) }`
         );
       }
 
@@ -543,32 +558,7 @@ export default function MapLibre3D({
 
       // Load initial hazard data (will be updated when riskDatabase becomes available)
       const initialHazard = selectedRisk || "flooding";
-      console.log(`Map ready for hazard: ${initialHazard}`);
-
-      // Add mobile-specific styles for controls
-      const style = document.createElement("style");
-      style.textContent = `
-        @media (max-width: 768px) {
-          .maplibregl-ctrl {
-            font-size: 8px !important;
-            padding: 1px !important;
-          }
-          .maplibregl-ctrl-icon {
-            width: 16px !important;
-            height: 16px !important;
-          }
-          .maplibregl-ctrl-group {
-            margin: 1px !important;
-          }
-          .maplibregl-ctrl button {
-            width: 24px !important;
-            height: 24px !important;
-            min-width: 24px !important;
-            min-height: 24px !important;
-          }
-        }
-      `;
-      document.head.appendChild(style);
+      map.flyTo({ center: [122.55012452602386, 10.808910380678128], zoom: 14 });
     });
 
     // Removed default NavigationControl to use custom buttons
@@ -786,22 +776,29 @@ export default function MapLibre3D({
 
     // Add new sources and layers
     try {
+      let riskGeoJSON =
+        typeof riskData.risk === "string"
+          ? JSON.parse(riskData.risk)
+          : riskData.risk;
+      const vulnerabilityData = riskDatabase.find(
+        (d: any) => d.id === "population_vulnerability"
+      );
+      if (vulnerabilityData && riskGeoJSON.features) {
+        riskGeoJSON.features = enhanceFeaturesWithVulnerability(
+          riskGeoJSON.features,
+          vulnerabilityData
+        );
+      }
+
       if (map.getSource(`${hazard}-risk`)) {
         const riskSource = map.getSource(
           `${hazard}-risk`
         ) as maplibregl.GeoJSONSource;
-        riskSource.setData(
-          typeof riskData.risk === "string"
-            ? JSON.parse(riskData.risk)
-            : riskData.risk
-        );
+        riskSource.setData(riskGeoJSON);
       } else {
         map.addSource(`${hazard}-risk`, {
           type: "geojson",
-          data:
-            typeof riskData.risk === "string"
-              ? JSON.parse(riskData.risk)
-              : riskData.risk,
+          data: riskGeoJSON,
           cluster: true,
           clusterMaxZoom: 17,
           clusterRadius: 50,
@@ -958,26 +955,151 @@ export default function MapLibre3D({
         },
       });
 
-      // Update click handlers
-      map.on("click", "clusters", async (e) => {
-        const features = map.queryRenderedFeatures(e.point, {
-          layers: ["clusters"],
-        });
-        const clusterFeature = features[0] as ClusterFeature;
-        const clusterId = clusterFeature.properties.cluster_id;
-        const source = map.getSource(
-          `${hazard}-risk`
-        ) as maplibregl.GeoJSONSource & {
-          getClusterExpansionZoom: (clusterId: number) => Promise<number>;
-        };
+      // // Update click handlers
+      // map.on("click", "clusters", async (e) => {
+      //   const features = map.queryRenderedFeatures(e.point, {
+      //     layers: ["clusters"],
+      //   });
+      //   const clusterFeature = features[0] as ClusterFeature;
+      //   const pointCount = clusterFeature.properties.point_count;
+      //   const clusterLngLat = (clusterFeature.geometry as GeoJSON.Point)
+      //     .coordinates as [number, number];
+      //   console.log("Cluster points:", pointCount);
 
-        const zoom = await source.getClusterExpansionZoom(clusterId);
-        const coordinates = (clusterFeature.geometry as GeoJSON.Point)
-          .coordinates;
-        map.easeTo({
-          center: coordinates as [number, number],
-          zoom,
+      //   // Show popup for cluster
+      //   const popupContent = `
+      //      <div style="padding: 8px; max-width: 200px;">
+      //        <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">Cluster</h3>
+      //        <p style="margin: 4px 0;"><strong>Points:</strong> ${pointCount}</p>
+      //        <p style="margin: 4px 0; font-size: 12px; color: #666;">Click to zoom in</p>
+      //      </div>
+      //    `;
+
+      //   // Validate cluster coordinates
+      //   if (
+      //     clusterLngLat[0] < -180 ||
+      //     clusterLngLat[0] > 180 ||
+      //     clusterLngLat[1] < -90 ||
+      //     clusterLngLat[1] > 90
+      //   ) {
+      //     console.error("Invalid cluster coordinates:", clusterLngLat);
+      //     return;
+      //   }
+
+      //   try {
+      //     const popup = new Popup()
+      //       .setLngLat(clusterLngLat)
+      //       .setHTML(popupContent)
+      //       .addTo(map);
+      //     console.log("Cluster popup added successfully", popup);
+      //   } catch (error) {
+      //     console.error("Error creating cluster popup:", error);
+      //   }
+
+      //   // Then zoom in
+      //   const clusterId = clusterFeature.properties.cluster_id;
+      //   const source = map.getSource(
+      //     `${hazard}-risk`
+      //   ) as maplibregl.GeoJSONSource & {
+      //     getClusterExpansionZoom: (clusterId: number) => Promise<number>;
+      //   };
+
+      //   const zoom = await source.getClusterExpansionZoom(clusterId);
+      //   const coordinates = (clusterFeature.geometry as GeoJSON.Point)
+      //     .coordinates;
+      //   map.easeTo({
+      //     center: coordinates as [number, number],
+      //     zoom,
+      //   });
+      // });
+
+      // Add click handler for unclustered points
+      map.on("click", `${hazard}-risk`, (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: [`${hazard}-risk`],
         });
+        if (features.length === 0) return;
+
+        const feature = features[0];
+        const properties = feature.properties;
+        console.log("Pin properties:", properties);
+
+        const barangay = properties?.ADM4_EN || "Unknown";
+        const riskScore = properties?.risk_score ?? 0;
+        const vulnerabilityScore = properties?.raw_score ?? "N/A";
+        const hazardType = properties?.hazard_type ?? "N/A";
+
+        // Prepare popup content
+        const popupContent = `
+           <div style="padding: 8px; color: black;">
+             <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${barangay}</h3>
+             <p style="margin: 4px 0;"><strong>Risk Score:</strong> ${
+               typeof riskScore === "number" ? riskScore.toFixed(2) : riskScore
+             }</p>
+             <p style="margin: 4px 0;"><strong>Vulnerability:</strong> ${
+               typeof vulnerabilityScore === "number"
+                 ? vulnerabilityScore.toFixed(2)
+                 : vulnerabilityScore
+             }</p>
+             <p style="margin: 4px 0;"><strong>Hazard Type:</strong> ${
+               typeof hazardType === "string" ? hazardType : "Unknown Risk"
+             }</p>
+           </div>
+         `;
+
+        // Get coordinates safely
+        let lngLat: [number, number] | undefined;
+        if (
+          feature.geometry.type === "Point" &&
+          Array.isArray(feature.geometry.coordinates)
+        ) {
+          const coords = feature.geometry.coordinates as [number, number];
+          lngLat = [coords[0], coords[1]]; // Ensure [lng, lat] format
+          console.log("Raw coordinates:", coords);
+          console.log("Processed lngLat:", lngLat);
+
+          // Validate coordinates
+          if (
+            lngLat[0] < -180 ||
+            lngLat[0] > 180 ||
+            lngLat[1] < -90 ||
+            lngLat[1] > 90
+          ) {
+            console.error("Invalid coordinates:", lngLat);
+            return;
+          }
+
+          // Handle antimeridian wrap
+          while (Math.abs(e.lngLat.lng - lngLat[0]) > 180) {
+            lngLat[0] += e.lngLat.lng > lngLat[0] ? 360 : -360;
+          }
+        }
+
+        console.log("feature geometry:", feature.geometry);
+        console.log("Final lngLat:", lngLat);
+
+        if (lngLat) {
+          console.log("Popping up!");
+
+          // Remove any existing popup first
+          const existingPopup = document.querySelector(".maplibregl-popup");
+          if (existingPopup) existingPopup.remove();
+
+          // Create and add popup
+          try {
+            const popup = new maplibregl.Popup({ offset: 2 })
+              .setLngLat(lngLat)
+              .setHTML(popupContent)
+              .addTo(map);
+            map.flyTo({
+              center: lngLat,
+              zoom: 14,
+            });
+            console.log("Popup added successfully", popup);
+          } catch (error) {
+            console.error("Error creating popup:", error);
+          }
+        }
       });
 
       // Update mouse events
@@ -985,6 +1107,14 @@ export default function MapLibre3D({
         map.getCanvas().style.cursor = "pointer";
       });
       map.on("mouseleave", "clusters", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      // Add mouse events for unclustered points
+      map.on("mouseenter", `${hazard}-risk`, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", `${hazard}-risk`, () => {
         map.getCanvas().style.cursor = "";
       });
 

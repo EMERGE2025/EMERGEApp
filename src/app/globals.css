@@ -57,34 +57,6 @@ body {
   }
 }
 
-/* Fix for MapLibre GL canvas interference with controls */
-.maplibregl-canvas,
-.maplibregl-canvas-container,
-.mapboxgl-canvas {
-  z-index: 1 !important;
+.mapboxgl-popup {
+  z-index: 9999 !important;
 }
-
-/* Ensure controls stay visible and on top */
-.controls-overlay,
-.controls-overlay * {
-  z-index: 100 !important;
-  position: absolute !important;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* Emergency visibility fix for any hidden elements */
-[style*="display: none"],
-[style*="visibility: hidden"],
-[style*="opacity: 0"] {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* Specific override for our controls */
-.absolute.z-\\ * {
-  z-index: 100 !important;
-}
-
