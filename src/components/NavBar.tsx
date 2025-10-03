@@ -86,7 +86,7 @@ export default function NavBar() {
                     <ul className="absolute left-0 top-8 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
                       <li>
                         <Link
-                          href="/risk-map"
+                          href="/hazards"
                           className="block px-4 py-2 text-black hover:text-[#B92727]"
                           onClick={() => setMapsOpen(false)}
                         >
@@ -95,7 +95,7 @@ export default function NavBar() {
                       </li>
                       <li>
                         <Link
-                          href="/hazard-visualization"
+                          href="/hazards"
                           className="block px-4 py-2 text-black hover:text-[#B92727]"
                           onClick={() => setMapsOpen(false)}
                         >
@@ -104,14 +104,6 @@ export default function NavBar() {
                       </li>
                     </ul>
                   )}
-                </li>
-                <li>
-                  <Link
-                    href="/responder-allocation"
-                    className="font-medium text-black hover:text-[#B92727] transition-colors"
-                  >
-                    Responder Allocation
-                  </Link>
                 </li>
                 <li>
                   <Link

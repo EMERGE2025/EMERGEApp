@@ -955,63 +955,63 @@ export default function MapLibre3D({
         },
       });
 
-      // // Update click handlers
-      // map.on("click", "clusters", async (e) => {
-      //   const features = map.queryRenderedFeatures(e.point, {
-      //     layers: ["clusters"],
-      //   });
-      //   const clusterFeature = features[0] as ClusterFeature;
-      //   const pointCount = clusterFeature.properties.point_count;
-      //   const clusterLngLat = (clusterFeature.geometry as GeoJSON.Point)
-      //     .coordinates as [number, number];
-      //   console.log("Cluster points:", pointCount);
+      // Update click handlers
+      map.on("click", "clusters", async (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ["clusters"],
+        });
+        const clusterFeature = features[0] as ClusterFeature;
+        const pointCount = clusterFeature.properties.point_count;
+        const clusterLngLat = (clusterFeature.geometry as GeoJSON.Point)
+          .coordinates as [number, number];
+        console.log("Cluster points:", pointCount);
 
-      //   // Show popup for cluster
-      //   const popupContent = `
-      //      <div style="padding: 8px; max-width: 200px;">
-      //        <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">Cluster</h3>
-      //        <p style="margin: 4px 0;"><strong>Points:</strong> ${pointCount}</p>
-      //        <p style="margin: 4px 0; font-size: 12px; color: #666;">Click to zoom in</p>
-      //      </div>
-      //    `;
+        // Show popup for cluster
+        const popupContent = `
+           <div style="padding: 8px; max-width: 200px; color: black;">
+             <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">Cluster</h3>
+             <p style="margin: 4px 0;"><strong>Points:</strong> ${pointCount}</p>
+             <p style="margin: 4px 0; font-size: 12px; color: #666;">Click to zoom in</p>
+           </div>
+         `;
 
-      //   // Validate cluster coordinates
-      //   if (
-      //     clusterLngLat[0] < -180 ||
-      //     clusterLngLat[0] > 180 ||
-      //     clusterLngLat[1] < -90 ||
-      //     clusterLngLat[1] > 90
-      //   ) {
-      //     console.error("Invalid cluster coordinates:", clusterLngLat);
-      //     return;
-      //   }
+        // Validate cluster coordinates
+        if (
+          clusterLngLat[0] < -180 ||
+          clusterLngLat[0] > 180 ||
+          clusterLngLat[1] < -90 ||
+          clusterLngLat[1] > 90
+        ) {
+          console.error("Invalid cluster coordinates:", clusterLngLat);
+          return;
+        }
 
-      //   try {
-      //     const popup = new Popup()
-      //       .setLngLat(clusterLngLat)
-      //       .setHTML(popupContent)
-      //       .addTo(map);
-      //     console.log("Cluster popup added successfully", popup);
-      //   } catch (error) {
-      //     console.error("Error creating cluster popup:", error);
-      //   }
+        try {
+          const popup = new Popup()
+            .setLngLat(clusterLngLat)
+            .setHTML(popupContent)
+            .addTo(map);
+          console.log("Cluster popup added successfully", popup);
+        } catch (error) {
+          console.error("Error creating cluster popup:", error);
+        }
 
-      //   // Then zoom in
-      //   const clusterId = clusterFeature.properties.cluster_id;
-      //   const source = map.getSource(
-      //     `${hazard}-risk`
-      //   ) as maplibregl.GeoJSONSource & {
-      //     getClusterExpansionZoom: (clusterId: number) => Promise<number>;
-      //   };
+        // Then zoom in
+        const clusterId = clusterFeature.properties.cluster_id;
+        const source = map.getSource(
+          `${hazard}-risk`
+        ) as maplibregl.GeoJSONSource & {
+          getClusterExpansionZoom: (clusterId: number) => Promise<number>;
+        };
 
-      //   const zoom = await source.getClusterExpansionZoom(clusterId);
-      //   const coordinates = (clusterFeature.geometry as GeoJSON.Point)
-      //     .coordinates;
-      //   map.easeTo({
-      //     center: coordinates as [number, number],
-      //     zoom,
-      //   });
-      // });
+        const zoom = await source.getClusterExpansionZoom(clusterId);
+        const coordinates = (clusterFeature.geometry as GeoJSON.Point)
+          .coordinates;
+        map.easeTo({
+          center: coordinates as [number, number],
+          zoom,
+        });
+      });
 
       // Add click handler for unclustered points
       map.on("click", `${hazard}-risk`, (e) => {
@@ -1031,21 +1031,23 @@ export default function MapLibre3D({
 
         // Prepare popup content
         const popupContent = `
-           <div style="padding: 8px; color: black;">
-             <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${barangay}</h3>
-             <p style="margin: 4px 0;"><strong>Risk Score:</strong> ${
-               typeof riskScore === "number" ? riskScore.toFixed(2) : riskScore
-             }</p>
-             <p style="margin: 4px 0;"><strong>Vulnerability:</strong> ${
-               typeof vulnerabilityScore === "number"
-                 ? vulnerabilityScore.toFixed(2)
-                 : vulnerabilityScore
-             }</p>
-             <p style="margin: 4px 0;"><strong>Hazard Type:</strong> ${
-               typeof hazardType === "string" ? hazardType : "Unknown Risk"
-             }</p>
-           </div>
-         `;
+      <div style="padding: 8px; color: black; position: relative; border-radius: 50%;">
+        <img src="icons/${selectedRisk}.svg" alt="Logo" style="position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; z-index: 10;">
+        <div style="margin-left: 32px;">
+          <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${barangay}</h3>
+          <p style="margin: 4px 0;"><strong>Risk Score:</strong> ${
+            typeof riskScore === "number" ? riskScore.toFixed(2) : riskScore
+          }</p>
+          <p style="margin: 4px 0;"><strong>Vulnerability:</strong> ${
+            typeof vulnerabilityScore === "number"
+              ? vulnerabilityScore.toFixed(2)
+              : vulnerabilityScore
+          }</p>
+          <p style="margin: 4px 0;"><strong>Hazard Type:</strong> ${
+            typeof hazardType === "string" ? hazardType : "Unknown Risk"
+          }</p>
+        </div>
+      </div>`;
 
         // Get coordinates safely
         let lngLat: [number, number] | undefined;
