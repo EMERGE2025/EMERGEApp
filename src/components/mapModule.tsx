@@ -1068,14 +1068,11 @@ export default function MapLibre3D({
       {/* Integrated Controls Overlay - Distributed positioning */}
       {/* Search Bar - Top Left */}
       <div className="absolute top-2 md:top-4 left-2 md:left-4 z-[100] pointer-events-none">
-        <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 max-w-full md:max-w-md pointer-events-auto border border-white/20">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl pl-2 md:p-3 max-w-full md:max-w-md pointer-events-auto border border-white/20">
           <div className="flex items-center gap-1 md:gap-2">
-            <div className="bg-red-500 rounded-full p-1.5 md:p-2">
-              <MagnifyingGlassIcon size={14} weight="bold" color="#fff" />
-            </div>
             <input
               type="text"
-              className="flex-1 bg-transparent outline-none text-xs md:text-sm placeholder-gray-500"
+              className="flex-1 bg-transparent outline-none text-xs md:text-sm text-black max-w-2xl"
               placeholder="Search locations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -1084,7 +1081,7 @@ export default function MapLibre3D({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="text-gray-400 hover:text-gray-600 p-1 min-w-[24px] min-h-[24px] flex items-center justify-center"
+                className="text-black p-1 min-w-[10px] min-h-[24px] flex items-center justify-center"
               >
                 <X size={14} />
               </button>
@@ -1092,12 +1089,12 @@ export default function MapLibre3D({
             <button
               onClick={onSearchSubmit}
               disabled={isSearching}
-              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full p-1.5 md:p-2 transition-colors min-w-[36px] min-h-[36px] md:min-w-[40px] md:min-h-[40px] flex items-center justify-center"
+              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full p-1 md:p-2 transition-colors md:min-w-[40px] md:min-h-[40px] flex items-center justify-center"
             >
               {isSearching ? (
                 <div className="animate-spin w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full"></div>
               ) : (
-                <MagnifyingGlassIcon size={14} weight="bold" />
+                <MagnifyingGlassIcon size={12} weight="bold" />
               )}
             </button>
           </div>
@@ -1116,7 +1113,7 @@ export default function MapLibre3D({
               <List size={20} weight="bold" className="text-gray-600" />
             </Menu.Button>
             <Menu.Items className="absolute right-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl border border-white/20 z-[100] focus:outline-none">
-              <div className="p-2 space-y-1">
+              <div className="p-2 space-y-1 text-gray-500">
                 {/* Heatmap Toggle */}
                 <Menu.Item>
                   {({ active }) => (
@@ -1126,8 +1123,18 @@ export default function MapLibre3D({
                         active ? "bg-gray-100" : ""
                       }`}
                     >
-                      <Flame size={16} weight="bold" className={isHeatmapEnabled ? "text-orange-600" : "text-gray-600"} />
-                      <span>{isHeatmapEnabled ? "Disable Heatmap" : "Enable Heatmap"}</span>
+                      <Flame
+                        size={20}
+                        weight="bold"
+                        className={
+                          isHeatmapEnabled ? "text-orange-600" : "text-gray-600"
+                        }
+                      />
+                      <span>
+                        {isHeatmapEnabled
+                          ? "Disable Heatmap"
+                          : "Enable Heatmap"}
+                      </span>
                     </button>
                   )}
                 </Menu.Item>
@@ -1141,11 +1148,21 @@ export default function MapLibre3D({
                       }`}
                     >
                       {areMarkersVisible ? (
-                        <Eye size={16} weight="bold" className="text-blue-600" />
+                        <Eye
+                          size={16}
+                          weight="bold"
+                          className="text-blue-600"
+                        />
                       ) : (
-                        <EyeSlash size={16} weight="bold" className="text-gray-600" />
+                        <EyeSlash
+                          size={16}
+                          weight="bold"
+                          className="text-gray-600"
+                        />
                       )}
-                      <span>{areMarkersVisible ? "Hide Markers" : "Show Markers"}</span>
+                      <span>
+                        {areMarkersVisible ? "Hide Markers" : "Show Markers"}
+                      </span>
                     </button>
                   )}
                 </Menu.Item>
@@ -1158,8 +1175,16 @@ export default function MapLibre3D({
                         active ? "bg-gray-100" : ""
                       }`}
                     >
-                      <Info size={16} weight="bold" className={isLegendVisible ? "text-green-600" : "text-gray-600"} />
-                      <span>{isLegendVisible ? "Hide Legend" : "Show Legend"}</span>
+                      <Info
+                        size={16}
+                        weight="bold"
+                        className={
+                          isLegendVisible ? "text-green-600" : "text-gray-600"
+                        }
+                      />
+                      <span>
+                        {isLegendVisible ? "Hide Legend" : "Show Legend"}
+                      </span>
                     </button>
                   )}
                 </Menu.Item>
@@ -1184,7 +1209,11 @@ export default function MapLibre3D({
                         active ? "bg-gray-100" : ""
                       }`}
                     >
-                      <Globe size={16} weight="bold" className={is3D ? "text-blue-600" : "text-gray-600"} />
+                      <Globe
+                        size={16}
+                        weight="bold"
+                        className={is3D ? "text-blue-600" : "text-gray-600"}
+                      />
                       <span>{is3D ? "Switch to 2D" : "Switch to 3D"}</span>
                     </button>
                   )}
@@ -1251,8 +1280,6 @@ export default function MapLibre3D({
               }}
             />
           </button>
-
-
 
           {/* Zoom In Button */}
           <button
