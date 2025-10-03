@@ -3,6 +3,7 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
+import { Menu } from "@headlessui/react";
 import {
   MagnifyingGlassIcon,
   X,
@@ -13,6 +14,7 @@ import {
   Globe,
   Plus,
   Minus,
+  List,
 } from "@phosphor-icons/react/dist/ssr";
 
 export type MarkerData = {
@@ -1105,6 +1107,91 @@ export default function MapLibre3D({
       {/* Hazard Control Buttons - Top Center */}
       <div className="absolute flex top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
         <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
+          <Menu as="div" className="relative">
+            <Menu.Button
+              as="button"
+              className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
+              title="Settings"
+            >
+              <List size={20} weight="bold" className="text-gray-600" />
+            </Menu.Button>
+            <Menu.Items className="absolute right-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl border border-white/20 z-[100] focus:outline-none">
+              <div className="p-2 space-y-1">
+                {/* Heatmap Toggle */}
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={toggleHeatmap}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                        active ? "bg-gray-100" : ""
+                      }`}
+                    >
+                      <Flame size={16} weight="bold" className={isHeatmapEnabled ? "text-orange-600" : "text-gray-600"} />
+                      <span>{isHeatmapEnabled ? "Disable Heatmap" : "Enable Heatmap"}</span>
+                    </button>
+                  )}
+                </Menu.Item>
+                {/* Marker Toggle */}
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={toggleMarkers}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                        active ? "bg-gray-100" : ""
+                      }`}
+                    >
+                      {areMarkersVisible ? (
+                        <Eye size={16} weight="bold" className="text-blue-600" />
+                      ) : (
+                        <EyeSlash size={16} weight="bold" className="text-gray-600" />
+                      )}
+                      <span>{areMarkersVisible ? "Hide Markers" : "Show Markers"}</span>
+                    </button>
+                  )}
+                </Menu.Item>
+                {/* Legend Toggle */}
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={() => setIsLegendVisible(!isLegendVisible)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                        active ? "bg-gray-100" : ""
+                      }`}
+                    >
+                      <Info size={16} weight="bold" className={isLegendVisible ? "text-green-600" : "text-gray-600"} />
+                      <span>{isLegendVisible ? "Hide Legend" : "Show Legend"}</span>
+                    </button>
+                  )}
+                </Menu.Item>
+                {/* 3D/2D Toggle */}
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={() => {
+                        if (!mapRef.current) return;
+                        const map = mapRef.current;
+                        const currentPitch = map.getPitch();
+                        const newPitch = currentPitch === 0 ? 60 : 0;
+                        const newBearing = currentPitch === 0 ? 180 : 0;
+                        map.easeTo({
+                          pitch: newPitch,
+                          bearing: newBearing,
+                          duration: 1000,
+                        });
+                        setIs3D(newPitch !== 0);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                        active ? "bg-gray-100" : ""
+                      }`}
+                    >
+                      <Globe size={16} weight="bold" className={is3D ? "text-blue-600" : "text-gray-600"} />
+                      <span>{is3D ? "Switch to 2D" : "Switch to 3D"}</span>
+                    </button>
+                  )}
+                </Menu.Item>
+              </div>
+            </Menu.Items>
+          </Menu>
           <button
             onClick={() => onHazardChange("flooding")}
             className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
@@ -1165,91 +1252,7 @@ export default function MapLibre3D({
             />
           </button>
 
-          {/* Heatmap Toggle Button */}
-          <button
-            onClick={() => {
-              console.log("Heatmap button clicked");
-              toggleHeatmap();
-            }}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
-              isHeatmapEnabled
-                ? "ring-2 ring-orange-500 bg-orange-50 shadow-orange-200"
-                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
-            }`}
-            title={isHeatmapEnabled ? "Disable Heatmap" : "Enable Heatmap"}
-          >
-            <Flame
-              size={20}
-              weight="bold"
-              className={isHeatmapEnabled ? "text-orange-600" : "text-gray-600"}
-            />
-          </button>
 
-          {/* Marker Toggle Button */}
-          <button
-            onClick={() => {
-              console.log("Marker toggle button clicked");
-              toggleMarkers();
-            }}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
-              areMarkersVisible
-                ? "ring-2 ring-blue-500 bg-blue-50 shadow-blue-200"
-                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
-            }`}
-            title={areMarkersVisible ? "Hide Markers" : "Show Markers"}
-          >
-            {areMarkersVisible ? (
-              <Eye size={20} weight="bold" className="text-blue-600" />
-            ) : (
-              <EyeSlash size={20} weight="bold" className="text-gray-600" />
-            )}
-          </button>
-
-          {/* Legend Toggle Button */}
-          <button
-            onClick={() => setIsLegendVisible(!isLegendVisible)}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
-              isLegendVisible
-                ? "ring-2 ring-green-500 bg-green-50 shadow-green-200"
-                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
-            }`}
-            title={isLegendVisible ? "Hide Legend" : "Show Legend"}
-          >
-            <Info
-              size={20}
-              weight="bold"
-              className={isLegendVisible ? "text-green-600" : "text-gray-600"}
-            />
-          </button>
-
-          {/* 3D/2D Toggle Button */}
-          <button
-            onClick={() => {
-              if (!mapRef.current) return;
-              const map = mapRef.current;
-              const currentPitch = map.getPitch();
-              const newPitch = currentPitch === 0 ? 60 : 0;
-              const newBearing = currentPitch === 0 ? 180 : 0;
-              map.easeTo({
-                pitch: newPitch,
-                bearing: newBearing,
-                duration: 1000,
-              });
-              setIs3D(newPitch !== 0);
-            }}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ml-2 ${
-              is3D
-                ? "ring-2 ring-blue-500 bg-blue-50 shadow-blue-200"
-                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
-            }`}
-            title={is3D ? "Switch to 2D" : "Switch to 3D"}
-          >
-            <Globe
-              size={20}
-              weight="bold"
-              className={is3D ? "text-blue-600" : "text-gray-600"}
-            />
-          </button>
 
           {/* Zoom In Button */}
           <button
