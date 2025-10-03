@@ -87,7 +87,7 @@ interface BoundaryEntry {
 }
 
 interface HazardEntry {
-  id: "flooding" | "landslide" | (string & {});
+  id: "flooding" | "landslide" | "all_risk" | (string & {});
   risk: GJ;
   responderRange?: GJ;
   responderLocation?: GJ;
@@ -1394,7 +1394,7 @@ export default function MapLibre3D({
           </button>
 
           <button
-            onClick={() => onHazardChange("earthquake")}
+            onClick={() => onHazardChange("all_risks")}
             className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
               selectedRisk === "earthquake"
                 ? "ring-2 ring-red-500 bg-red-50 shadow-red-200"
