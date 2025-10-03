@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Disclosure } from "@headlessui/react";
 import { useAuth } from "../contexts/AuthContext";
 import { useHazard } from "../contexts/HazardContext";
 
 export default function NavBar() {
   const [mapsOpen, setMapsOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, logout } = useAuth();
   const { hazardType, setHazardType } = useHazard();
@@ -27,7 +27,7 @@ export default function NavBar() {
   }, [mapsOpen, profileOpen]);
 
   return (
-    <nav className="sticky top-0 bg-[#faf5f5] px-4 md:px-6 py-2 md:py-3 flex items-center justify-between z-50 shadow min-h-[60px] md:min-h-[64px]">
+    <nav className="sticky top-0 bg-[#faf5f5] px-4 md:px-6 py-2 md:py-3 flex items-center justify-start md:justify-between z-50 shadow min-h-[60px] md:min-h-[64px]">
       <div className="flex items-center">
         <Link href="/">
           {" "}
@@ -40,27 +40,29 @@ export default function NavBar() {
         </Link>
       </div>
 
-      <button
-        className="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded focus:outline-none"
-        onClick={() => setMobileOpen((open) => !open)}
-        aria-label="Toggle navigation"
-      >
-        <span
-          className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${
-            mobileOpen ? "rotate-45 translate-y-2" : ""
-          }`}
-        ></span>
-        <span
-          className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${
-            mobileOpen ? "opacity-0" : ""
-          }`}
-        ></span>
-        <span
-          className={`block h-1 w-7 rounded bg-[#b92727] transition-all duration-300 ${
-            mobileOpen ? "-rotate-45 -translate-y-2" : ""
-          }`}
-        ></span>
-      </button>
+       <Disclosure>
+         {({ open }) => (
+           <>
+             <Disclosure.Button
+               className="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded focus:outline-none"
+               aria-label="Toggle navigation"
+             >
+               <span
+                 className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${
+                   open ? "rotate-45 translate-y-2" : ""
+                 }`}
+               ></span>
+               <span
+                 className={`block h-1 w-7 rounded bg-[#b92727] mb-1 transition-all duration-300 ${
+                   open ? "opacity-0" : ""
+                 }`}
+               ></span>
+               <span
+                 className={`block h-1 w-7 rounded bg-[#b92727] transition-all duration-300 ${
+                   open ? "-rotate-45 -translate-y-2" : ""
+                 }`}
+               ></span>
+             </Disclosure.Button>
 
       <ul className="hidden md:flex list-none gap-8 flex-grow justify-center items-center">
         <li>
@@ -178,36 +180,31 @@ export default function NavBar() {
         </Link>
       )}
 
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
-          onClick={() => setMobileOpen(false)}
-        ></div>
-      )}
-
-        <div
-          className={`fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-[#faf5f5] shadow-lg z-50 transform transition-transform duration-300 md:hidden ${
-            mobileOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
+             <Disclosure.Panel>
+               <div
+                 className="fixed inset-0 bg-black/40 z-40 md:hidden"
+                 onClick={() => {}}
+               ></div>
+               <div
+                 className="fixed top-0 left-0 h-full w-72 max-w-[85vw] bg-[#faf5f5] shadow-lg z-[100] transform transition-transform duration-300 md:hidden"
+               >
         <div className="flex flex-col h-full p-6">
-          <button
-            className="self-end mb-6"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close menu"
-          >
-            <span className="text-3xl text-[#b92727]">×</span>
-          </button>
+           <button
+             className="self-end mb-6"
+             onClick={() => {}}
+             aria-label="Close menu"
+           >
+             <span className="text-3xl text-[#b92727]">×</span>
+           </button>
           <ul className="flex flex-col gap-6 text-lg">
-            <li>
-              <Link
-                href="/"
-                className="font-medium text-black hover:text-[#B92727]"
-                onClick={() => setMobileOpen(false)}
-              >
-                Home
-              </Link>
-            </li>
+             <li>
+               <Link
+                 href="/"
+                 className="font-medium text-black hover:text-[#B92727]"
+               >
+                 Home
+               </Link>
+             </li>
             <li>
               <button
                 className="font-medium text-black hover:text-[#B92727] flex items-center gap-1"
@@ -218,61 +215,52 @@ export default function NavBar() {
               {mapsOpen && (
                 <ul className="ml-4 mt-2 flex flex-col gap-2">
                   <li>
-                    <Link
-                      href="/risk-map"
-                      className="text-black hover:text-[#B92727]"
-                      onClick={() => {
-                        setMapsOpen(false);
-                        setMobileOpen(false);
-                      }}
-                    >
-                      Risk Map
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/hazard-visualization"
-                      className="text-black hover:text-[#B92727] text-center"
-                      onClick={() => {
-                        setMapsOpen(false);
-                        setMobileOpen(false);
-                      }}
-                    >
+                     <Link
+                       href="/risk-map"
+                       className="text-black hover:text-[#B92727]"
+                       onClick={() => setMapsOpen(false)}
+                     >
+                       Risk Map
+                     </Link>
+                   </li>
+                   <li>
+                     <Link
+                       href="/hazard-visualization"
+                       className="text-black hover:text-[#B92727] text-center"
+                       onClick={() => setMapsOpen(false)}
+                     >
                       Hazard Visualization
                     </Link>
                   </li>
                 </ul>
               )}
             </li>
-            <li>
-              <Link
-                href="/responder-allocation"
-                className="font-medium text-black hover:text-[#B92727]"
-                onClick={() => setMobileOpen(false)}
-              >
-                Responder Allocation
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/about"
-                className="font-medium text-black hover:text-[#B92727]"
-                onClick={() => setMobileOpen(false)}
-              >
-                About
-              </Link>
-            </li>
-            {user?.email?.includes("admin") && (
-              <li>
-                <Link
-                  href="/admin"
-                  className="font-medium text-black hover:text-[#B92727]"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Admin
-                </Link>
-              </li>
-            )}
+             <li>
+               <Link
+                 href="/responder-allocation"
+                 className="font-medium text-black hover:text-[#B92727]"
+               >
+                 Responder Allocation
+               </Link>
+             </li>
+             <li>
+               <Link
+                 href="/about"
+                 className="font-medium text-black hover:text-[#B92727]"
+               >
+                 About
+               </Link>
+             </li>
+             {user?.email?.includes("admin") && (
+               <li>
+                 <Link
+                   href="/admin"
+                 className="font-medium text-black hover:text-[#B92727]"
+               >
+                 Admin
+               </Link>
+               </li>
+             )}
           </ul>
 
           {user ? (
@@ -294,14 +282,18 @@ export default function NavBar() {
               </div>
             </div>
           ) : (
-            <Link href="/login" onClick={() => setMobileOpen(false)}>
+             <Link href="/login">
               <button className="mt-auto bg-[#B92727] text-white rounded-xl px-4 py-2 font-bold">
                 Login
               </button>
             </Link>
           )}
-        </div>
-      </div>
-    </nav>
+         </div>
+               </div>
+             </Disclosure.Panel>
+           </>
+         )}
+       </Disclosure>
+     </nav>
   );
 }

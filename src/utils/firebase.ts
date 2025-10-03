@@ -9,7 +9,6 @@ const firebaseConfig = {
   authDomain: "emergetech-5b202.firebaseapp.com",
   projectId: "emergetech-5b202",
   storageBucket: "emergetech-5b202.firebasestorage.app",
-  messagingSenderId: "628831092464",
   appId: "1:628831092464:web:e70742607207a2890ccc35",
   measurementId: "G-997XLMTJF5"
 };

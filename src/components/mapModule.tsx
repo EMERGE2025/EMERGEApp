@@ -11,6 +11,8 @@ import {
   EyeSlash,
   Info,
   Globe,
+  Plus,
+  Minus,
 } from "@phosphor-icons/react/dist/ssr";
 
 export type MarkerData = {
@@ -542,7 +544,7 @@ export default function MapLibre3D({
       console.log(`Map ready for hazard: ${initialHazard}`);
 
       // Add mobile-specific styles for controls
-      const style = document.createElement('style');
+      const style = document.createElement("style");
       style.textContent = `
         @media (max-width: 768px) {
           .maplibregl-ctrl {
@@ -567,10 +569,7 @@ export default function MapLibre3D({
       document.head.appendChild(style);
     });
 
-    map.addControl(
-      new maplibregl.NavigationControl({ visualizePitch: true }),
-      "bottom-right"
-    );
+    // Removed default NavigationControl to use custom buttons
     // map.addControl(RotateControl(), "bottom-right");
 
     // setTimeout(() => {
@@ -1104,7 +1103,7 @@ export default function MapLibre3D({
       </div>
 
       {/* Hazard Control Buttons - Top Center */}
-      <div className="absolute flex top-2 md:top-4 right-10 transform  z-[100] pointer-events-none">
+      <div className="absolute flex top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
         <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
           <button
             onClick={() => onHazardChange("flooding")}
@@ -1250,6 +1249,32 @@ export default function MapLibre3D({
               weight="bold"
               className={is3D ? "text-blue-600" : "text-gray-600"}
             />
+          </button>
+
+          {/* Zoom In Button */}
+          <button
+            onClick={() => {
+              if (mapRef.current) {
+                mapRef.current.zoomIn();
+              }
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
+            title="Zoom In"
+          >
+            <Plus size={20} weight="bold" className="text-gray-600" />
+          </button>
+
+          {/* Zoom Out Button */}
+          <button
+            onClick={() => {
+              if (mapRef.current) {
+                mapRef.current.zoomOut();
+              }
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
+            title="Zoom Out"
+          >
+            <Minus size={20} weight="bold" className="text-gray-600" />
           </button>
         </div>
       </div>
