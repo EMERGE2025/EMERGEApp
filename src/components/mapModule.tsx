@@ -129,7 +129,7 @@ export default function MapLibre3D({
   ) => {
     return features.map((feature: any) => {
       const coords = feature.geometry.coordinates;
-      let vulnerabilityScore = 0.5; // Default vulnerability
+      let vulnerabilityScore = 0.5;
 
       // If we have population vulnerability data, find the closest vulnerability point
       if (vulnerabilityData && vulnerabilityData.vulnerability) {
@@ -193,7 +193,7 @@ export default function MapLibre3D({
     const heatmapLayerId = `${hazard}-heatmap`;
 
     console.log(
-      `🔥 Toggling enhanced vulnerability heatmap for ${hazard}, current state: ${isHeatmapEnabled}`
+      `Toggling enhanced vulnerability heatmap for ${hazard}, current state: ${isHeatmapEnabled}`
     );
 
     if (isHeatmapEnabled) {
