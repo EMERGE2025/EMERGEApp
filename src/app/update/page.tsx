@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface HistoryEntry {
   date: string;
   time: string;
   description: string;
+  type: string;
 }
 
 interface MonthData {
@@ -13,6 +15,7 @@ interface MonthData {
 }
 
 export default function UpdatePage() {
+  const { user } = useAuth();
   const [selectedFiles, setSelectedFiles] = useState<{
     [key: string]: File | null;
   }>({
@@ -29,19 +32,64 @@ export default function UpdatePage() {
     landslide: false,
   });
 
-  // Sample history data
-  const historyData: { [year: string]: MonthData } = {
-    "2025": {
-      July: [
-        { date: "12-06-01", time: "12:00 AM", description: "Changed Da..." },
-        { date: "12-06-01", time: "12:00 AM", description: "Changed Da..." },
-      ],
-      June: [
-        { date: "12-06-01", time: "12:00 AM", description: "Changed Da..." },
-        { date: "12-06-01", time: "12:00 AM", description: "Changed Da..." },
-      ],
-    },
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessages, setUploadMessages] = useState<string>('');
+  const [logs, setLogs] = useState<string>('');
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/update-logs');
+        const data = await response.json();
+        setLogs(data.logs);
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+      }
+    };
+    fetchLogs();
+  }, []);
+
+  const parseLogs = (logs: string): { [year: string]: MonthData } => {
+    const history: { [year: string]: MonthData } = {};
+    const lines = logs.split('\n').filter(line => line.trim());
+    lines.forEach(line => {
+      const match = line.match(/^\[(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\] User: (.+) \(ID: (.+)\) uploaded '(.+)' as type '(.+)'$/);
+      if (match) {
+        const [, year, monthNum, day, hour, min, sec, name, id, filename, type] = match;
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const month = monthNames[parseInt(monthNum) - 1];
+        const date = `${monthNum}-${day}-${year.slice(2)}`; // MM-DD-YY
+        const time24 = `${hour}:${min}:${sec}`;
+        const time12 = new Date(`2000-01-01T${time24}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const description = `${name} uploaded '${filename}' as ${type}`;
+
+        if (!history[year]) history[year] = {};
+        if (!history[year][month]) history[year][month] = [];
+        history[year][month].push({ date, time: time12, description, type });
+
+        // Sort entries by date descending
+        history[year][month].sort((a, b) => {
+          const [ma, da, ya] = a.date.split('-').map(Number);
+          const [mb, db, yb] = b.date.split('-').map(Number);
+          const dateA = new Date(2000 + ya, ma - 1, da);
+          const dateB = new Date(2000 + yb, mb - 1, db);
+          return dateB.getTime() - dateA.getTime();
+        });
+      }
+    });
+    return history;
   };
+
+  const historyData = parseLogs(logs);
+
+  const iconMap: { [key: string]: string } = {
+    population: '/hazard graphics/population data.svg',
+    flooding: '/hazard graphics/flood risk graphic.svg',
+    earthquake: '/hazard graphics/earthquake risk graphic.svg',
+    landslide: '/hazard graphics/landslide risk graphic.svg',
+  };
+
+
 
   const handleFileChange = (category: string, file: File | null) => {
     setSelectedFiles((prev) => ({
@@ -68,6 +116,11 @@ export default function UpdatePage() {
     setDragOver((prev) => ({ ...prev, [category]: false }));
   };
 
+  const getAllowedExtensions = (category: string) => {
+    if (category === 'population') return ['csv', 'xlsx'];
+    return ['geojson', 'gpkg'];
+  };
+
   const handleDrop = (category: string, event: React.DragEvent) => {
     event.preventDefault();
     setDragOver((prev) => ({ ...prev, [category]: false }));
@@ -75,11 +128,12 @@ export default function UpdatePage() {
     const files = event.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
-      // Check if it's a CSV file
-      if (file.type === "text/csv" || file.name.endsWith(".csv")) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const allowed = getAllowedExtensions(category);
+      if (allowed.includes(ext || '')) {
         handleFileChange(category, file);
       } else {
-        alert("Please upload a CSV file.");
+        alert(`Please upload a file with one of these extensions: ${allowed.join(', ')}`);
       }
     }
   };
@@ -103,9 +157,39 @@ export default function UpdatePage() {
     }
   };
 
-  const handleConfirmUploads = () => {
-    // Handle confirmation of all uploads
-    console.log("Confirming all uploads:", selectedFiles);
+  const handleConfirmUploads = async () => {
+    if (!user) {
+      alert('Please log in to upload files.');
+      return;
+    }
+    const filesToUpload = Object.entries(selectedFiles).filter(([_, file]) => file !== null);
+    if (filesToUpload.length === 0) {
+      alert('Please select at least one file to upload.');
+      return;
+    }
+    setUploading(true);
+    setUploadMessages('');
+
+    for (const [category, file] of filesToUpload) {
+      if (!file) continue;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', category === 'flood' ? 'flooding' : category);
+      formData.append('username', user.displayName || user.email || 'Unknown');
+      formData.append('user_id', user.uid);
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const result = await response.json();
+        setUploadMessages(prev => prev + `${category}: ${result.message}\n`);
+      } catch (error) {
+        setUploadMessages(prev => prev + `${category}: Upload failed\n`);
+      }
+    }
+    setUploading(false);
   };
 
   return (
@@ -115,7 +199,9 @@ export default function UpdatePage() {
         <div className="mb-8">
           <h1 className="text-2xl font-normal text-gray-800 mb-2">
             Hi,{" "}
-            <span className="text-[#b92727] font-semibold">Anna Freeman!</span>
+            <span className="text-[#b92727] font-semibold">
+              {user?.displayName || user?.email?.split('@')[0] || 'User'}!
+            </span>
           </h1>
         </div>
 
@@ -149,13 +235,13 @@ export default function UpdatePage() {
                 onDragLeave={(e) => handleDragLeave("population", e)}
                 onDrop={(e) => handleDrop("population", e)}
               >
-                <input
-                  type="file"
-                  id="file-input-population"
-                  accept=".csv"
-                  onChange={(e) => handleFileSelect("population", e)}
-                  className="hidden"
-                />
+                 <input
+                   type="file"
+                   id="file-input-population"
+                   accept=".csv,.xlsx"
+                   onChange={(e) => handleFileSelect("population", e)}
+                   className="hidden"
+                 />
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-10 mb-0">
                     <div className="w-50 h-50 rounded-xl flex items-center justify-center p-0 overflow-hidden">
@@ -177,19 +263,19 @@ export default function UpdatePage() {
                         Upload from your computer or by <br />
                         Drag-and-Dropping
                       </p>
-                      {selectedFiles.population ? (
-                        <p className="text-sm text-[#24800B] font-medium mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">
-                            {selectedFiles.population.name}
-                          </span>
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-800 mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">Filename.csv</span>
-                        </p>
-                      )}
+                       {selectedFiles.population ? (
+                         <p className="text-sm text-[#24800B] font-medium mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">
+                             {selectedFiles.population.name}
+                           </span>
+                         </p>
+                       ) : (
+                         <p className="text-sm text-gray-800 mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">No file selected</span>
+                         </p>
+                       )}
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-500">
                           Last Updated: Aug 1, 2025 12:00 A.M
@@ -219,13 +305,13 @@ export default function UpdatePage() {
                 onDragLeave={(e) => handleDragLeave("flood", e)}
                 onDrop={(e) => handleDrop("flood", e)}
               >
-                <input
-                  type="file"
-                  id="file-input-flood"
-                  accept=".csv"
-                  onChange={(e) => handleFileSelect("flood", e)}
-                  className="hidden"
-                />
+                 <input
+                   type="file"
+                   id="file-input-flood"
+                   accept=".geojson,.gpkg"
+                   onChange={(e) => handleFileSelect("flood", e)}
+                   className="hidden"
+                 />
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-10 mb-0">
                     <div className="w-50 h-50 rounded-xl flex items-center justify-center p-0 overflow-hidden">
@@ -247,19 +333,19 @@ export default function UpdatePage() {
                         Upload from your computer or by <br />
                         Drag-and-Dropping
                       </p>
-                      {selectedFiles.flood ? (
-                        <p className="text-sm text-[#24800B] font-medium mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">
-                            {selectedFiles.flood.name}
-                          </span>
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-800 mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">Filename.csv</span>
-                        </p>
-                      )}
+                       {selectedFiles.flood ? (
+                         <p className="text-sm text-[#24800B] font-medium mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">
+                             {selectedFiles.flood.name}
+                           </span>
+                         </p>
+                       ) : (
+                         <p className="text-sm text-gray-800 mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">No file selected</span>
+                         </p>
+                       )}
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-500">
                           Last Updated: Aug 1, 2025 12:00 A.M
@@ -289,13 +375,13 @@ export default function UpdatePage() {
                 onDragLeave={(e) => handleDragLeave("earthquake", e)}
                 onDrop={(e) => handleDrop("earthquake", e)}
               >
-                <input
-                  type="file"
-                  id="file-input-earthquake"
-                  accept=".csv"
-                  onChange={(e) => handleFileSelect("earthquake", e)}
-                  className="hidden"
-                />
+                 <input
+                   type="file"
+                   id="file-input-earthquake"
+                   accept=".geojson,.gpkg"
+                   onChange={(e) => handleFileSelect("earthquake", e)}
+                   className="hidden"
+                 />
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-10 mb-0">
                     <div className="w-50 h-50 rounded-xl flex items-center justify-center p-0 overflow-hidden">
@@ -317,19 +403,19 @@ export default function UpdatePage() {
                         Upload from your computer or by <br />
                         Drag-and-Dropping
                       </p>
-                      {selectedFiles.earthquake ? (
-                        <p className="text-sm text-[#24800B] font-medium mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">
-                            {selectedFiles.earthquake.name}
-                          </span>
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-800 mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">Filename.csv</span>
-                        </p>
-                      )}
+                       {selectedFiles.earthquake ? (
+                         <p className="text-sm text-[#24800B] font-medium mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">
+                             {selectedFiles.earthquake.name}
+                           </span>
+                         </p>
+                       ) : (
+                         <p className="text-sm text-gray-800 mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">No file selected</span>
+                         </p>
+                       )}
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-500">
                           Last Updated: Aug 1, 2025 12:00 A.M
@@ -359,13 +445,13 @@ export default function UpdatePage() {
                 onDragLeave={(e) => handleDragLeave("landslide", e)}
                 onDrop={(e) => handleDrop("landslide", e)}
               >
-                <input
-                  type="file"
-                  id="file-input-landslide"
-                  accept=".csv"
-                  onChange={(e) => handleFileSelect("landslide", e)}
-                  className="hidden"
-                />
+                 <input
+                   type="file"
+                   id="file-input-landslide"
+                   accept=".geojson,.gpkg"
+                   onChange={(e) => handleFileSelect("landslide", e)}
+                   className="hidden"
+                 />
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-10 mb-0">
                     <div className="w-50 h-50 rounded-xl flex items-center justify-center p-0 overflow-hidden">
@@ -387,19 +473,19 @@ export default function UpdatePage() {
                         Upload from your computer or by <br />
                         Drag-and-Dropping
                       </p>
-                      {selectedFiles.landslide ? (
-                        <p className="text-sm text-[#24800B] font-medium mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">
-                            {selectedFiles.landslide.name}
-                          </span>
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-800 mb-1">
-                          Uploaded:{" "}
-                          <span className="font-medium">Filename.csv</span>
-                        </p>
-                      )}
+                       {selectedFiles.landslide ? (
+                         <p className="text-sm text-[#24800B] font-medium mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">
+                             {selectedFiles.landslide.name}
+                           </span>
+                         </p>
+                       ) : (
+                         <p className="text-sm text-gray-800 mb-1">
+                           Uploaded:{" "}
+                           <span className="font-medium">No file selected</span>
+                         </p>
+                       )}
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-500">
                           Last Updated: Aug 1, 2025 12:00 A.M
@@ -422,10 +508,16 @@ export default function UpdatePage() {
             {/* Confirm Uploads Button */}
             <button
               onClick={handleConfirmUploads}
-              className="w-full justify-end md:w-auto bg-[#2E2C2F] text-white px-8 py-3 rounded-lg font-medium hover:bg-[#1a1819] transition-colors"
+              disabled={uploading}
+              className="w-full justify-end md:w-auto bg-[#2E2C2F] text-white px-8 py-3 rounded-lg font-medium hover:bg-[#1a1819] transition-colors disabled:opacity-50"
             >
-              Confirm Uploads
+              {uploading ? 'Uploading...' : 'Confirm Uploads'}
             </button>
+            {uploadMessages && (
+              <pre className="mt-4 whitespace-pre-wrap text-sm text-gray-700 bg-gray-100 p-4 rounded">
+                {uploadMessages}
+              </pre>
+            )}
           </div>
 
           {/* Right Section - History */}
@@ -436,45 +528,51 @@ export default function UpdatePage() {
               </h2>
               <p className="text-sm text-gray-600 mb-6">View recent updates</p>
 
-              <div className="space-y-6">
-                {Object.entries(historyData).map(([year, months]) => (
-                  <div key={year}>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                      {year}
-                    </h3>
-                    {Object.entries(months).map(([month, entries]) => (
-                      <div key={month} className="mb-6">
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">
-                          {month}
-                        </h4>
-                        <div className="space-y-2">
-                          {entries.map((entry, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center text-xs"
-                            >
-                              <div className="flex space-x-4">
-                                <span className="text-gray-500">
-                                  {entry.date}
-                                </span>
-                                <span className="text-gray-500">
-                                  {entry.time}
-                                </span>
-                                <span className="text-gray-700">
-                                  {entry.description}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-                <button className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
-                  See More...
-                </button>
-              </div>
+               <div className="space-y-6">
+                 {Object.keys(historyData).length > 0 ? (
+                   Object.entries(historyData).map(([year, months]) => (
+                     <div key={year}>
+                       <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                         {year}
+                       </h3>
+                       {Object.entries(months).map(([month, entries]) => (
+                         <div key={month} className="mb-6">
+                           <h4 className="text-sm font-medium text-gray-700 mb-3">
+                             {month}
+                           </h4>
+                           <div className="space-y-4">
+                             {entries.map((entry, index) => (
+                               <div key={index} className="flex items-start space-x-4">
+                                 <div className="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden border-2 border-gray-300">
+                                   <img src={iconMap[entry.type] || '/hazard graphics/population data.svg'} alt={entry.type} className="w-full h-full object-cover" />
+                                 </div>
+                                 <div className="flex-1">
+                                   <div className="bg-gray-100 rounded-lg p-3 mb-2 relative text-sm text-gray-600">
+                                     {entry.date} at {entry.time}
+                                     <div className="absolute top-3 left-[-8px] w-0 h-0 border-r-8 border-r-gray-100 border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+                                   </div>
+                                   <div className="bg-blue-50 rounded-lg p-3 relative text-sm text-gray-700">
+                                     {(() => {
+                                       const [name, rest] = entry.description.split(' uploaded ');
+                                       return <><strong className="text-blue-600">{name}</strong> uploaded {rest}</>;
+                                     })()}
+                                     <div className="absolute top-3 left-[-8px] w-0 h-0 border-r-8 border-r-blue-50 border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+                                   </div>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   ))
+                 ) : (
+                   <p className="text-sm text-gray-600">No logs available</p>
+                 )}
+                 <button className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
+                   See More...
+                 </button>
+               </div>
             </div>
           </div>
         </div>
