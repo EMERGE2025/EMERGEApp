@@ -8,6 +8,7 @@ interface HistoryEntry {
   time: string;
   description: string;
   type: string;
+  formattedDate: string;
 }
 
 interface MonthData {
@@ -61,11 +62,12 @@ export default function UpdatePage() {
         const date = `${monthNum}-${day}-${year.slice(2)}`; // MM-DD-YY
         const time24 = `${hour}:${min}:${sec}`;
         const time12 = new Date(`2000-01-01T${time24}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const formattedDate = `${month.slice(0,3)} ${day}, ${year} ${time12}`;
         const description = `${name} uploaded '${filename}' as ${type}`;
 
         if (!history[year]) history[year] = {};
         if (!history[year][month]) history[year][month] = [];
-        history[year][month].push({ date, time: time12, description, type });
+        history[year][month].push({ date, time: time12, description, type, formattedDate });
 
         // Sort entries by date descending
         history[year][month].sort((a, b) => {
@@ -81,6 +83,21 @@ export default function UpdatePage() {
   };
 
   const historyData = parseLogs(logs);
+
+  const lastUpdated: { [type: string]: string } = {};
+  const monthOrder: { [key: string]: number } = {
+    January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
+    July: 7, August: 8, September: 9, October: 10, November: 11, December: 12
+  };
+  for (const year of Object.keys(historyData).sort((a, b) => parseInt(b) - parseInt(a))) {
+    for (const month of Object.keys(historyData[year]).sort((a, b) => monthOrder[b] - monthOrder[a])) {
+      for (const entry of historyData[year][month]) {
+        if (!lastUpdated[entry.type]) {
+          lastUpdated[entry.type] = entry.formattedDate;
+        }
+      }
+    }
+  }
 
   const iconMap: { [key: string]: string } = {
     population: '/hazard graphics/population data.svg',
@@ -275,13 +292,13 @@ export default function UpdatePage() {
                            Uploaded:{" "}
                            <span className="font-medium">No file selected</span>
                          </p>
-                       )}
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-500">
-                          Last Updated: Aug 1, 2025 12:00 A.M
-                        </p>
-                        <button
-                          onClick={() => handleUploadData("population")}
+                        )}
+                       <div className="flex items-center justify-between">
+                         <p className="text-sm text-gray-500">
+                           Last Updated: {lastUpdated['population'] || "No updates yet"}
+                         </p>
+                         <button
+                           onClick={() => handleUploadData("population")}
                           className="bg-[#2E2C2F] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a1819] transition-colors"
                         >
                           {selectedFiles.population
@@ -345,13 +362,13 @@ export default function UpdatePage() {
                            Uploaded:{" "}
                            <span className="font-medium">No file selected</span>
                          </p>
-                       )}
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-500">
-                          Last Updated: Aug 1, 2025 12:00 A.M
-                        </p>
-                        <button
-                          onClick={() => handleUploadData("flood")}
+                        )}
+                       <div className="flex items-center justify-between">
+                         <p className="text-sm text-gray-500">
+                           Last Updated: {lastUpdated['flooding'] || "No updates yet"}
+                         </p>
+                         <button
+                           onClick={() => handleUploadData("flood")}
                           className="bg-[#2E2C2F] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a1819] transition-colors"
                         >
                           {selectedFiles.flood
@@ -415,13 +432,13 @@ export default function UpdatePage() {
                            Uploaded:{" "}
                            <span className="font-medium">No file selected</span>
                          </p>
-                       )}
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-500">
-                          Last Updated: Aug 1, 2025 12:00 A.M
-                        </p>
-                        <button
-                          onClick={() => handleUploadData("earthquake")}
+                        )}
+                       <div className="flex items-center justify-between">
+                         <p className="text-sm text-gray-500">
+                           Last Updated: {lastUpdated['earthquake'] || "No updates yet"}
+                         </p>
+                         <button
+                           onClick={() => handleUploadData("earthquake")}
                           className="bg-[#2E2C2F] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a1819] transition-colors"
                         >
                           {selectedFiles.earthquake
@@ -485,13 +502,13 @@ export default function UpdatePage() {
                            Uploaded:{" "}
                            <span className="font-medium">No file selected</span>
                          </p>
-                       )}
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-500">
-                          Last Updated: Aug 1, 2025 12:00 A.M
-                        </p>
-                        <button
-                          onClick={() => handleUploadData("landslide")}
+                        )}
+                       <div className="flex items-center justify-between">
+                         <p className="text-sm text-gray-500">
+                           Last Updated: {lastUpdated['landslide'] || "No updates yet"}
+                         </p>
+                         <button
+                           onClick={() => handleUploadData("landslide")}
                           className="bg-[#2E2C2F] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a1819] transition-colors"
                         >
                           {selectedFiles.landslide
