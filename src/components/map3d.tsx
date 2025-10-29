@@ -1,6 +1,7 @@
 "use client";
 
 import maplibregl from "maplibre-gl";
+// @ts-ignore: side-effect CSS import without type declarations
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import { GeoJSON } from "geojson";

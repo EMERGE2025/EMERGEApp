@@ -1,11 +1,15 @@
 "use client";
 
 import maplibregl, { Popup } from "maplibre-gl";
+// @ts-ignore: side-effect CSS import without type declarations
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Menu } from "@headlessui/react";
+import SettingsSidebar from "./SettingsSidebar";
 import {
   MagnifyingGlassIcon,
+  ArrowLeft,
   X,
   Flame,
   Eye,
@@ -14,6 +18,7 @@ import {
   Globe,
   Plus,
   Minus,
+  ArrowDown,
   List,
 } from "@phosphor-icons/react/dist/ssr";
 
@@ -115,12 +120,15 @@ export default function MapLibre3D({
   onHazardChange: (hazard: string) => void;
 }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const currentPopupRef = useRef<maplibregl.Popup | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([]);
   const [currentHazard, setCurrentHazard] = useState<string>("");
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState<boolean>(false);
   const [areMarkersVisible, setAreMarkersVisible] = useState<boolean>(true);
   const [isLegendVisible, setIsLegendVisible] = useState<boolean>(false);
   const [is3D, setIs3D] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [clustersCount, setClustersCount] = useState<number>(8);
 
   // Enhance features with vulnerability data
   const enhanceFeaturesWithVulnerability = (
@@ -143,8 +151,8 @@ export default function MapLibre3D({
           let closestDistance = Infinity;
           let closestVulnerability = 0.5;
 
-          vulnData.features
-            .forEach((vulnFeature: any) => {
+          try {
+            vulnData.features.forEach((vulnFeature: any) => {
               const vulnCoords = vulnFeature.geometry.coordinates;
               const distance = Math.sqrt(
                 Math.pow(coords[0] - vulnCoords[0], 2) +
@@ -156,10 +164,10 @@ export default function MapLibre3D({
                 closestVulnerability =
                   vulnFeature.properties?.vulnerabilityIndex || 0.5;
               }
-            })
-            .catch((error: any) => {
-              console.error("Error in cluster click handler:", error);
             });
+          } catch (error: any) {
+            console.error("Error processing vulnerability features:", error);
+          }
 
           vulnerabilityScore = closestVulnerability;
         }
@@ -522,6 +530,19 @@ export default function MapLibre3D({
   // console.log(riskDatabase[0].boundary);
 
   useEffect(() => {
+    // Helper to remove any existing MapLibre popups from the DOM
+    const removeAllPopups = () => {
+      try {
+        currentPopupRef.current?.remove();
+        currentPopupRef.current = null;
+      } catch {}
+      try {
+        document
+          .querySelectorAll('.maplibregl-popup')
+          .forEach((el) => el.remove());
+      } catch {}
+    };
+
     const map = new maplibregl.Map({
       container: "map",
       style: `https://tiles.openfreemap.org/styles/${mapType}`,
@@ -555,6 +576,8 @@ export default function MapLibre3D({
 
     map.on("load", () => {
       console.log("Map loaded, waiting for risk database...");
+      // Clean any stray popups that might be present from previous sessions/renders
+      removeAllPopups();
 
       // Load initial hazard data (will be updated when riskDatabase becomes available)
       const initialHazard = selectedRisk || "flooding";
@@ -586,6 +609,8 @@ export default function MapLibre3D({
     // }, 500);
 
     return () => {
+      // Ensure popups are removed on unmount
+      removeAllPopups();
       map.remove();
     };
   }, []);
@@ -664,6 +689,7 @@ export default function MapLibre3D({
           paint: {
             "line-color": "#ff0000",
             "line-width": 3,
+            "line-opacity": 0.35,
           },
         });
         console.log("✅ Added boundary layer successfully");
@@ -734,6 +760,12 @@ export default function MapLibre3D({
     const map = mapRef.current;
 
     // Remove existing hazard layers and sources (but NOT boundary)
+    // Also remove any existing popups for a clean state
+    try {
+      document.querySelectorAll('.maplibregl-popup').forEach((el) => el.remove());
+      currentPopupRef.current?.remove();
+      currentPopupRef.current = null;
+    } catch {}
     const layersToRemove = [
       `${currentHazard}-risk`,
       `${currentHazard}-heatmap`,
@@ -899,7 +931,7 @@ export default function MapLibre3D({
         id: "responderRange",
         type: "line",
         source: `${hazard}-range`,
-        paint: { "line-color": "#008000", "line-width": 3 },
+        paint: { "line-color": "#008000", "line-width": 3, "line-opacity": 0.35 },
       });
 
       // Add cluster layers
@@ -1014,7 +1046,7 @@ export default function MapLibre3D({
       });
 
       // Add click handler for unclustered points
-      map.on("click", `${hazard}-risk`, (e) => {
+  map.on("click", `${hazard}-risk`, (e) => {
         const features = map.queryRenderedFeatures(e.point, {
           layers: [`${hazard}-risk`],
         });
@@ -1026,28 +1058,96 @@ export default function MapLibre3D({
 
         const barangay = properties?.ADM4_EN || "Unknown";
         const riskScore = properties?.risk_score ?? 0;
-        const vulnerabilityScore = properties?.raw_score ?? "N/A";
-        const hazardType = properties?.hazard_type ?? "N/A";
+        // Try to derive a population value if present
+        const populationRaw = (properties?.population ?? properties?.pop ?? properties?.POPULATION) as
+          | number
+          | string
+          | undefined;
+        const population = typeof populationRaw === "number"
+          ? populationRaw
+          : typeof populationRaw === "string"
+            ? parseInt(populationRaw.replace(/[^0-9]/g, ""))
+            : undefined;
 
-        // Prepare popup content
+        // Coordinates for display from feature geometry
+        let displayLng: string | null = null;
+        let displayLat: string | null = null;
+        if (
+          feature.geometry.type === "Point" &&
+          Array.isArray((feature.geometry as any).coordinates)
+        ) {
+          const c = (feature.geometry as any).coordinates as [number, number];
+          displayLng = typeof c[0] === "number" ? c[0].toFixed(5) : null;
+          displayLat = typeof c[1] === "number" ? c[1].toFixed(5) : null;
+        }
+
+        // Hazard-specific styling and assets
+        const hazardNameMap: Record<string, string> = {
+          earthquake: "Earthquake Risk",
+          flooding: "Flood Risk",
+          landslide: "Landslide Risk",
+        };
+        const hazardTitle = hazardNameMap[selectedRisk] || `${selectedRisk} Risk`;
+        const accentMap: Record<string, string> = {
+          earthquake: "#36A816", // green
+          flooding: "#0ea5e9", // blue
+          landslide: "#f59e0b", // orange
+        };
+        const accent = accentMap[selectedRisk] || "#ef4444"; // fallback red
+        const iconMap: Record<string, string> = {
+          flooding: "/icons/flood icon.svg",
+          landslide: "/icons/landslide icon.svg",
+          earthquake: "/icons/earthquake icon.svg",
+        };
+        const iconPath = iconMap[selectedRisk] || `/icons/${selectedRisk}.svg`;
+
+        const toPercent = (v: any) => {
+          if (typeof v === "number") {
+            const p = v <= 1 ? v * 100 : v;
+            return `${p.toFixed(2)}%`;
+          }
+          const n = Number(v);
+          return isNaN(n) ? String(v ?? "N/A") : `${(n <= 1 ? n * 100 : n).toFixed(2)}%`;
+        };
+
         const popupContent = `
-      <div style="padding: 8px; color: black; position: relative; border-radius: 50%;">
-        <img src="icons/${selectedRisk}.svg" alt="Logo" style="position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; z-index: 10;">
-        <div style="margin-left: 32px;">
-          <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${barangay}</h3>
-          <p style="margin: 4px 0;"><strong>Risk Score:</strong> ${
-            typeof riskScore === "number" ? riskScore.toFixed(2) : riskScore
-          }</p>
-          <p style="margin: 4px 0;"><strong>Vulnerability:</strong> ${
-            typeof vulnerabilityScore === "number"
-              ? vulnerabilityScore.toFixed(2)
-              : vulnerabilityScore
-          }</p>
-          <p style="margin: 4px 0;"><strong>Hazard Type:</strong> ${
-            typeof hazardType === "string" ? hazardType : "Unknown Risk"
-          }</p>
+  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
+    <div style="background:#ffffff;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:12px 14px;min-width:280px;max-width:360px;">
+      <div style="display:flex;align-items:center;gap:10px;position:relative;">
+        <div style="width:28px;height:28px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+          <div style="width:16px;height:16px;background:#ffffff;mask:url('${iconPath}') center/contain no-repeat;-webkit-mask:url('${iconPath}') center/contain no-repeat;"></div>
         </div>
-      </div>`;
+        <div style="flex:1 1 auto;">
+          <div style="font-weight:700;font-size:15px;line-height:1.2;">${hazardTitle}</div>
+          <div style="font-size:12px;color:#6b7280;">Calculated by Hazard and Population Data</div>
+        </div>
+        <button class="emerge-popup-close" aria-label="Close" style="cursor:pointer;width:22px;height:22px;border:none;outline:none;border-radius:999px;background:#f3f4f6;color:#6b7280;display:flex;align-items:center;justify-content:center;font-size:14px;position:absolute;right:0;top:0;">×</button>
+      </div>
+
+      <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+        <div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Severity</div>
+          <div style="font-weight:600;color:${accent};">${toPercent(riskScore)}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Location</div>
+          <div style="font-weight:600;color:${accent};">${barangay}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+        <div style="grid-column:1 / span 1;">
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Coordinates</div>
+          <div style="font-weight:600;color:${accent};">${displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+        <div style="grid-column:2 / span 1;">
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Population</div>
+          <div style="font-weight:600;color:${accent};">${population ? population.toLocaleString() : "N/A"}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
 
         // Get coordinates safely
         let lngLat: [number, number] | undefined;
@@ -1083,16 +1183,33 @@ export default function MapLibre3D({
         if (lngLat) {
           console.log("Popping up!");
 
-          // Remove any existing popup first
-          const existingPopup = document.querySelector(".maplibregl-popup");
-          if (existingPopup) existingPopup.remove();
+          // Remove any existing popups first
+          try {
+            document
+              .querySelectorAll('.maplibregl-popup')
+              .forEach((el) => el.remove());
+            currentPopupRef.current?.remove();
+            currentPopupRef.current = null;
+          } catch {}
 
           // Create and add popup
           try {
-            const popup = new maplibregl.Popup({ offset: 2 })
+            const popup = new maplibregl.Popup({ offset: [16, -16], anchor: 'bottom-left', closeButton: false })
               .setLngLat(lngLat)
               .setHTML(popupContent)
               .addTo(map);
+            currentPopupRef.current = popup;
+            // Wire up custom close button
+            const el = popup.getElement();
+            const closeBtn = el?.querySelector('.emerge-popup-close') as HTMLElement | null;
+            if (closeBtn) {
+              closeBtn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                popup.remove();
+                currentPopupRef.current = null;
+              });
+            }
             map.flyTo({
               center: lngLat,
               zoom: 14,
@@ -1102,6 +1219,138 @@ export default function MapLibre3D({
             console.error("Error creating popup:", error);
           }
         }
+      });
+
+      // Also handle clicks on the circle layer (unclustered-point) which can sit above the symbol layer
+  map.on("click", "unclustered-point", (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ["unclustered-point"],
+        });
+        if (features.length === 0) return;
+
+        const feature = features[0];
+        const properties = feature.properties;
+        console.log("Pin properties (circle):", properties);
+
+        const barangay = properties?.ADM4_EN || "Unknown";
+        const riskScore = properties?.risk_score ?? 0;
+        const populationRaw = (properties?.population ?? properties?.pop ?? properties?.POPULATION) as number | string | undefined;
+        const population = typeof populationRaw === "number" ? populationRaw : typeof populationRaw === "string" ? parseInt(populationRaw.replace(/[^0-9]/g, "")) : undefined;
+
+        let displayLng: string | null = null;
+        let displayLat: string | null = null;
+        if (feature.geometry.type === "Point" && Array.isArray((feature.geometry as any).coordinates)) {
+          const c = (feature.geometry as any).coordinates as [number, number];
+          displayLng = typeof c[0] === "number" ? c[0].toFixed(5) : null;
+          displayLat = typeof c[1] === "number" ? c[1].toFixed(5) : null;
+        }
+
+        const hazardNameMap: Record<string, string> = { earthquake: "Earthquake Risk", flooding: "Flood Risk", landslide: "Landslide Risk" };
+        const hazardTitle = hazardNameMap[selectedRisk] || `${selectedRisk} Risk`;
+  const accentMap: Record<string, string> = { earthquake: "#36A816", flooding: "#0ea5e9", landslide: "#f59e0b" };
+        const accent = accentMap[selectedRisk] || "#ef4444";
+        const iconMap: Record<string, string> = { flooding: "/icons/flood icon.svg", landslide: "/icons/landslide icon.svg", earthquake: "/icons/earthquake icon.svg" };
+        const iconPath = iconMap[selectedRisk] || `/icons/${selectedRisk}.svg`;
+
+        const toPercent = (v: any) => {
+          if (typeof v === "number") {
+            const p = v <= 1 ? v * 100 : v;
+            return `${p.toFixed(2)}%`;
+          }
+          const n = Number(v);
+          return isNaN(n) ? String(v ?? "N/A") : `${(n <= 1 ? n * 100 : n).toFixed(2)}%`;
+        };
+
+        const popupContent = `
+  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
+    <div style="background:#ffffff;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:12px 14px;min-width:280px;max-width:360px;">
+      <div style="display:flex;align-items:center;gap:10px;position:relative;">
+        <div style="width:28px;height:28px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+          <div style="width:16px;height:16px;background:#ffffff;mask:url('${iconPath}') center/contain no-repeat;-webkit-mask:url('${iconPath}') center/contain no-repeat;"></div>
+        </div>
+        <div style="flex:1 1 auto;">
+          <div style="font-weight:700;font-size:15px;line-height:1.2;">${hazardTitle}</div>
+          <div style="font-size:12px;color:#6b7280;">Calculated by Hazard and Population Data</div>
+        </div>
+        <button class="emerge-popup-close" aria-label="Close" style="cursor:pointer;width:22px;height:22px;border:none;outline:none;border-radius:999px;background:#f3f4f6;color:#6b7280;display:flex;align-items:center;justify-content:center;font-size:14px;position:absolute;right:0;top:0;">×</button>
+      </div>
+
+      <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+        <div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Severity</div>
+          <div style="font-weight:600;color:${accent};">${toPercent(riskScore)}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Location</div>
+          <div style="font-weight:600;color:${accent};">${barangay}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+        <div style="grid-column:1 / span 1;">
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Coordinates</div>
+          <div style="font-weight:600;color:${accent};">${displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+        <div style="grid-column:2 / span 1;">
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Population</div>
+          <div style="font-weight:600;color:${accent};">${population ? population.toLocaleString() : "N/A"}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+        let lngLat: [number, number] | undefined;
+        if (feature.geometry.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
+          const coords = feature.geometry.coordinates as [number, number];
+          lngLat = [coords[0], coords[1]];
+          while (Math.abs(e.lngLat.lng - lngLat[0]) > 180) {
+            lngLat[0] += e.lngLat.lng > lngLat[0] ? 360 : -360;
+          }
+        }
+
+        if (lngLat) {
+          try {
+            document.querySelectorAll('.maplibregl-popup').forEach((el) => el.remove());
+            currentPopupRef.current?.remove();
+            currentPopupRef.current = null;
+
+            const popup = new maplibregl.Popup({ offset: [16, -16], anchor: 'bottom-left', closeButton: false })
+              .setLngLat(lngLat)
+              .setHTML(popupContent)
+              .addTo(map);
+            currentPopupRef.current = popup;
+            const el = popup.getElement();
+            const closeBtn = el?.querySelector('.emerge-popup-close') as HTMLElement | null;
+            if (closeBtn) {
+              closeBtn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                popup.remove();
+                currentPopupRef.current = null;
+              });
+            }
+            map.flyTo({ center: lngLat, zoom: 14 });
+          } catch (error) {
+            console.error('Error creating popup (circle):', error);
+          }
+        }
+      });
+
+      // Dismiss popups during map interactions to reduce distraction without closing on fly animations
+      const dismissEvents = [
+        'dragstart',
+      ] as const;
+      dismissEvents.forEach((evt) => {
+        map.on(evt, () => {
+          try {
+            currentPopupRef.current?.remove();
+            currentPopupRef.current = null;
+            document
+              .querySelectorAll('.maplibregl-popup')
+              .forEach((el) => el.remove());
+          } catch {}
+        });
       });
 
       // Update mouse events
@@ -1118,6 +1367,196 @@ export default function MapLibre3D({
       });
       map.on("mouseleave", `${hazard}-risk`, () => {
         map.getCanvas().style.cursor = "";
+      });
+
+      // Responder pin click -> open Responder management popup (Figma-aligned)
+      map.on("click", "responderLocation", (e) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: ["responderLocation"] });
+        if (!features.length) return;
+
+        // Base position
+        let lngLat: [number, number] | undefined;
+        const f = features[0];
+        if (f.geometry.type === "Point" && Array.isArray((f.geometry as any).coordinates)) {
+          const c = (f.geometry as any).coordinates as [number, number];
+          lngLat = [c[0], c[1]];
+          while (Math.abs(e.lngLat.lng - lngLat[0]) > 180) {
+            lngLat[0] += e.lngLat.lng > lngLat[0] ? 360 : -360;
+          }
+        }
+        if (!lngLat) return;
+
+        // Sample data. If feature has properties.responders, prefer those.
+        type Person = { id: string; name: string };
+        const fallbackSelected: Person[] = [
+          { id: "r1", name: "Mauricio Manuel Bergancia" },
+          { id: "r2", name: "Michael Rey Tuando" },
+          { id: "r3", name: "Mherlie Joy Chavez" },
+          { id: "r4", name: "Gillie Calanuga" },
+          { id: "r5", name: "Dhominick John Billena" },
+          { id: "r6", name: "Mherlie Chavez" },
+        ];
+        const fallbackAvailable: Person[] = [
+          { id: "r7", name: "Mauricio Bergancia" },
+          { id: "r8", name: "Michael Rey Tuando" },
+          { id: "r9", name: "Mherlie Chavez" },
+          { id: "r10", name: "Gillie Calanuga" },
+          { id: "r11", name: "Dhominick John Billena" },
+          { id: "r12", name: "John Doe" },
+        ];
+
+        let selected: Person[] = fallbackSelected.slice();
+        let available: Person[] = fallbackAvailable.slice();
+
+        const renderChipRow = (list: Person[], mode: "remove" | "add") => {
+          return list
+            .map(
+              (p) => `
+              <div class="pr-1 bg-zinc-900/10 rounded-[40px] flex items-center gap-2 px-2 py-1">
+                <div class="w-5 h-5 bg-zinc-700 rounded-full"></div>
+                <div class="flex items-center gap-1">
+                  <div class="opacity-90 text-[12px] text-[color:#111827]">${p.name}</div>
+                  <button data-action="${mode}" data-id="${p.id}" class="w-3.5 h-3.5 inline-flex items-center justify-center rounded-[30px] text-[10px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition">${mode === "remove" ? "×" : "+"}</button>
+                </div>
+              </div>`
+            )
+            .join("");
+        };
+
+        const render = () => {
+          const recCount = selected.length;
+          const availCount = available.length;
+          return `
+          <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
+            <div class="w-[480px] px-3 py-4 bg-[#F7F7F7] rounded-2xl shadow-[0_0_100px_0_rgba(0,0,0,0.20)] flex flex-col gap-2.5">
+              <div class="relative">
+                <button class="emerge-popup-close absolute right-0 -top-2 cursor-pointer w-[22px] h-[22px] rounded-full border-0 outline-none bg-[#f3f4f6] text-[#6b7280] flex items-center justify-center text-[14px]" aria-label="Close">×</button>
+                <div class="h-80 overflow-y-auto p-2 rounded-lg flex flex-col gap-2">
+                  <div class="flex flex-col gap-2">
+                    <div class="inline-flex items-end gap-3">
+                      <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 relative bg-red-500 rounded-3xl">
+                          <div class="w-3 h-0.5 absolute left-[5px] top-[13px] -rotate-45 bg-[#F7F7F7]"></div>
+                        </div>
+                        <div class="text-[#111827] text-base font-semibold">Responders</div>
+                      </div>
+                    </div>
+                    <div class="w-full text-[12px] text-zinc-900/60">Deploy and See Available Responders</div>
+                  </div>
+                  <div class="self-stretch h-px border-t border-neutral-800/20"></div>
+
+                  <div class="flex flex-col gap-3">
+                    <div class="w-full h-3.5 inline-flex items-center gap-5">
+                      <div class="text-[12px]"><span class="text-zinc-900/80 font-medium">Recommended:</span><span class="text-[#111827]"> </span><span class="text-red-600 font-semibold">${recCount} Responders</span></div>
+                    </div>
+                    <div class="w-full h-px border-t border-neutral-800/20"></div>
+
+                    <div class="flex flex-col gap-1">
+                      <div class="inline-flex items-center gap-2">
+                        <div class="text-red-600 text-[12px] font-semibold">Deploy Responder(s)</div>
+                        <div class="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
+                        <div class="text-zinc-900/60 text-[12px] font-medium">${recCount} Selected</div>
+                      </div>
+                      <div class="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
+                        <div class="w-full flex flex-col gap-1">
+                          <div class="flex flex-wrap gap-2">${renderChipRow(selected, "remove")}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                      <div class="inline-flex items-center gap-2">
+                        <div class="text-red-600 text-[12px] font-semibold">Available Responder(s)</div>
+                        <div class="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
+                        <div class="text-zinc-900/60 text-[12px] font-medium">${availCount} Available</div>
+                      </div>
+                      <div class="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
+                        <div class="w-full flex flex-col gap-1">
+                          <div class="flex flex-wrap gap-2">${renderChipRow(available, "add")}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-2 inline-flex items-center gap-3">
+                  <button class="emerge-resp-confirm h-6 px-3 py-1 bg-red-600 text-white rounded shadow hover:bg-red-700 text-[12px] font-semibold">Confirm</button>
+                  <button class="emerge-resp-close h-6 px-3 py-1 bg-[#F7F7F7] rounded border border-black/10 text-zinc-900/80 text-[12px] font-semibold">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        };
+
+        // Remove any existing popups first
+        try {
+          document.querySelectorAll('.maplibregl-popup').forEach((el) => el.remove());
+          currentPopupRef.current?.remove();
+          currentPopupRef.current = null;
+        } catch {}
+
+        const bindHandlers = (popup: maplibregl.Popup) => {
+          const root = popup.getElement();
+          if (!root) return;
+          const closeBtn = root.querySelector('.emerge-popup-close') as HTMLElement | null;
+          const confirmBtn = root.querySelector('.emerge-resp-confirm') as HTMLElement | null;
+          const close2 = root.querySelector('.emerge-resp-close') as HTMLElement | null;
+
+          const rewire = () => {
+            popup.setHTML(render());
+            bindHandlers(popup);
+          };
+
+          root.querySelectorAll('[data-action="remove"]').forEach((el) => {
+            el.addEventListener('click', (ev) => {
+              ev.preventDefault(); ev.stopPropagation();
+              const id = (ev.currentTarget as HTMLElement).getAttribute('data-id');
+              if (!id) return;
+              const idx = selected.findIndex((p) => p.id === id);
+              if (idx >= 0) {
+                const [p] = selected.splice(idx, 1);
+                available.unshift(p);
+                rewire();
+              }
+            });
+          });
+
+          root.querySelectorAll('[data-action="add"]').forEach((el) => {
+            el.addEventListener('click', (ev) => {
+              ev.preventDefault(); ev.stopPropagation();
+              const id = (ev.currentTarget as HTMLElement).getAttribute('data-id');
+              if (!id) return;
+              const idx = available.findIndex((p) => p.id === id);
+              if (idx >= 0) {
+                const [p] = available.splice(idx, 1);
+                selected.push(p);
+                rewire();
+              }
+            });
+          });
+
+          const doClose = () => { popup.remove(); currentPopupRef.current = null; };
+          closeBtn?.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); doClose(); });
+          close2?.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); doClose(); });
+          confirmBtn?.addEventListener('click', (ev) => {
+            ev.preventDefault(); ev.stopPropagation();
+            console.log('Confirmed responders:', selected.map((p) => p.name));
+            doClose();
+          });
+        };
+
+        try {
+          const popup = new maplibregl.Popup({ offset: [16, -16], anchor: 'bottom-left', closeButton: false })
+            .setLngLat(lngLat)
+            .setHTML(render())
+            .addTo(map);
+          currentPopupRef.current = popup;
+          bindHandlers(popup);
+          // Animate viewport like hazard pins so the popup adjusts to the screen
+          map.flyTo({ center: lngLat, zoom: 14, padding: { top: 400, right: 320, bottom: 160, left: 80 } });
+        } catch (err) {
+          console.error('Failed to render responder popup:', err);
+        }
       });
 
       // Create heatmap layer if heatmap is enabled
@@ -1195,45 +1634,124 @@ export default function MapLibre3D({
       <div className="relative w-full h-[calc(100vh-120px)] md:h-[90vh] z-0 rounded-xl shadow-lg">
         {/* Map Container */}
         <div id="map" className="w-full h-full" />
+        {/* Bottom-center scroll button (relative to map, scrolls with page) */}
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
+          <button
+            type="button"
+            aria-label="Scroll to bottom"
+            title="Scroll to bottom"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+              }
+            }}
+            className="pointer-events-auto inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-white text-red-600 shadow-lg border border-gray-200 hover:bg-red-50 active:scale-95 transition ring-1 ring-red-200"
+          >
+            <ArrowDown size={22} weight="bold" />
+          </button>
+        </div>
       </div>
 
       {/* Integrated Controls Overlay - Distributed positioning */}
-      {/* Search Bar - Top Left */}
+      {/* Left Settings Sidebar */}
+      <div className="absolute left-2 top-2 z-[110] pointer-events-auto">
+        <SettingsSidebar
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen((s) => !s)}
+          isHeatmapEnabled={isHeatmapEnabled}
+          onToggleHeatmap={toggleHeatmap}
+          areMarkersVisible={areMarkersVisible}
+          onToggleMarkers={toggleMarkers}
+          clustersCount={clustersCount}
+          onClustersCountChange={setClustersCount}
+        />
+      </div>
+
+      {/* Search Bar + Back Button - Top Left */}
       <div className="absolute top-2 md:top-4 left-2 md:left-4 z-[100] pointer-events-none">
-        <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl pl-2 md:p-3 max-w-full md:max-w-md pointer-events-auto border border-white/20">
-          <div className="flex items-center gap-1 md:gap-2">
-            <input
+        <div className="flex items-center gap-2">
+          {/* Back button outside the search box */}
+          <Link href="/" aria-label="Back to Home" className="pointer-events-auto">
+            <span className="inline-flex items-center justify-center bg-white text-red-600 rounded-full w-7 h-7 md:w-12 md:h-12 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition">
+              <ArrowLeft size={16} weight="bold" />
+            </span>
+          </Link>
+
+          {/* Search box */}
+          <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-[40] shadow-xl pl-2 pr-1 md:p-3 md:pr-2 max-w-full md:max-w-md pointer-events-auto border border-white/20 md:w-80 md:h-12 flex items-center">
+            <div className="flex items-center gap-1 md:gap-4 w-full h-full">
+              <input
               type="text"
               className="flex-1 bg-transparent outline-none text-xs md:text-sm text-black max-w-2xl"
-              placeholder="Search locations..."
+              placeholder="Search locations"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && onSearchSubmit()}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="text-black p-1 min-w-[10px] min-h-[24px] flex items-center justify-center"
-              >
-                <X size={14} />
-              </button>
-            )}
-            <button
-              onClick={onSearchSubmit}
-              disabled={isSearching}
-              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full p-1 md:p-2 transition-colors md:min-w-[40px] md:min-h-[40px] flex items-center justify-center"
-            >
-              {isSearching ? (
-                <div className="animate-spin w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full"></div>
-              ) : (
-                <MagnifyingGlassIcon size={12} weight="bold" />
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-black min-w-[10px] min-h-[24px] flex items-center justify-center mr-0 pr-0"
+                  style={{marginRight: 0, paddingRight: 0}}
+                >
+                  <X size={16} />
+                </button>
               )}
-            </button>
+              <button
+                onClick={onSearchSubmit}
+                disabled={isSearching}
+                className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full p-1 md:p-2 transition-colors md:min-w-[36px] md:min-h-[36px] flex items-center justify-center ml-2 md:ml-4 mr-0"
+              >
+                {isSearching ? (
+                  <div className="animate-spin w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                ) : (
+                  <MagnifyingGlassIcon size={16} weight={"bold"} />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Hazard Control Buttons - Top Center */}
+      {/* Hazard Controls - Top Center segmented chips */}
+      <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-[105] pointer-events-none">
+        <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
+          {[
+            { id: "flooding", label: "Flood", color: "#0ea5e9", icon: "/icons/flood icon.svg" },
+            { id: "earthquake", label: "Earthquake", color: "#36A816", icon: "/icons/earthquake icon.svg" },
+            { id: "landslide", label: "Landslide", color: "#f59e0b", icon: "/icons/landslide icon.svg" },
+          ].map((h) => {
+            const active = selectedRisk === h.id;
+            return (
+              <button
+                key={h.id}
+                onClick={() => onHazardChange(h.id)}
+                className={`group inline-flex items-center gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-sm font-medium transition shadow ${
+                  active
+                    ? "text-white"
+                    : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
+                }`}
+                style={active ? { background: h.color } : undefined}
+                title={`${h.label} Hazard`}
+              >
+                <span
+                  aria-hidden
+                  className="w-4 h-4"
+                  style={{
+                    background: active ? "#ffffff" : "#6b7280",
+                    WebkitMask: `url('${h.icon}') center/contain no-repeat`,
+                    mask: `url('${h.icon}') center/contain no-repeat`,
+                    display: "inline-block",
+                  }}
+                />
+                <span className="hidden sm:inline">{h.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Right-side Controls (Menu, Zoom) */}
       <div className="absolute flex top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
         <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
           <Menu as="div" className="relative">
@@ -1353,65 +1871,7 @@ export default function MapLibre3D({
               </div>
             </Menu.Items>
           </Menu>
-          <button
-            onClick={() => onHazardChange("flooding")}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
-              selectedRisk === "flooding"
-                ? "ring-2 ring-blue-500 bg-blue-50 shadow-blue-200"
-                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
-            }`}
-            title="Flood Hazard"
-          >
-            <img
-              src="/icons/flooding.png"
-              alt="Flood"
-              className="w-5 h-5 md:w-6 md:h-6"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = "/icons/flooding.svg";
-              }}
-            />
-          </button>
-
-          <button
-            onClick={() => onHazardChange("landslide")}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
-              selectedRisk === "landslide"
-                ? "ring-2 ring-orange-500 bg-orange-50 shadow-orange-200"
-                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
-            }`}
-            title="Landslide Hazard"
-          >
-            <img
-              src="/icons/landslide.png"
-              alt="Landslide"
-              className="w-5 h-5 md:w-6 md:h-6"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = "/icons/landslide.svg";
-              }}
-            />
-          </button>
-
-          <button
-            onClick={() => onHazardChange("all_risks")}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 ${
-              selectedRisk === "earthquake"
-                ? "ring-2 ring-red-500 bg-red-50 shadow-red-200"
-                : "hover:scale-105 active:scale-95 hover:shadow-2xl"
-            }`}
-            title="Earthquake Hazard"
-          >
-            <img
-              src="/icons/earthquake.png"
-              alt="Earthquake"
-              className="w-5 h-5 md:w-6 md:h-6"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = "/icons/earthquake.svg";
-              }}
-            />
-          </button>
+          {/* Hazard buttons moved to top-center */}
 
           {/* Zoom In Button */}
           <button
@@ -1462,7 +1922,7 @@ export default function MapLibre3D({
             </div>
             <div className="space-y-1">
               {/* Color gradient bar */}
-              <div className="w-full h-3 rounded-sm bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 to-red-600 border border-gray-300"></div>
+              <div className="w-full h-3 rounded-sm bg-gradient-to-r from-green-400 via-yellow-400 to-red-600 border border-gray-300"></div>
               <div className="flex justify-between text-xs text-gray-600">
                 <span>Low Risk</span>
                 <span>High Risk</span>
@@ -1501,6 +1961,8 @@ export default function MapLibre3D({
           </div>
         </div>
       </div>
+
+      {/* Removed fixed viewport button to keep the control static within the map area */}
     </>
   );
 }

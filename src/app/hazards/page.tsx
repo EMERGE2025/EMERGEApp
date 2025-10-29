@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import ClientOnly from "@/components/clientOnly";
 import MapLibre3D from "@/components/mapModule";
+import DataTable from "@/components/DataTable";
 
 import { db } from "@/utils/firebase";
 import { collection, getDocs } from "firebase/firestore";
@@ -303,6 +304,10 @@ export default function Hazards() {
 
   return (
     <main className="flex flex-col bg-white justify-between min-h-screen relative">
+      {/* Hide the global NavBar just on this page */}
+      <style jsx global>{`
+        nav { display: none !important; }
+      `}</style>
       <div id="map" className="relative">
         <ClientOnly>
           <MapLibre3D
@@ -318,6 +323,9 @@ export default function Hazards() {
           />
         </ClientOnly>
       </div>
+
+      {/* Data table below the map */}
+      <DataTable />
     </main>
   );
 }

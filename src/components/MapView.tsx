@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import maplibregl from 'maplibre-gl';
+// @ts-ignore: side-effect CSS import without type declarations
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface Responder {

@@ -60,3 +60,7 @@ body {
 .mapboxgl-popup {
   z-index: 9999 !important;
 }
+
+.maplibregl-popup-tip {
+  display: none !important;
+}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
+// @ts-ignore: side-effect CSS import without type declarations
 import "maplibre-gl/dist/maplibre-gl.css";
 
 export interface MarkerData {
