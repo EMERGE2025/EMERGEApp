@@ -105,29 +105,21 @@ export default function NavBar() {
                     </ul>
                   )}
                 </li>
-                 <li>
-                   <Link
-                     href="/about"
-                     className="font-medium text-black hover:text-[#B92727] transition-colors"
-                   >
-                     About
-                   </Link>
-                 </li>
-                 <li>
-                   <Link
-                     href="/upload"
-                     className="font-medium text-black hover:text-[#B92727] transition-colors"
-                   >
-                     Upload
-                   </Link>
-                 </li>
+                <li>
+                  <Link
+                    href="/about"
+                    className="font-medium text-black hover:text-[#B92727] transition-colors"
+                  >
+                    About
+                  </Link>
+                </li>
                 {user?.email?.includes("admin") && (
                   <li>
                     <Link
-                      href="/admin"
+                      href="/update"
                       className="font-medium text-black hover:text-[#B92727] transition-colors"
                     >
-                      Admin
+                      Admin Update
                     </Link>
                   </li>
                 )}
@@ -254,22 +246,22 @@ export default function NavBar() {
                           Responder Allocation
                         </Link>
                       </li>
-                       <li>
-                         <Link
-                           href="/about"
-                           className="font-medium text-black hover:text-[#B92727]"
-                         >
-                           About
-                         </Link>
-                       </li>
-                       <li>
-                         <Link
-                           href="/upload"
-                           className="font-medium text-black hover:text-[#B92727]"
-                         >
-                           Upload
-                         </Link>
-                       </li>
+                      <li>
+                        <Link
+                          href="/about"
+                          className="font-medium text-black hover:text-[#B92727]"
+                        >
+                          About
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href="/upload"
+                          className="font-medium text-black hover:text-[#B92727]"
+                        >
+                          Upload
+                        </Link>
+                      </li>
                       {user?.email?.includes("admin") && (
                         <li>
                           <Link
