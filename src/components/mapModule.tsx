@@ -1,6 +1,6 @@
 "use client";
 
-import maplibregl, { Popup } from "maplibre-gl";
+import maplibregl, { Popup, Marker } from "maplibre-gl";
 // @ts-ignore: side-effect CSS import without type declarations
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +20,13 @@ import {
   Minus,
   ArrowDown,
   List,
+  Signpost,
+  Crosshair,
+  MapPin,
+  Car,
 } from "@phosphor-icons/react/dist/ssr";
+import { Timer } from "@phosphor-icons/react";
+import { truncate } from "fs/promises";
 
 export type MarkerData = {
   id: number;
@@ -44,45 +50,7 @@ interface ClusterFeature extends maplibregl.MapGeoJSONFeature {
 export type iconType = "earthquake" | "landslide" | "flood" | "responder";
 export type mapType = "liberty" | "positron" | "bright";
 
-// const RotateControl = () => {
-//   class Control {
-//     _map: maplibregl.Map | undefined;
-//     _container!: HTMLElement;
-
-//     onAdd(map: maplibregl.Map) {
-//       this._map = map;
-//       this._container = document.createElement("div");
-//       this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
-
-//       const button = document.createElement("button");
-//       button.className = "maplibregl-ctrl-icon text-black font-bold";
-//       button.type = "button";
-//       button.title = "Rotate Map";
-//       button.innerHTML = "⟳";
-
-//       button.onclick = () => {
-//         const currentBearing = map.getBearing();
-//         map.easeTo({
-//           bearing: currentBearing + 90,
-//           duration: 800,
-//         });
-//       };
-
-//       this._container.appendChild(button);
-//       return this._container;
-//     }
-
-//     onRemove() {
-//       this._container.parentNode?.removeChild(this._container);
-//       this._map = undefined;
-//     }
-
-//     getDefaultPosition(): maplibregl.ControlPosition {
-//       return "top-right";
-//     }
-//   }
-//   return new Control();
-// };
+// const RotateControl = () => { ... };
 
 type GJ = GeoJSON.FeatureCollection | GeoJSON.Feature | string;
 
@@ -108,6 +76,8 @@ export default function MapLibre3D({
   onSearchSubmit,
   isSearching,
   onHazardChange,
+  userLocation,
+  onGetCurrentLocation,
 }: {
   mapType: mapType;
   selectedRisk: string;
@@ -118,6 +88,8 @@ export default function MapLibre3D({
   onSearchSubmit: () => void;
   isSearching: boolean;
   onHazardChange: (hazard: string) => void;
+  userLocation: { lng: number; lat: number } | null;
+  onGetCurrentLocation: () => void;
 }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const currentPopupRef = useRef<maplibregl.Popup | null>(null);
@@ -130,7 +102,45 @@ export default function MapLibre3D({
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [clustersCount, setClustersCount] = useState<number>(8);
 
-  // Enhance features with vulnerability data
+  // --- ROUTING STATE ---
+  const [isRoutingPanelOpen, setIsRoutingPanelOpen] = useState(false);
+  const [startPoint, setStartPoint] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
+  const [endPoint, setEndPoint] = useState<{ lng: number; lat: number } | null>(
+    null
+  );
+  const [startAddress, setStartAddress] = useState("");
+  const [endAddress, setEndAddress] = useState("");
+  const [selectedTransportMode, setSelectedTransportMode] =
+    useState("driving-car");
+  const [routeGeoJSON, setRouteGeoJSON] = useState<any | null>(null);
+  const [isPickingStart, setIsPickingStart] = useState(false);
+  const [pickingMode, setPickingMode] = useState<"start" | "end" | null>(null);
+  const pickingModeRef = useRef<"start" | "end" | null>(pickingMode);
+  const [isPickingEnd, setIsPickingEnd] = useState(false);
+  const [isFetchingRoute, setIsFetchingRoute] = useState(false);
+  const [routeDuration, setRouteDuration] = useState<number | null>(null); // <-- NEW
+
+  // --- MARKER STATE ---
+  const [userLocationMarker, setUserLocationMarker] =
+    useState<maplibregl.Marker | null>(null);
+  const [startPin, setStartPin] = useState<maplibregl.Marker | null>(null);
+  const [endPin, setEndPin] = useState<maplibregl.Marker | null>(null);
+
+  // --- NEW HELPER FUNCTIONS ---
+  const formatDuration = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    return `${minutes} min ${seconds} sec`;
+  };
+
+  const calculateETA = (totalSeconds: number) => {
+    const eta = new Date(Date.now() + totalSeconds * 1000);
+    return eta.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
   const enhanceFeaturesWithVulnerability = (
     features: any[],
     vulnerabilityData: any
@@ -525,10 +535,236 @@ export default function MapLibre3D({
     }
   };
 
-  // console.log(riskDatabase);
+  // --- ROUTING FUNCTIONS ---
 
-  // console.log(riskDatabase[0].boundary);
+  /**
+   * Fetches a route from our *local* API route
+   */
+  const fetchRoute = async (
+    start: { lng: number; lat: number },
+    end: { lng: number; lat: number },
+    mode: string
+  ) => {
+    setIsFetchingRoute(true);
+    setRouteGeoJSON(null); // Clear old route
+    setRouteDuration(null); // <-- NEW: Clear old duration
 
+    // This URL is now our *own* Next.js API route
+    const url = "/api/route";
+
+    // The body MUST match what your API route (route.ts) expects
+    const body = JSON.stringify({
+      start, // The start object
+      end, // The end object
+      mode, // The mode string
+    });
+
+    console.log("--- Calling local API /api/route ---");
+    console.log("Mode:", mode);
+    console.log("Start:", start);
+    console.log("End:", end);
+
+    try {
+      // Call your local /api/route endpoint
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: body, // Send the correct body
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // This will show errors from your API route
+        throw new Error(data.error || "Failed to fetch route");
+      }
+
+      console.log("Local Route Response:", data);
+      setRouteGeoJSON(data); // Set the route GeoJSON
+
+      // --- NEW: Extract and set route statistics ---
+      if (
+        data.features &&
+        data.features[0] &&
+        data.features[0].properties &&
+        data.features[0].properties.summary
+      ) {
+        const durationInSeconds = data.features[0].properties.summary.duration;
+        setRouteDuration(durationInSeconds);
+      } else {
+        setRouteDuration(null); // No summary found
+      }
+      // --- END NEW ---
+    } catch (error) {
+      console.error("Error fetching route:", error);
+      alert(
+        `Error fetching route: ${
+          (error as Error).message
+        }. Check console for details.`
+      );
+    } finally {
+      setIsFetchingRoute(false);
+    }
+  };
+
+  /**
+   * Handles the "Get Route" button click
+   */
+  const handleGetRoute = () => {
+    let start = startPoint;
+
+    if (!start) {
+      if (userLocation) {
+        start = userLocation;
+        setStartPoint(userLocation);
+        setStartAddress("My Location");
+      } else {
+        alert(
+          "Please set a start point. Use 'My Location' or click 'Select on Map'."
+        );
+        onGetCurrentLocation(); // Try to get it
+        return;
+      }
+    }
+
+    if (!endPoint) {
+      alert(
+        "Please set an end point. Click 'Select on Map' or a responder icon."
+      );
+      return;
+    }
+
+    // --- DEBUGGING LOGS ---
+    console.log("--- Sending to API ---");
+    console.log("Start Point:", start);
+    console.log("End Point:", endPoint);
+    console.log("Mode:", selectedTransportMode);
+
+    fetchRoute(start, endPoint, selectedTransportMode);
+
+    // --- MODIFIED: Pins are no longer removed here ---
+    // We just turn off "picking" mode
+    setPickingMode(null);
+  };
+
+  /**
+   * Clears the current route and inputs
+   */
+  const clearRoute = () => {
+    setRouteGeoJSON(null);
+    setStartPoint(null);
+    setEndPoint(null);
+    setStartAddress("");
+    setEndAddress("");
+    setPickingMode(null);
+    setRouteDuration(null); // <-- NEW: Clear stats
+
+    if (userLocationMarker) {
+      userLocationMarker.remove();
+      setUserLocationMarker(null);
+    }
+
+    // --- MODIFIED: REMOVE DRAGGABLE PINS ---
+    if (startPin) {
+      startPin.remove();
+      setStartPin(null);
+    }
+    if (endPin) {
+      endPin.remove();
+      setEndPin(null);
+    }
+
+    // Remove route line from map
+    if (mapRef.current) {
+      const map = mapRef.current;
+      if (map.getLayer("route-line")) map.removeLayer("route-line");
+      if (map.getSource("route-source")) map.removeSource("route-source");
+    }
+  };
+
+  // --- MODIFIED FUNCTION: Spawns draggable marker ---
+  // This now only gets called when the user clicks the pin icons
+  const createDraggablePin = (mode: "start" | "end") => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    const center = map.getCenter();
+    const point = { lng: center.lng, lat: center.lat };
+    const address = `Coord: ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`;
+
+    if (mode === "start") {
+      // If pin already exists, just move it
+      if (startPin) {
+        startPin.setLngLat(center);
+        setStartPoint(point);
+        setStartAddress(address);
+        return; // Don't create a new one
+      }
+
+      // Create new start pin
+      const newStartPin = new maplibregl.Marker({
+        draggable: true,
+        color: "#007cff", // Blue
+      })
+        .setLngLat(center)
+        .addTo(map);
+
+      // Update state
+      setStartPoint(point);
+      setStartAddress(address);
+
+      // Add listener
+      newStartPin.on("dragend", () => {
+        const lngLat = newStartPin.getLngLat();
+        const point = { lng: lngLat.lng, lat: lngLat.lat };
+        const address = `Coord: ${lngLat.lat.toFixed(4)}, ${lngLat.lng.toFixed(
+          4
+        )}`;
+        setStartPoint(point);
+        setStartAddress(address);
+      });
+
+      setStartPin(newStartPin); // Store new pin
+    } else {
+      // mode === 'end'
+      // If pin already exists, just move it
+      if (endPin) {
+        endPin.setLngLat(center);
+        setEndPoint(point);
+        setEndAddress(address);
+        return; // Don't create a new one
+      }
+
+      // Create new end pin
+      const newEndPin = new maplibregl.Marker({
+        draggable: true,
+        color: "#c00000", // Red
+      })
+        .setLngLat(center)
+        .addTo(map);
+
+      // Update state
+      setEndPoint(point);
+      setEndAddress(address);
+
+      // Add listener
+      newEndPin.on("dragend", () => {
+        const lngLat = newEndPin.getLngLat();
+        const point = { lng: lngLat.lng, lat: lngLat.lat };
+        const address = `Coord: ${lngLat.lat.toFixed(4)}, ${lngLat.lng.toFixed(
+          4
+        )}`;
+        setEndPoint(point);
+        setEndAddress(address);
+      });
+
+      setEndPin(newEndPin); // Store new pin
+    }
+  };
+
+  // --- MAP INITIALIZATION ---
   useEffect(() => {
     // Helper to remove any existing MapLibre popups from the DOM
     const removeAllPopups = () => {
@@ -538,7 +774,7 @@ export default function MapLibre3D({
       } catch {}
       try {
         document
-          .querySelectorAll('.maplibregl-popup')
+          .querySelectorAll(".maplibregl-popup")
           .forEach((el) => el.remove());
       } catch {}
     };
@@ -554,20 +790,6 @@ export default function MapLibre3D({
       dragPan: true,
     });
 
-    // console.log()
-
-    // map.addSource("geojson", {
-    //   type: "geojson",
-    //   data: geojson,
-    //   cluster: true,
-    //   clusterMaxZoom: 17,
-    //   clusterRadius: 50,
-    // });
-
-    // if (map.listImages().includes("marker-icon") == false) {
-    //   let image = map.loadImage(`${geojson.type}`);
-    // }
-
     map.dragRotate.enable();
 
     mapRef.current = map;
@@ -576,45 +798,26 @@ export default function MapLibre3D({
 
     map.on("load", () => {
       console.log("Map loaded, waiting for risk database...");
-      // Clean any stray popups that might be present from previous sessions/renders
       removeAllPopups();
 
-      // Load initial hazard data (will be updated when riskDatabase becomes available)
       const initialHazard = selectedRisk || "flooding";
       map.flyTo({ center: [122.55012452602386, 10.808910380678128], zoom: 14 });
     });
 
-    // Removed default NavigationControl to use custom buttons
-    // map.addControl(RotateControl(), "bottom-right");
-
-    // setTimeout(() => {
-    //   const compass = document.querySelector(
-    //     ".maplibregl-ctrl-compass"
-    //   ) as HTMLButtonElement;
-
-    //   if (compass) {
-    //     compass.addEventListener("click", (e) => {
-    //       e.preventDefault();
-    //       e.stopPropagation();
-
-    //       const is2D = mapRef.current?.getPitch() === 0;
-
-    //       map.easeTo({
-    //         pitch: is2D ? 60 : 0,
-    //         bearing: is2D ? 180 : 0,
-    //         duration: 1000,
-    //       });
-    //     });
-    //   }
-    // }, 500);
-
     return () => {
-      // Ensure popups are removed on unmount
       removeAllPopups();
       map.remove();
     };
   }, []);
 
+  //  Using the refs for mapping
+
+  useEffect(() => {
+    pickingModeRef.current = pickingMode;
+  }, [pickingMode]);
+
+  // ... (useEffect for boundary loading)
+  // ... (Omitted for brevity, unchanged)
   // Handle boundary loading separately from hazard switching
   useEffect(() => {
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) {
@@ -702,6 +905,8 @@ export default function MapLibre3D({
     }
   }, [riskDatabase]);
 
+  // ... (useEffect for initial heatmap)
+  // ... (Omitted for brevity, unchanged)
   // Create initial heatmap when data is loaded and heatmap is enabled
   useEffect(() => {
     console.log("Initial heatmap effect triggered:", {
@@ -729,6 +934,8 @@ export default function MapLibre3D({
     createHeatmapLayer(hazard);
   }, [riskDatabase, isHeatmapEnabled, selectedRisk]);
 
+  // ... (useEffect for marker visibility)
+  // ... (Omitted for brevity, unchanged)
   // Handle marker visibility when hazards change
   useEffect(() => {
     if (!mapRef.current || !areMarkersVisible) return;
@@ -753,16 +960,110 @@ export default function MapLibre3D({
     });
   }, [selectedRisk, areMarkersVisible]);
 
-  // Handle hazard switching without reloading the map
+  // --- MODIFIED: useEffect for userLocation (added pin) ---
+  useEffect(() => {
+    if (mapRef.current && userLocation) {
+      const map = mapRef.current;
+
+      // --- REMOVE OLD MARKER ---
+      if (userLocationMarker) {
+        userLocationMarker.remove();
+      }
+
+      // --- CREATE NEW MARKER ELEMENT ---
+      const markerElement = document.createElement("div");
+      markerElement.className = "user-location-marker";
+      markerElement.style.width = "24px";
+      markerElement.style.height = "24px";
+      markerElement.style.borderRadius = "50%";
+      markerElement.style.backgroundColor = "#007cff"; // Blue
+      markerElement.style.border = "3px solid #ffffff";
+      markerElement.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
+
+      // --- CREATE AND ADD NEW MARKER ---
+      const newMarker = new maplibregl.Marker({
+        element: markerElement,
+        anchor: "center",
+      })
+        .setLngLat([userLocation.lng, userLocation.lat])
+        .addTo(map);
+
+      // --- SAVE MARKER TO STATE ---
+      setUserLocationMarker(newMarker);
+
+      // --- EXISTING LOGIC ---
+      map.flyTo({
+        center: [userLocation.lng, userLocation.lat],
+        zoom: 15,
+      });
+      // Set as start point if routing is open
+      if (isRoutingPanelOpen || !startPoint) {
+        setStartPoint(userLocation);
+        setStartAddress("My Location");
+      }
+    }
+  }, [userLocation]); // Only depends on userLocation
+
+  // --- useEffect for drawing route (unchanged) ---
+  useEffect(() => {
+    if (!mapRef.current || !routeGeoJSON) return;
+
+    const map = mapRef.current;
+    const routeLayerId = "route-line";
+    const routeSourceId = "route-source";
+
+    // Ensure old route is removed
+    if (map.getLayer(routeLayerId)) map.removeLayer(routeLayerId);
+    if (map.getSource(routeSourceId)) map.removeSource(routeSourceId);
+
+    // Add new route
+    map.addSource(routeSourceId, {
+      type: "geojson",
+      data: routeGeoJSON,
+    });
+
+    map.addLayer({
+      id: routeLayerId,
+      type: "line",
+      source: routeSourceId,
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#c00000", // Bright Red
+        "line-width": 5,
+        "line-opacity": 0.8,
+      },
+    });
+
+    // Fit map to route bounds
+    if (routeGeoJSON.features && routeGeoJSON.features[0].bbox) {
+      const bbox = routeGeoJSON.features[0].bbox;
+      map.fitBounds(
+        [
+          [bbox[0], bbox[1]], // minLng, minLat
+          [bbox[2], bbox[3]], // maxLng, maxLat
+        ],
+        {
+          padding: 80, // Add padding
+          duration: 1000,
+        }
+      );
+    }
+  }, [routeGeoJSON]);
+
+  // --- MODIFIED: useEffect for hazard switching ---
   useEffect(() => {
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) return;
 
     const map = mapRef.current;
 
-    // Remove existing hazard layers and sources (but NOT boundary)
-    // Also remove any existing popups for a clean state
+    // ... (remove existing layers and sources - unchanged)
     try {
-      document.querySelectorAll('.maplibregl-popup').forEach((el) => el.remove());
+      document
+        .querySelectorAll(".maplibregl-popup")
+        .forEach((el) => el.remove());
       currentPopupRef.current?.remove();
       currentPopupRef.current = null;
     } catch {}
@@ -797,6 +1098,8 @@ export default function MapLibre3D({
 
     // Load new hazard data
     const hazard = selectedRisk;
+    // ... (rest of hazard loading, icons, layers... unchanged)
+    // ... (Omitted for brevity)
     const riskData = riskDatabase.find(
       (d: { id: string }) => d.id === hazard
     ) as HazardEntry;
@@ -931,7 +1234,11 @@ export default function MapLibre3D({
         id: "responderRange",
         type: "line",
         source: `${hazard}-range`,
-        paint: { "line-color": "#008000", "line-width": 3, "line-opacity": 0.35 },
+        paint: {
+          "line-color": "#008000",
+          "line-width": 3,
+          "line-opacity": 0.35,
+        },
       });
 
       // Add cluster layers
@@ -987,6 +1294,8 @@ export default function MapLibre3D({
         },
       });
 
+      // ... (map.on('click', 'clusters') - unchanged)
+      // ... (Omitted for brevity)
       // Update click handlers
       map.on("click", "clusters", async (e) => {
         const features = map.queryRenderedFeatures(e.point, {
@@ -1045,8 +1354,10 @@ export default function MapLibre3D({
         });
       });
 
+      // ... (map.on('click', `${hazard}-risk`) - unchanged)
+      // ... (Omitted for brevity)
       // Add click handler for unclustered points
-  map.on("click", `${hazard}-risk`, (e) => {
+      map.on("click", `${hazard}-risk`, (e) => {
         const features = map.queryRenderedFeatures(e.point, {
           layers: [`${hazard}-risk`],
         });
@@ -1059,13 +1370,13 @@ export default function MapLibre3D({
         const barangay = properties?.ADM4_EN || "Unknown";
         const riskScore = properties?.risk_score ?? 0;
         // Try to derive a population value if present
-        const populationRaw = (properties?.population ?? properties?.pop ?? properties?.POPULATION) as
-          | number
-          | string
-          | undefined;
-        const population = typeof populationRaw === "number"
-          ? populationRaw
-          : typeof populationRaw === "string"
+        const populationRaw = (properties?.population ??
+          properties?.pop ??
+          properties?.POPULATION) as number | string | undefined;
+        const population =
+          typeof populationRaw === "number"
+            ? populationRaw
+            : typeof populationRaw === "string"
             ? parseInt(populationRaw.replace(/[^0-9]/g, ""))
             : undefined;
 
@@ -1087,7 +1398,8 @@ export default function MapLibre3D({
           flooding: "Flood Risk",
           landslide: "Landslide Risk",
         };
-        const hazardTitle = hazardNameMap[selectedRisk] || `${selectedRisk} Risk`;
+        const hazardTitle =
+          hazardNameMap[selectedRisk] || `${selectedRisk} Risk`;
         const accentMap: Record<string, string> = {
           earthquake: "#36A816", // green
           flooding: "#0ea5e9", // blue
@@ -1107,7 +1419,9 @@ export default function MapLibre3D({
             return `${p.toFixed(2)}%`;
           }
           const n = Number(v);
-          return isNaN(n) ? String(v ?? "N/A") : `${(n <= 1 ? n * 100 : n).toFixed(2)}%`;
+          return isNaN(n)
+            ? String(v ?? "N/A")
+            : `${(n <= 1 ? n * 100 : n).toFixed(2)}%`;
         };
 
         const popupContent = `
@@ -1127,7 +1441,9 @@ export default function MapLibre3D({
       <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
         <div>
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Severity</div>
-          <div style="font-weight:600;color:${accent};">${toPercent(riskScore)}</div>
+          <div style="font-weight:600;color:${accent};">${toPercent(
+          riskScore
+        )}</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
         <div>
@@ -1137,12 +1453,16 @@ export default function MapLibre3D({
         </div>
         <div style="grid-column:1 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Coordinates</div>
-          <div style="font-weight:600;color:${accent};">${displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"}</div>
+          <div style="font-weight:600;color:${accent};">${
+          displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"
+        }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
         <div style="grid-column:2 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Population</div>
-          <div style="font-weight:600;color:${accent};">${population ? population.toLocaleString() : "N/A"}</div>
+          <div style="font-weight:600;color:${accent};">${
+          population ? population.toLocaleString() : "N/A"
+        }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
       </div>
@@ -1186,7 +1506,7 @@ export default function MapLibre3D({
           // Remove any existing popups first
           try {
             document
-              .querySelectorAll('.maplibregl-popup')
+              .querySelectorAll(".maplibregl-popup")
               .forEach((el) => el.remove());
             currentPopupRef.current?.remove();
             currentPopupRef.current = null;
@@ -1194,16 +1514,22 @@ export default function MapLibre3D({
 
           // Create and add popup
           try {
-            const popup = new maplibregl.Popup({ offset: [16, -16], anchor: 'bottom-left', closeButton: false })
+            const popup = new maplibregl.Popup({
+              offset: [16, -16],
+              anchor: "bottom-left",
+              closeButton: false,
+            })
               .setLngLat(lngLat)
               .setHTML(popupContent)
               .addTo(map);
             currentPopupRef.current = popup;
             // Wire up custom close button
             const el = popup.getElement();
-            const closeBtn = el?.querySelector('.emerge-popup-close') as HTMLElement | null;
+            const closeBtn = el?.querySelector(
+              ".emerge-popup-close"
+            ) as HTMLElement | null;
             if (closeBtn) {
-              closeBtn.addEventListener('click', (ev) => {
+              closeBtn.addEventListener("click", (ev) => {
                 ev.preventDefault();
                 ev.stopPropagation();
                 popup.remove();
@@ -1221,8 +1547,10 @@ export default function MapLibre3D({
         }
       });
 
+      // ... (map.on('click', 'unclustered-point') - unchanged)
+      // ... (Omitted for brevity)
       // Also handle clicks on the circle layer (unclustered-point) which can sit above the symbol layer
-  map.on("click", "unclustered-point", (e) => {
+      map.on("click", "unclustered-point", (e) => {
         const features = map.queryRenderedFeatures(e.point, {
           layers: ["unclustered-point"],
         });
@@ -1234,22 +1562,45 @@ export default function MapLibre3D({
 
         const barangay = properties?.ADM4_EN || "Unknown";
         const riskScore = properties?.risk_score ?? 0;
-        const populationRaw = (properties?.population ?? properties?.pop ?? properties?.POPULATION) as number | string | undefined;
-        const population = typeof populationRaw === "number" ? populationRaw : typeof populationRaw === "string" ? parseInt(populationRaw.replace(/[^0-9]/g, "")) : undefined;
+        const populationRaw = (properties?.population ??
+          properties?.pop ??
+          properties?.POPULATION) as number | string | undefined;
+        const population =
+          typeof populationRaw === "number"
+            ? populationRaw
+            : typeof populationRaw === "string"
+            ? parseInt(populationRaw.replace(/[^0-9]/g, ""))
+            : undefined;
 
         let displayLng: string | null = null;
         let displayLat: string | null = null;
-        if (feature.geometry.type === "Point" && Array.isArray((feature.geometry as any).coordinates)) {
+        if (
+          feature.geometry.type === "Point" &&
+          Array.isArray((feature.geometry as any).coordinates)
+        ) {
           const c = (feature.geometry as any).coordinates as [number, number];
           displayLng = typeof c[0] === "number" ? c[0].toFixed(5) : null;
           displayLat = typeof c[1] === "number" ? c[1].toFixed(5) : null;
         }
 
-        const hazardNameMap: Record<string, string> = { earthquake: "Earthquake Risk", flooding: "Flood Risk", landslide: "Landslide Risk" };
-        const hazardTitle = hazardNameMap[selectedRisk] || `${selectedRisk} Risk`;
-  const accentMap: Record<string, string> = { earthquake: "#36A816", flooding: "#0ea5e9", landslide: "#f59e0b" };
+        const hazardNameMap: Record<string, string> = {
+          earthquake: "Earthquake Risk",
+          flooding: "Flood Risk",
+          landslide: "Landslide Risk",
+        };
+        const hazardTitle =
+          hazardNameMap[selectedRisk] || `${selectedRisk} Risk`;
+        const accentMap: Record<string, string> = {
+          earthquake: "#36A816",
+          flooding: "#0ea5e9",
+          landslide: "#f59e0b",
+        };
         const accent = accentMap[selectedRisk] || "#ef4444";
-        const iconMap: Record<string, string> = { flooding: "/icons/flood icon.svg", landslide: "/icons/landslide icon.svg", earthquake: "/icons/earthquake icon.svg" };
+        const iconMap: Record<string, string> = {
+          flooding: "/icons/flood icon.svg",
+          landslide: "/icons/landslide icon.svg",
+          earthquake: "/icons/earthquake icon.svg",
+        };
         const iconPath = iconMap[selectedRisk] || `/icons/${selectedRisk}.svg`;
 
         const toPercent = (v: any) => {
@@ -1258,7 +1609,9 @@ export default function MapLibre3D({
             return `${p.toFixed(2)}%`;
           }
           const n = Number(v);
-          return isNaN(n) ? String(v ?? "N/A") : `${(n <= 1 ? n * 100 : n).toFixed(2)}%`;
+          return isNaN(n)
+            ? String(v ?? "N/A")
+            : `${(n <= 1 ? n * 100 : n).toFixed(2)}%`;
         };
 
         const popupContent = `
@@ -1278,7 +1631,9 @@ export default function MapLibre3D({
       <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
         <div>
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Severity</div>
-          <div style="font-weight:600;color:${accent};">${toPercent(riskScore)}</div>
+          <div style="font-weight:600;color:${accent};">${toPercent(
+          riskScore
+        )}</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
         <div>
@@ -1288,12 +1643,16 @@ export default function MapLibre3D({
         </div>
         <div style="grid-column:1 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Coordinates</div>
-          <div style="font-weight:600;color:${accent};">${displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"}</div>
+          <div style="font-weight:600;color:${accent};">${
+          displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"
+        }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
         <div style="grid-column:2 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Population</div>
-          <div style="font-weight:600;color:${accent};">${population ? population.toLocaleString() : "N/A"}</div>
+          <div style="font-weight:600;color:${accent};">${
+          population ? population.toLocaleString() : "N/A"
+        }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
       </div>
@@ -1301,7 +1660,10 @@ export default function MapLibre3D({
   </div>`;
 
         let lngLat: [number, number] | undefined;
-        if (feature.geometry.type === "Point" && Array.isArray(feature.geometry.coordinates)) {
+        if (
+          feature.geometry.type === "Point" &&
+          Array.isArray(feature.geometry.coordinates)
+        ) {
           const coords = feature.geometry.coordinates as [number, number];
           lngLat = [coords[0], coords[1]];
           while (Math.abs(e.lngLat.lng - lngLat[0]) > 180) {
@@ -1311,19 +1673,27 @@ export default function MapLibre3D({
 
         if (lngLat) {
           try {
-            document.querySelectorAll('.maplibregl-popup').forEach((el) => el.remove());
+            document
+              .querySelectorAll(".maplibregl-popup")
+              .forEach((el) => el.remove());
             currentPopupRef.current?.remove();
             currentPopupRef.current = null;
 
-            const popup = new maplibregl.Popup({ offset: [16, -16], anchor: 'bottom-left', closeButton: false })
+            const popup = new maplibregl.Popup({
+              offset: [16, -16],
+              anchor: "bottom-left",
+              closeButton: false,
+            })
               .setLngLat(lngLat)
               .setHTML(popupContent)
               .addTo(map);
             currentPopupRef.current = popup;
             const el = popup.getElement();
-            const closeBtn = el?.querySelector('.emerge-popup-close') as HTMLElement | null;
+            const closeBtn = el?.querySelector(
+              ".emerge-popup-close"
+            ) as HTMLElement | null;
             if (closeBtn) {
-              closeBtn.addEventListener('click', (ev) => {
+              closeBtn.addEventListener("click", (ev) => {
                 ev.preventDefault();
                 ev.stopPropagation();
                 popup.remove();
@@ -1332,27 +1702,29 @@ export default function MapLibre3D({
             }
             map.flyTo({ center: lngLat, zoom: 14 });
           } catch (error) {
-            console.error('Error creating popup (circle):', error);
+            console.error("Error creating popup (circle):", error);
           }
         }
       });
 
+      // ... (map.on('dragstart') - unchanged)
+      // ... (Omitted for brevity)
       // Dismiss popups during map interactions to reduce distraction without closing on fly animations
-      const dismissEvents = [
-        'dragstart',
-      ] as const;
+      const dismissEvents = ["dragstart"] as const;
       dismissEvents.forEach((evt) => {
         map.on(evt, () => {
           try {
             currentPopupRef.current?.remove();
             currentPopupRef.current = null;
             document
-              .querySelectorAll('.maplibregl-popup')
+              .querySelectorAll(".maplibregl-popup")
               .forEach((el) => el.remove());
           } catch {}
         });
       });
 
+      // ... (map.on mouseenter/mouseleave - unchanged)
+      // ... (Omitted for brevity)
       // Update mouse events
       map.on("mouseenter", "clusters", () => {
         map.getCanvas().style.cursor = "pointer";
@@ -1369,15 +1741,58 @@ export default function MapLibre3D({
         map.getCanvas().style.cursor = "";
       });
 
-      // Responder pin click -> open Responder management popup (Figma-aligned)
+      // --- MODIFIED: map.on('click', 'responderLocation') ---
       map.on("click", "responderLocation", (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ["responderLocation"] });
+        if (pickingModeRef.current) {
+          const mode = pickingModeRef.current;
+          const features = map.queryRenderedFeatures(e.point, {
+            layers: ["responderLocation"],
+          });
+          if (!features.length) return;
+
+          const f = features[0];
+          if (
+            f.geometry.type === "Point" &&
+            Array.isArray((f.geometry as any).coordinates)
+          ) {
+            const c = (f.geometry as any).coordinates as [number, number];
+            const point = { lng: c[0], lat: c[1] };
+            const address = `Coord: ${point.lat.toFixed(
+              4
+            )}, ${point.lng.toFixed(4)}`;
+
+            if (mode === "start") {
+              setStartPoint(point);
+              setStartAddress(address);
+              if (startPin) startPin.remove();
+              setStartPin(null);
+            } else if (mode === "end") {
+              setEndPoint(point);
+              setEndAddress(address);
+              if (endPin) endPin.remove();
+              setEndPin(null);
+            }
+
+            setPickingMode(null); // turn off after setting
+
+            e.preventDefault(); // Stop Popup and return null
+            return;
+          }
+        }
+
+        // (It runs if NOT in 'picking' mode)
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ["responderLocation"],
+        });
         if (!features.length) return;
 
         // Base position
         let lngLat: [number, number] | undefined;
         const f = features[0];
-        if (f.geometry.type === "Point" && Array.isArray((f.geometry as any).coordinates)) {
+        if (
+          f.geometry.type === "Point" &&
+          Array.isArray((f.geometry as any).coordinates)
+        ) {
           const c = (f.geometry as any).coordinates as [number, number];
           lngLat = [c[0], c[1]];
           while (Math.abs(e.lngLat.lng - lngLat[0]) > 180) {
@@ -1386,7 +1801,7 @@ export default function MapLibre3D({
         }
         if (!lngLat) return;
 
-        // Sample data. If feature has properties.responders, prefer those.
+        // ... (rest of your existing popup code)
         type Person = { id: string; name: string };
         const fallbackSelected: Person[] = [
           { id: "r1", name: "Mauricio Manuel Bergancia" },
@@ -1415,8 +1830,14 @@ export default function MapLibre3D({
               <div class="pr-1 bg-zinc-900/10 rounded-[40px] flex items-center gap-2 px-2 py-1">
                 <div class="w-5 h-5 bg-zinc-700 rounded-full"></div>
                 <div class="flex items-center gap-1">
-                  <div class="opacity-90 text-[12px] text-[color:#111827]">${p.name}</div>
-                  <button data-action="${mode}" data-id="${p.id}" class="w-3.5 h-3.5 inline-flex items-center justify-center rounded-[30px] text-[10px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition">${mode === "remove" ? "×" : "+"}</button>
+                  <div class="opacity-90 text-[12px] text-[color:#111827]">${
+                    p.name
+                  }</div>
+                  <button data-action="${mode}" data-id="${
+                p.id
+              }" class="w-3.5 h-3.5 inline-flex items-center justify-center rounded-[30px] text-[10px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition">${
+                mode === "remove" ? "×" : "+"
+              }</button>
                 </div>
               </div>`
             )
@@ -1459,7 +1880,10 @@ export default function MapLibre3D({
                       </div>
                       <div class="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
                         <div class="w-full flex flex-col gap-1">
-                          <div class="flex flex-wrap gap-2">${renderChipRow(selected, "remove")}</div>
+                          <div class="flex flex-wrap gap-2">${renderChipRow(
+                            selected,
+                            "remove"
+                          )}</div>
                         </div>
                       </div>
                     </div>
@@ -1472,7 +1896,10 @@ export default function MapLibre3D({
                       </div>
                       <div class="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
                         <div class="w-full flex flex-col gap-1">
-                          <div class="flex flex-wrap gap-2">${renderChipRow(available, "add")}</div>
+                          <div class="flex flex-wrap gap-2">${renderChipRow(
+                            available,
+                            "add"
+                          )}</div>
                         </div>
                       </div>
                     </div>
@@ -1490,7 +1917,9 @@ export default function MapLibre3D({
 
         // Remove any existing popups first
         try {
-          document.querySelectorAll('.maplibregl-popup').forEach((el) => el.remove());
+          document
+            .querySelectorAll(".maplibregl-popup")
+            .forEach((el) => el.remove());
           currentPopupRef.current?.remove();
           currentPopupRef.current = null;
         } catch {}
@@ -1498,9 +1927,15 @@ export default function MapLibre3D({
         const bindHandlers = (popup: maplibregl.Popup) => {
           const root = popup.getElement();
           if (!root) return;
-          const closeBtn = root.querySelector('.emerge-popup-close') as HTMLElement | null;
-          const confirmBtn = root.querySelector('.emerge-resp-confirm') as HTMLElement | null;
-          const close2 = root.querySelector('.emerge-resp-close') as HTMLElement | null;
+          const closeBtn = root.querySelector(
+            ".emerge-popup-close"
+          ) as HTMLElement | null;
+          const confirmBtn = root.querySelector(
+            ".emerge-resp-confirm"
+          ) as HTMLElement | null;
+          const close2 = root.querySelector(
+            ".emerge-resp-close"
+          ) as HTMLElement | null;
 
           const rewire = () => {
             popup.setHTML(render());
@@ -1508,9 +1943,12 @@ export default function MapLibre3D({
           };
 
           root.querySelectorAll('[data-action="remove"]').forEach((el) => {
-            el.addEventListener('click', (ev) => {
-              ev.preventDefault(); ev.stopPropagation();
-              const id = (ev.currentTarget as HTMLElement).getAttribute('data-id');
+            el.addEventListener("click", (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              const id = (ev.currentTarget as HTMLElement).getAttribute(
+                "data-id"
+              );
               if (!id) return;
               const idx = selected.findIndex((p) => p.id === id);
               if (idx >= 0) {
@@ -1522,9 +1960,12 @@ export default function MapLibre3D({
           });
 
           root.querySelectorAll('[data-action="add"]').forEach((el) => {
-            el.addEventListener('click', (ev) => {
-              ev.preventDefault(); ev.stopPropagation();
-              const id = (ev.currentTarget as HTMLElement).getAttribute('data-id');
+            el.addEventListener("click", (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              const id = (ev.currentTarget as HTMLElement).getAttribute(
+                "data-id"
+              );
               if (!id) return;
               const idx = available.findIndex((p) => p.id === id);
               if (idx >= 0) {
@@ -1535,27 +1976,50 @@ export default function MapLibre3D({
             });
           });
 
-          const doClose = () => { popup.remove(); currentPopupRef.current = null; };
-          closeBtn?.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); doClose(); });
-          close2?.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); doClose(); });
-          confirmBtn?.addEventListener('click', (ev) => {
-            ev.preventDefault(); ev.stopPropagation();
-            console.log('Confirmed responders:', selected.map((p) => p.name));
+          const doClose = () => {
+            popup.remove();
+            currentPopupRef.current = null;
+          };
+          closeBtn?.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            doClose();
+          });
+          close2?.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            doClose();
+          });
+          confirmBtn?.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            console.log(
+              "Confirmed responders:",
+              selected.map((p) => p.name)
+            );
             doClose();
           });
         };
 
         try {
-          const popup = new maplibregl.Popup({ offset: [16, -16], anchor: 'bottom-left', closeButton: false })
+          const popup = new maplibregl.Popup({
+            offset: [16, -16],
+            anchor: "bottom-left",
+            closeButton: false,
+          })
             .setLngLat(lngLat)
             .setHTML(render())
             .addTo(map);
           currentPopupRef.current = popup;
           bindHandlers(popup);
           // Animate viewport like hazard pins so the popup adjusts to the screen
-          map.flyTo({ center: lngLat, zoom: 14, padding: { top: 400, right: 320, bottom: 160, left: 80 } });
+          map.flyTo({
+            center: lngLat,
+            zoom: 14,
+            padding: { top: 400, right: 320, bottom: 160, left: 80 },
+          });
         } catch (err) {
-          console.error('Failed to render responder popup:', err);
+          console.error("Failed to render responder popup:", err);
         }
       });
 
@@ -1568,8 +2032,18 @@ export default function MapLibre3D({
     } catch (error) {
       console.error("Error switching hazard:", error);
     }
-  }, [selectedRisk, riskDatabase, currentHazard, isHeatmapEnabled]);
+  }, [
+    selectedRisk,
+    riskDatabase,
+    currentHazard,
+    isHeatmapEnabled,
+    isRoutingPanelOpen,
+    isPickingStart,
+    isPickingEnd,
+  ]);
 
+  // ... (useEffect for search location - unchanged)
+  // ... (Omitted for brevity)
   // Handle search location zooming
   useEffect(() => {
     if (!mapRef.current || !searchLocation) return;
@@ -1603,6 +2077,8 @@ export default function MapLibre3D({
     }, 5000);
   }, [searchLocation]);
 
+  // ... (useEffect for controls visibility - unchanged)
+  // ... (Omitted for brevity)
   // Ensure controls remain visible after map loads
   useEffect(() => {
     if (!mapRef.current) return;
@@ -1629,12 +2105,12 @@ export default function MapLibre3D({
     mapRef.current.on("rotateend", ensureControlsVisible);
   }, []);
 
+  // --- RETURN STATEMENT (UI) ---
   return (
     <>
       <div className="relative w-full h-[calc(100vh-120px)] md:h-[90vh] z-0 rounded-xl shadow-lg">
-        {/* Map Container */}
+        {/* ... (Map container and scroll button - unchanged) */}
         <div id="map" className="w-full h-full" />
-        {/* Bottom-center scroll button (relative to map, scrolls with page) */}
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
           <button
             type="button"
@@ -1642,7 +2118,10 @@ export default function MapLibre3D({
             title="Scroll to bottom"
             onClick={() => {
               if (typeof window !== "undefined") {
-                window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                window.scrollTo({
+                  top: document.body.scrollHeight,
+                  behavior: "smooth",
+                });
               }
             }}
             className="pointer-events-auto inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-white text-red-600 shadow-lg border border-gray-200 hover:bg-red-50 active:scale-95 transition ring-1 ring-red-200"
@@ -1652,8 +2131,7 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Integrated Controls Overlay - Distributed positioning */}
-      {/* Left Settings Sidebar */}
+      {/* ... (Left Settings Sidebar - unchanged) */}
       <div className="absolute left-2 top-2 z-[110] pointer-events-auto">
         <SettingsSidebar
           isOpen={isSidebarOpen}
@@ -1667,11 +2145,15 @@ export default function MapLibre3D({
         />
       </div>
 
-      {/* Search Bar + Back Button - Top Left */}
+      {/* --- Top Left (Routing panel removed) --- */}
       <div className="absolute top-2 md:top-4 left-2 md:left-4 z-[100] pointer-events-none">
         <div className="flex items-center gap-2">
           {/* Back button outside the search box */}
-          <Link href="/" aria-label="Back to Home" className="pointer-events-auto">
+          <Link
+            href="/"
+            aria-label="Back to Home"
+            className="pointer-events-auto"
+          >
             <span className="inline-flex items-center justify-center bg-white text-red-600 rounded-full w-7 h-7 md:w-12 md:h-12 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition">
               <ArrowLeft size={16} weight="bold" />
             </span>
@@ -1681,18 +2163,18 @@ export default function MapLibre3D({
           <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-[40] shadow-xl pl-2 pr-1 md:p-3 md:pr-2 max-w-full md:max-w-md pointer-events-auto border border-white/20 md:w-80 md:h-12 flex items-center">
             <div className="flex items-center gap-1 md:gap-4 w-full h-full">
               <input
-              type="text"
-              className="flex-1 bg-transparent outline-none text-xs md:text-sm text-black max-w-2xl"
-              placeholder="Search locations"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && onSearchSubmit()}
+                type="text"
+                className="flex-1 bg-transparent outline-none text-xs md:text-sm text-black max-w-2xl"
+                placeholder="Search locations"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && onSearchSubmit()}
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
                   className="text-black min-w-[10px] min-h-[24px] flex items-center justify-center mr-0 pr-0"
-                  style={{marginRight: 0, paddingRight: 0}}
+                  style={{ marginRight: 0, paddingRight: 0 }}
                 >
                   <X size={16} />
                 </button>
@@ -1713,13 +2195,28 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Hazard Controls - Top Center segmented chips */}
+      {/* ... (Hazard Controls - Top Center - unchanged) */}
       <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-[105] pointer-events-none">
         <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
           {[
-            { id: "flooding", label: "Flood", color: "#0ea5e9", icon: "/icons/flood icon.svg" },
-            { id: "earthquake", label: "Earthquake", color: "#36A816", icon: "/icons/earthquake icon.svg" },
-            { id: "landslide", label: "Landslide", color: "#f59e0b", icon: "/icons/landslide icon.svg" },
+            {
+              id: "flooding",
+              label: "Flood",
+              color: "#0ea5e9",
+              icon: "/icons/flood icon.svg",
+            },
+            {
+              id: "earthquake",
+              label: "Earthquake",
+              color: "#36A816",
+              icon: "/icons/earthquake icon.svg",
+            },
+            {
+              id: "landslide",
+              label: "Landslide",
+              color: "#f59e0b",
+              icon: "/icons/landslide icon.svg",
+            },
           ].map((h) => {
             const active = selectedRisk === h.id;
             return (
@@ -1751,128 +2248,183 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Right-side Controls (Menu, Zoom) */}
+      {/* --- MODIFIED: Right-side Controls (Routing panel logic changed) --- */}
       <div className="absolute flex top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
-        <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
-          <Menu as="div" className="relative">
-            <Menu.Button
-              as="button"
-              className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
-              title="Settings"
-            >
-              <List size={20} weight="bold" className="text-gray-600" />
-            </Menu.Button>
-            <Menu.Items className="absolute right-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl border border-white/20 z-[100] focus:outline-none">
-              <div className="p-2 space-y-1 text-gray-500">
-                {/* Heatmap Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={toggleHeatmap}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                        active ? "bg-gray-100" : ""
-                      }`}
-                    >
-                      <Flame
-                        size={20}
-                        weight="bold"
-                        className={
-                          isHeatmapEnabled ? "text-orange-600" : "text-gray-600"
-                        }
-                      />
-                      <span>
-                        {isHeatmapEnabled
-                          ? "Disable Heatmap"
-                          : "Enable Heatmap"}
-                      </span>
-                    </button>
-                  )}
-                </Menu.Item>
-                {/* Marker Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={toggleMarkers}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                        active ? "bg-gray-100" : ""
-                      }`}
-                    >
-                      {areMarkersVisible ? (
-                        <Eye
-                          size={16}
-                          weight="bold"
-                          className="text-blue-600"
-                        />
-                      ) : (
-                        <EyeSlash
-                          size={16}
-                          weight="bold"
-                          className="text-gray-600"
-                        />
-                      )}
-                      <span>
-                        {areMarkersVisible ? "Hide Markers" : "Show Markers"}
-                      </span>
-                    </button>
-                  )}
-                </Menu.Item>
-                {/* Legend Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={() => setIsLegendVisible(!isLegendVisible)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                        active ? "bg-gray-100" : ""
-                      }`}
-                    >
-                      <Info
-                        size={16}
-                        weight="bold"
-                        className={
-                          isLegendVisible ? "text-green-600" : "text-gray-600"
-                        }
-                      />
-                      <span>
-                        {isLegendVisible ? "Hide Legend" : "Show Legend"}
-                      </span>
-                    </button>
-                  )}
-                </Menu.Item>
-                {/* 3D/2D Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={() => {
-                        if (!mapRef.current) return;
-                        const map = mapRef.current;
-                        const currentPitch = map.getPitch();
-                        const newPitch = currentPitch === 0 ? 60 : 0;
-                        const newBearing = currentPitch === 0 ? 180 : 0;
-                        map.easeTo({
-                          pitch: newPitch,
-                          bearing: newBearing,
-                          duration: 1000,
-                        });
-                        setIs3D(newPitch !== 0);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                        active ? "bg-gray-100" : ""
-                      }`}
-                    >
-                      <Globe
-                        size={16}
-                        weight="bold"
-                        className={is3D ? "text-blue-600" : "text-gray-600"}
-                      />
-                      <span>{is3D ? "Switch to 2D" : "Switch to 3D"}</span>
-                    </button>
-                  )}
-                </Menu.Item>
-              </div>
-            </Menu.Items>
-          </Menu>
-          {/* Hazard buttons moved to top-center */}
+        {/* --- ROUTING PANEL & STATS --- */}
+        <div className="pointer-events-auto mr-2">
+          {isRoutingPanelOpen && (
+            <>
+              {/* --- NEW STATISTICS BOX --- */}
+              {routeDuration !== null && (
+                <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-xl p-3 max-w-sm md:max-w-md pointer-events-auto border border-white/20 md:w-full mb-2">
+                  <div className="flex my-4">
+                    <div className="text-red-500 text-xl font-bold items-center flex justify-around gap-2 m-auto">
+                      <Timer size={30} weight="bold" />
+                      <p className="m-auto">Travel Time Estimation</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-around text-center">
+                    <div>
+                      <div className="text-xs text-gray-600">
+                        Est. Travel Time
+                      </div>
+                      <div className="text-lg font-semibold text-black">
+                        {formatDuration(routeDuration)}
+                      </div>
+                    </div>
+                    <div className="border-l border-gray-200"></div>{" "}
+                    {/* Vertical divider */}
+                    <div>
+                      <div className="text-xs text-gray-600">
+                        Est. Arrival Time
+                      </div>
+                      <div className="text-lg font-semibold text-black">
+                        {calculateETA(routeDuration)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
+              {/* --- EXISTING ROUTING PANEL (WITH FIXES) --- */}
+              <div className="flex">
+                <div className="pointer-events-auto mr-1 flex flex-col gap-1 md:gap-2">
+                  <button
+                    onClick={() => {
+                      setPickingMode("start");
+                      createDraggablePin("start");
+                    }}
+                    className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border hover:scale-105 active:scale-95 ${
+                      pickingMode == "start"
+                        ? "border-red-500 text-red-600"
+                        : "border-white/20 text-gray-600"
+                    }`}
+                    title="Set Start Pin"
+                  >
+                    <Crosshair size={20} weight="bold" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPickingMode("end");
+                      createDraggablePin("end");
+                    }}
+                    className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border hover:scale-105 active:scale-95 ${
+                      pickingMode == "end"
+                        ? "border-red-500 text-red-600"
+                        : "border-white/20 text-gray-600"
+                    }`}
+                    title="Set End Pin"
+                  >
+                    <MapPin size={20} weight="bold" />
+                  </button>
+                </div>
+                <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-xl p-3 max-w-sm md:max-w-md pointer-events-auto border border-white/20 md:w-80">
+                  <h3 className="text-md font-semibold text-gray-900 mb-3">
+                    Route Planning
+                  </h3>
+
+                  <div className="flex flex-col gap-2">
+                    {/* Start Point */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <Crosshair size={18} className="text-gray-400" />
+                      </div>
+                      {/* --- FIX: Use onClick and readOnly --- */}
+                      <div
+                        onClick={() => {
+                          console.log("Start clicked!");
+                          setPickingMode("start");
+                        }}
+                        className={`flex-1 w-full bg-gray-50 border rounded-lg px-2 py-2 pl-10 text-sm text-gray-900 cursor-pointer select-none ${
+                          pickingMode == "start"
+                            ? "ring-2 border-red-500 ring-red-500"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        {startAddress || "Click Pin to Set Start"}
+                      </div>
+                    </div>
+
+                    {/* End Point */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <MapPin size={18} className="text-gray-400" />
+                      </div>
+                      {/* --- FIX: Use onClick and readOnly --- */}
+                      <div
+                        onClick={() => {
+                          console.log("End clicked!");
+                          setPickingMode("end");
+                        }}
+                        className={`flex-1 w-full bg-gray-50 border rounded-lg px-2 py-2 pl-10 text-sm text-gray-900 cursor-pointer select-none ${
+                          isPickingEnd
+                            ? "ring-2 border-red-500 ring-red-500"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        {endAddress || "Click Pin or Responder"}
+                      </div>
+                    </div>
+
+                    {/* Transport Mode */}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <Car size={18} className="text-gray-400" />
+                      </div>
+                      <select
+                        value={selectedTransportMode}
+                        onChange={(e) =>
+                          setSelectedTransportMode(e.target.value)
+                        }
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 pl-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 appearance-none"
+                      >
+                        <option value="driving-car">Car</option>
+                        <option value="cycling-regular">Bicycle</option>
+                        <option value="foot-walking">Walking</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                        <svg
+                          className="w-4 h-4 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <button
+                        onClick={clearRoute}
+                        className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        onClick={handleGetRoute}
+                        disabled={isFetchingRoute}
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isFetchingRoute ? "Routing..." : "Get Route"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* This is your new button cluster layout */}
+        <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
           {/* Zoom In Button */}
           <button
             onClick={() => {
@@ -1885,7 +2437,6 @@ export default function MapLibre3D({
           >
             <Plus size={20} weight="bold" className="text-gray-600" />
           </button>
-
           {/* Zoom Out Button */}
           <button
             onClick={() => {
@@ -1898,10 +2449,51 @@ export default function MapLibre3D({
           >
             <Minus size={20} weight="bold" className="text-gray-600" />
           </button>
+          <button
+            onClick={() => setIsRoutingPanelOpen((o) => !o)}
+            aria-label="Toggle Route Planning"
+            title="Route Planning"
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl ${
+              isRoutingPanelOpen ? "bg-red-100 text-red-700" : "text-gray-600"
+            }`}
+          >
+            <Signpost size={20} weight="bold" />
+          </button>
+          {/* --- MY LOCATION BUTTON --- */}
+          <button
+            onClick={onGetCurrentLocation}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
+            title="My Location"
+          >
+            <Crosshair size={20} weight="bold" className="text-gray-600" />
+          </button>
+          <button
+            onClick={() => {
+              if (!mapRef.current) return;
+              const map = mapRef.current;
+              const currentPitch = map.getPitch();
+              const newPitch = currentPitch === 0 ? 60 : 0;
+              const newBearing = currentPitch === 0 ? 180 : 0;
+              map.easeTo({
+                pitch: newPitch,
+                bearing: newBearing,
+                duration: 1000,
+              });
+              setIs3D(newPitch !== 0);
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl
+            `}
+          >
+            <Globe
+              size={20}
+              weight="bold"
+              className={is3D ? "text-red-600" : "text-gray-600"}
+            />
+          </button>{" "}
         </div>
       </div>
 
-      {/* Legend - Bottom Right */}
+      {/* ... (Legend - Bottom Right - unchanged) */}
       <div
         className={`absolute bottom-2 left-5 w-80 md:bottom-4 right-2 md:right-4 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20 ${
           isLegendVisible ? "" : "hidden"
@@ -1961,8 +2553,6 @@ export default function MapLibre3D({
           </div>
         </div>
       </div>
-
-      {/* Removed fixed viewport button to keep the control static within the map area */}
     </>
   );
 }
