@@ -1757,7 +1757,7 @@ export default function MapLibre3D({
           ) {
             const c = (f.geometry as any).coordinates as [number, number];
             const point = { lng: c[0], lat: c[1] };
-            const address = `Coord: ${point.lat.toFixed(
+            const address = `Responder Coord: ${point.lat.toFixed(
               4
             )}, ${point.lng.toFixed(4)}`;
 
