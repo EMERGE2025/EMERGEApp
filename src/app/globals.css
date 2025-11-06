@@ -58,9 +58,18 @@ body {
 }
 
 .mapboxgl-popup {
-  z-index: 9999 !important;
+  z-index: 99 !important;
 }
 
 .maplibregl-popup-tip {
   display: none !important;
 }
+
+.maplibregl-popup-content {
+  background: none !important; 
+  color: none;
+  width: fit-content;
+  padding-top: 20rem;
+  padding: 0 !important;
+}
+

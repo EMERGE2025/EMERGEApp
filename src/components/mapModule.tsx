@@ -3,9 +3,9 @@
 import maplibregl, { Popup, Marker } from "maplibre-gl";
 // @ts-ignore: side-effect CSS import without type declarations
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react"; // <-- Added Fragment
 import Link from "next/link";
-import { Menu } from "@headlessui/react";
+import { Menu, Transition, Dialog } from "@headlessui/react"; // <-- Added Transition, Dialog
 import SettingsSidebar from "./SettingsSidebar";
 import {
   MagnifyingGlassIcon,
@@ -66,6 +66,270 @@ interface HazardEntry {
   responderLocation?: GJ;
 }
 
+// --- NEW RESPONDER SIDEBAR COMPONENT ---
+
+type Person = { id: string; name: string };
+
+const FALLBACK_SELECTED: Person[] = [
+  { id: "r1", name: "Mauricio Manuel Bergancia" },
+  { id: "r2", name: "Michael Rey Tuando" },
+  { id: "r3", name: "Mherlie Joy Chavez" },
+  { id: "r4", name: "Gillie Calanuga" },
+  { id: "r5", name: "Dhominick John Billena" },
+  { id: "r6", name: "Mherlie Chavez" },
+];
+const FALLBACK_AVAILABLE: Person[] = [
+  { id: "r7", name: "Mauricio Bergancia" },
+  { id: "r8", name: "Michael Rey Tuando" },
+  { id: "r9", name: "Mherlie Chavez" },
+  { id: "r10", name: "Gillie Calanuga" },
+  { id: "r11", name: "Dhominick John Billena" },
+  { id: "r12", name: "John Doe" },
+];
+
+/**
+ * Renders a single row of responder chips (React Component)
+ */
+function ResponderChipRow({
+  list,
+  mode,
+  onAction,
+}: {
+  list: Person[];
+  mode: "remove" | "add";
+  onAction: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {list.map((p) => (
+        <div
+          key={p.id}
+          className="pr-1 bg-zinc-900/10 rounded-[40px] flex items-center gap-2 px-2 py-1"
+        >
+          <div className="w-5 h-5 bg-zinc-700 rounded-full"></div>
+          <div className="flex items-center gap-1">
+            <div className="opacity-90 text-[12px] text-[#111827]">
+              {p.name}
+            </div>
+            <button
+              data-action={mode}
+              data-id={p.id}
+              onClick={() => onAction(p.id)}
+              className="w-3.5 h-3.5 inline-flex items-center justify-center rounded-[30px] text-[10px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition"
+            >
+              {mode === "remove" ? "×" : "+"}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The new Responder Sidebar React Component
+ */
+function ResponderSidebar({
+  isOpen,
+  onClose,
+  data,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  data: any;
+}) {
+  // Internal state to manage the lists.
+  // This state is *reset* every time the `data` prop changes.
+  const [selected, setSelected] = useState<Person[]>([]);
+  const [available, setAvailable] = useState<Person[]>([]);
+
+  useEffect(() => {
+    // When the `data` prop changes (i.e., new responder clicked), reset the state
+    // In a real app, we'd use `data.properties.responders` etc.
+    // For now, we just use the fallback.
+    const initialSelected = data?.properties?.selectedResponders || [
+      ...FALLBACK_SELECTED,
+    ];
+    const initialAvailable = data?.properties?.availableResponders || [
+      ...FALLBACK_AVAILABLE,
+    ];
+    setSelected(initialSelected);
+    setAvailable(initialAvailable);
+  }, [data]); // This effect is the key.
+
+  const handleAction = (id: string, from: "selected" | "available") => {
+    if (from === "selected") {
+      // Remove from selected, add to available
+      const idx = selected.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        const [p] = selected.splice(idx, 1);
+        setSelected([...selected]);
+        setAvailable([p, ...available]);
+      }
+    } else {
+      // Remove from available, add to selected
+      const idx = available.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        const [p] = available.splice(idx, 1);
+        setAvailable([...available]);
+        setSelected([...selected, p]);
+      }
+    }
+  };
+
+  const handleConfirm = () => {
+    console.log(
+      "Confirmed responders:",
+      selected.map((p) => p.name)
+    );
+    onClose();
+  };
+
+  const recCount = selected.length;
+  const availCount = available.length;
+
+  // Use HeadlessUI Dialog for accessibility and overlay
+  return (
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-[1000]" onClose={onClose}>
+        {/* Overlay */}
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/30" />
+        </Transition.Child>
+
+        {/* Panel */}
+        <div className="fixed inset-y-0 right-0 max-w-full flex">
+          <Transition.Child
+            as={Fragment}
+            enter="transform transition ease-in-out duration-300"
+            enterFrom="translate-x-full"
+            enterTo="translate-x-0"
+            leave="transform transition ease-in-out duration-300"
+            leaveFrom="translate-x-0"
+            leaveTo="translate-x-full"
+          >
+            <Dialog.Panel className="w-screen max-w-md">
+              {/* This is the JSX conversion of the popup HTML */}
+              <div className="relative w-full h-full p-4 bg-[#F7F7F7] shadow-xl flex flex-col gap-2.5">
+                <button
+                  onClick={onClose}
+                  className="emerge-popup-close absolute right-4 top-5 cursor-pointer w-[22px] h-[22px] rounded-full border-0 outline-none bg-[#f3f4f6] text-[#6b7280] flex items-center justify-center text-[14px]"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+
+                {/* Scrollable content */}
+                <div className="overflow-y-auto p-2 rounded-lg flex flex-col gap-2 h-full">
+                  {/* Header */}
+                  <div className="flex flex-col gap-2">
+                    <div className="inline-flex items-end gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 relative bg-red-500 rounded-3xl">
+                          <div className="w-3 h-0.5 absolute left-[5px] top-[13px] -rotate-45 bg-white"></div>
+                        </div>
+                        <div className="text-[#111827] text-base font-semibold">
+                          Responders
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-full text-[12px] text-zinc-900/60">
+                      Deploy and See Available Responders
+                    </div>
+                  </div>
+
+                  <div className="self-stretch h-px border-t border-neutral-800/20"></div>
+
+                  {/* Stats */}
+                  <div className="flex flex-col gap-3">
+                    <div className="w-full h-3.5 inline-flex items-center gap-5">
+                      <div className="text-[12px]">
+                        <span className="text-zinc-900/80 font-medium">
+                          Recommended:
+                        </span>
+                        <span className="text-[#111827]"> </span>
+                        <span className="text-red-600 font-semibold">
+                          {recCount} Responders
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full h-px border-t border-neutral-800/20"></div>
+
+                    {/* Deploy List */}
+                    <div className="flex flex-col gap-1">
+                      <div className="inline-flex items-center gap-2">
+                        <div className="text-red-600 text-[12px] font-semibold">
+                          Deploy Responder(s)
+                        </div>
+                        <div className="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
+                        <div className="text-zinc-900/60 text-[12px] font-medium">
+                          {recCount} Selected
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
+                        <ResponderChipRow
+                          list={selected}
+                          mode="remove"
+                          onAction={(id) => handleAction(id, "selected")}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Available List */}
+                    <div className="flex flex-col gap-1">
+                      <div className="inline-flex items-center gap-2">
+                        <div className="text-red-600 text-[12px] font-semibold">
+                          Available Responder(s)
+                        </div>
+                        <div className="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
+                        <div className="text-zinc-900/60 text-[12px] font-medium">
+                          {availCount} Available
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
+                        <ResponderChipRow
+                          list={available}
+                          mode="add"
+                          onAction={(id) => handleAction(id, "available")}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer buttons */}
+                <div className="mt-2 inline-flex items-center gap-3">
+                  <button
+                    onClick={handleConfirm}
+                    className="emerge-resp-confirm h-6 px-3 py-1 bg-red-600 text-white rounded shadow hover:bg-red-700 text-[12px] font-semibold"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="emerge-resp-close h-6 px-3 py-1 bg-[#F7F7F7] rounded border border-black/10 text-zinc-900/80 text-[12px] font-semibold"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </Dialog.Panel>
+          </Transition.Child>
+        </div>
+      </Dialog>
+    </Transition>
+  );
+}
+// --- END OF NEW RESPONDER COMPONENT ---
+
 export default function MapLibre3D({
   mapType = "liberty",
   selectedRisk,
@@ -121,7 +385,7 @@ export default function MapLibre3D({
   const pickingModeRef = useRef<"start" | "end" | null>(pickingMode);
   const [isPickingEnd, setIsPickingEnd] = useState(false);
   const [isFetchingRoute, setIsFetchingRoute] = useState(false);
-  const [routeDuration, setRouteDuration] = useState<number | null>(null); // <-- NEW
+  const [routeDuration, setRouteDuration] = useState<number | null>(null);
 
   // --- MARKER STATE ---
   const [userLocationMarker, setUserLocationMarker] =
@@ -129,14 +393,22 @@ export default function MapLibre3D({
   const [startPin, setStartPin] = useState<maplibregl.Marker | null>(null);
   const [endPin, setEndPin] = useState<maplibregl.Marker | null>(null);
 
+  // --- NEW RESPONDER SIDEBAR STATE ---
+  const [isResponderSidebarOpen, setIsResponderSidebarOpen] = useState(false);
+  const [selectedResponderData, setSelectedResponderData] = useState<
+    any | null
+  >(null);
+
   // --- NEW HELPER FUNCTIONS ---
   const formatDuration = (totalSeconds: number) => {
+    // ... (rest of the function is unchanged)
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = Math.floor(totalSeconds % 60);
     return `${minutes} min ${seconds} sec`;
   };
 
   const calculateETA = (totalSeconds: number) => {
+    // ... (rest of the function is unchanged)
     const eta = new Date(Date.now() + totalSeconds * 1000);
     return eta.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
@@ -145,6 +417,7 @@ export default function MapLibre3D({
     features: any[],
     vulnerabilityData: any
   ) => {
+    // ... (rest of the function is unchanged)
     return features.map((feature: any) => {
       const coords = feature.geometry.coordinates;
       let vulnerabilityScore = 0.5;
@@ -201,6 +474,7 @@ export default function MapLibre3D({
 
   // Toggle heatmap visibility
   const toggleHeatmap = () => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) {
       console.warn("Cannot toggle heatmap: map or data not ready");
       return;
@@ -241,6 +515,7 @@ export default function MapLibre3D({
 
   // Toggle marker visibility
   const toggleMarkers = () => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current) {
       console.warn("Cannot toggle markers: map not ready");
       return;
@@ -285,6 +560,7 @@ export default function MapLibre3D({
 
   // Create enhanced density-based heatmap with population vulnerability
   const createHeatmapLayer = (hazard: string) => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current || !riskDatabase) {
       console.error("Map or risk database not available");
       return;
@@ -545,6 +821,7 @@ export default function MapLibre3D({
     end: { lng: number; lat: number },
     mode: string
   ) => {
+    // ... (rest of the function is unchanged)
     setIsFetchingRoute(true);
     setRouteGeoJSON(null); // Clear old route
     setRouteDuration(null); // <-- NEW: Clear old duration
@@ -613,6 +890,7 @@ export default function MapLibre3D({
    * Handles the "Get Route" button click
    */
   const handleGetRoute = () => {
+    // ... (rest of the function is unchanged)
     let start = startPoint;
 
     if (!start) {
@@ -653,6 +931,7 @@ export default function MapLibre3D({
    * Clears the current route and inputs
    */
   const clearRoute = () => {
+    // ... (rest of the function is unchanged)
     setRouteGeoJSON(null);
     setStartPoint(null);
     setEndPoint(null);
@@ -687,6 +966,7 @@ export default function MapLibre3D({
   // --- MODIFIED FUNCTION: Spawns draggable marker ---
   // This now only gets called when the user clicks the pin icons
   const createDraggablePin = (mode: "start" | "end") => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current) return;
     const map = mapRef.current;
 
@@ -766,6 +1046,7 @@ export default function MapLibre3D({
 
   // --- MAP INITIALIZATION ---
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     // Helper to remove any existing MapLibre popups from the DOM
     const removeAllPopups = () => {
       try {
@@ -813,6 +1094,7 @@ export default function MapLibre3D({
   //  Using the refs for mapping
 
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     pickingModeRef.current = pickingMode;
   }, [pickingMode]);
 
@@ -820,6 +1102,7 @@ export default function MapLibre3D({
   // ... (Omitted for brevity, unchanged)
   // Handle boundary loading separately from hazard switching
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) {
       console.log("Boundary loading skipped - map or data not ready", {
         mapReady: !!mapRef.current,
@@ -905,10 +1188,16 @@ export default function MapLibre3D({
     }
   }, [riskDatabase]);
 
+  // --- Responder Popup Helper Functions ---
+  // --- (These functions are no longer used by the click handler, but are kept for reference or other popups) ---
+  // --- (I've removed them from this diff to save space, but they were lines 1024-1188 in the original) ---
+  // ... (renderChipRow, renderResponderPopup, bindResponderPopupHandlers removed)
+
   // ... (useEffect for initial heatmap)
   // ... (Omitted for brevity, unchanged)
   // Create initial heatmap when data is loaded and heatmap is enabled
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     console.log("Initial heatmap effect triggered:", {
       hasMap: !!mapRef.current,
       hasRiskDatabase: !!riskDatabase,
@@ -938,6 +1227,7 @@ export default function MapLibre3D({
   // ... (Omitted for brevity, unchanged)
   // Handle marker visibility when hazards change
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current || !areMarkersVisible) return;
 
     const map = mapRef.current;
@@ -962,6 +1252,7 @@ export default function MapLibre3D({
 
   // --- MODIFIED: useEffect for userLocation (added pin) ---
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     if (mapRef.current && userLocation) {
       const map = mapRef.current;
 
@@ -1006,6 +1297,7 @@ export default function MapLibre3D({
 
   // --- useEffect for drawing route (unchanged) ---
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current || !routeGeoJSON) return;
 
     const map = mapRef.current;
@@ -1055,6 +1347,7 @@ export default function MapLibre3D({
 
   // --- MODIFIED: useEffect for hazard switching ---
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) return;
 
     const map = mapRef.current;
@@ -1425,7 +1718,7 @@ export default function MapLibre3D({
         };
 
         const popupContent = `
-  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
+  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; background:none">
     <div style="background:#ffffff;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:12px 14px;min-width:280px;max-width:360px;">
       <div style="display:flex;align-items:center;gap:10px;position:relative;">
         <div style="width:28px;height:28px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
@@ -1741,7 +2034,7 @@ export default function MapLibre3D({
         map.getCanvas().style.cursor = "";
       });
 
-      // --- MODIFIED: map.on('click', 'responderLocation') ---
+      // --- *** MODIFIED: map.on('click', 'responderLocation') *** ---
       map.on("click", "responderLocation", (e) => {
         if (pickingModeRef.current) {
           const mode = pickingModeRef.current;
@@ -1788,12 +2081,12 @@ export default function MapLibre3D({
 
         // Base position
         let lngLat: [number, number] | undefined;
-        const f = features[0];
+        const feature = features[0];
         if (
-          f.geometry.type === "Point" &&
-          Array.isArray((f.geometry as any).coordinates)
+          feature.geometry.type === "Point" &&
+          Array.isArray((feature.geometry as any).coordinates)
         ) {
-          const c = (f.geometry as any).coordinates as [number, number];
+          const c = (feature.geometry as any).coordinates as [number, number];
           lngLat = [c[0], c[1]];
           while (Math.abs(e.lngLat.lng - lngLat[0]) > 180) {
             lngLat[0] += e.lngLat.lng > lngLat[0] ? 360 : -360;
@@ -1801,121 +2094,19 @@ export default function MapLibre3D({
         }
         if (!lngLat) return;
 
-        // ... (rest of your existing popup code)
-        type Person = { id: string; name: string };
-        const fallbackSelected: Person[] = [
-          { id: "r1", name: "Mauricio Manuel Bergancia" },
-          { id: "r2", name: "Michael Rey Tuando" },
-          { id: "r3", name: "Mherlie Joy Chavez" },
-          { id: "r4", name: "Gillie Calanuga" },
-          { id: "r5", name: "Dhominick John Billena" },
-          { id: "r6", name: "Mherlie Chavez" },
-        ];
-        const fallbackAvailable: Person[] = [
-          { id: "r7", name: "Mauricio Bergancia" },
-          { id: "r8", name: "Michael Rey Tuando" },
-          { id: "r9", name: "Mherlie Chavez" },
-          { id: "r10", name: "Gillie Calanuga" },
-          { id: "r11", name: "Dhominick John Billena" },
-          { id: "r12", name: "John Doe" },
-        ];
+        // --- NEW LOGIC: SET STATE AND OPEN SIDEBAR ---
 
-        let selected: Person[] = fallbackSelected.slice();
-        let available: Person[] = fallbackAvailable.slice();
+        // 1. Set the data for the sidebar
+        // We pass the whole feature.properties, and the geometry
+        setSelectedResponderData({
+          properties: feature.properties,
+          geometry: feature.geometry,
+        });
 
-        const renderChipRow = (list: Person[], mode: "remove" | "add") => {
-          return list
-            .map(
-              (p) => `
-              <div class="pr-1 bg-zinc-900/10 rounded-[40px] flex items-center gap-2 px-2 py-1">
-                <div class="w-5 h-5 bg-zinc-700 rounded-full"></div>
-                <div class="flex items-center gap-1">
-                  <div class="opacity-90 text-[12px] text-[color:#111827]">${
-                    p.name
-                  }</div>
-                  <button data-action="${mode}" data-id="${
-                p.id
-              }" class="w-3.5 h-3.5 inline-flex items-center justify-center rounded-[30px] text-[10px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition">${
-                mode === "remove" ? "×" : "+"
-              }</button>
-                </div>
-              </div>`
-            )
-            .join("");
-        };
+        // 2. Open the sidebar
+        setIsResponderSidebarOpen(true);
 
-        const render = () => {
-          const recCount = selected.length;
-          const availCount = available.length;
-          return `
-          <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
-            <div class="w-[480px] px-3 py-4 bg-[#F7F7F7] rounded-2xl shadow-[0_0_100px_0_rgba(0,0,0,0.20)] flex flex-col gap-2.5">
-              <div class="relative">
-                <button class="emerge-popup-close absolute right-0 -top-2 cursor-pointer w-[22px] h-[22px] rounded-full border-0 outline-none bg-[#f3f4f6] text-[#6b7280] flex items-center justify-center text-[14px]" aria-label="Close">×</button>
-                <div class="h-80 overflow-y-auto p-2 rounded-lg flex flex-col gap-2">
-                  <div class="flex flex-col gap-2">
-                    <div class="inline-flex items-end gap-3">
-                      <div class="flex items-center gap-3">
-                        <div class="w-6 h-6 relative bg-red-500 rounded-3xl">
-                          <div class="w-3 h-0.5 absolute left-[5px] top-[13px] -rotate-45 bg-[#F7F7F7]"></div>
-                        </div>
-                        <div class="text-[#111827] text-base font-semibold">Responders</div>
-                      </div>
-                    </div>
-                    <div class="w-full text-[12px] text-zinc-900/60">Deploy and See Available Responders</div>
-                  </div>
-                  <div class="self-stretch h-px border-t border-neutral-800/20"></div>
-
-                  <div class="flex flex-col gap-3">
-                    <div class="w-full h-3.5 inline-flex items-center gap-5">
-                      <div class="text-[12px]"><span class="text-zinc-900/80 font-medium">Recommended:</span><span class="text-[#111827]"> </span><span class="text-red-600 font-semibold">${recCount} Responders</span></div>
-                    </div>
-                    <div class="w-full h-px border-t border-neutral-800/20"></div>
-
-                    <div class="flex flex-col gap-1">
-                      <div class="inline-flex items-center gap-2">
-                        <div class="text-red-600 text-[12px] font-semibold">Deploy Responder(s)</div>
-                        <div class="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
-                        <div class="text-zinc-900/60 text-[12px] font-medium">${recCount} Selected</div>
-                      </div>
-                      <div class="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
-                        <div class="w-full flex flex-col gap-1">
-                          <div class="flex flex-wrap gap-2">${renderChipRow(
-                            selected,
-                            "remove"
-                          )}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="flex flex-col gap-1">
-                      <div class="inline-flex items-center gap-2">
-                        <div class="text-red-600 text-[12px] font-semibold">Available Responder(s)</div>
-                        <div class="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
-                        <div class="text-zinc-900/60 text-[12px] font-medium">${availCount} Available</div>
-                      </div>
-                      <div class="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2">
-                        <div class="w-full flex flex-col gap-1">
-                          <div class="flex flex-wrap gap-2">${renderChipRow(
-                            available,
-                            "add"
-                          )}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mt-2 inline-flex items-center gap-3">
-                  <button class="emerge-resp-confirm h-6 px-3 py-1 bg-red-600 text-white rounded shadow hover:bg-red-700 text-[12px] font-semibold">Confirm</button>
-                  <button class="emerge-resp-close h-6 px-3 py-1 bg-[#F7F7F7] rounded border border-black/10 text-zinc-900/80 text-[12px] font-semibold">Close</button>
-                </div>
-              </div>
-            </div>
-          </div>`;
-        };
-
-        // Remove any existing popups first
+        // 3. Remove any old popups (good hygiene)
         try {
           document
             .querySelectorAll(".maplibregl-popup")
@@ -1924,104 +2115,16 @@ export default function MapLibre3D({
           currentPopupRef.current = null;
         } catch {}
 
-        const bindHandlers = (popup: maplibregl.Popup) => {
-          const root = popup.getElement();
-          if (!root) return;
-          const closeBtn = root.querySelector(
-            ".emerge-popup-close"
-          ) as HTMLElement | null;
-          const confirmBtn = root.querySelector(
-            ".emerge-resp-confirm"
-          ) as HTMLElement | null;
-          const close2 = root.querySelector(
-            ".emerge-resp-close"
-          ) as HTMLElement | null;
+        // 4. Fly to the location, adding padding for the sidebar
+        map.flyTo({
+          center: lngLat,
+          zoom: 14,
+          padding: { top: 100, right: 400, bottom: 40, left: 40 }, // Added right padding
+        });
 
-          const rewire = () => {
-            popup.setHTML(render());
-            bindHandlers(popup);
-          };
-
-          root.querySelectorAll('[data-action="remove"]').forEach((el) => {
-            el.addEventListener("click", (ev) => {
-              ev.preventDefault();
-              ev.stopPropagation();
-              const id = (ev.currentTarget as HTMLElement).getAttribute(
-                "data-id"
-              );
-              if (!id) return;
-              const idx = selected.findIndex((p) => p.id === id);
-              if (idx >= 0) {
-                const [p] = selected.splice(idx, 1);
-                available.unshift(p);
-                rewire();
-              }
-            });
-          });
-
-          root.querySelectorAll('[data-action="add"]').forEach((el) => {
-            el.addEventListener("click", (ev) => {
-              ev.preventDefault();
-              ev.stopPropagation();
-              const id = (ev.currentTarget as HTMLElement).getAttribute(
-                "data-id"
-              );
-              if (!id) return;
-              const idx = available.findIndex((p) => p.id === id);
-              if (idx >= 0) {
-                const [p] = available.splice(idx, 1);
-                selected.push(p);
-                rewire();
-              }
-            });
-          });
-
-          const doClose = () => {
-            popup.remove();
-            currentPopupRef.current = null;
-          };
-          closeBtn?.addEventListener("click", (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            doClose();
-          });
-          close2?.addEventListener("click", (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            doClose();
-          });
-          confirmBtn?.addEventListener("click", (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            console.log(
-              "Confirmed responders:",
-              selected.map((p) => p.name)
-            );
-            doClose();
-          });
-        };
-
-        try {
-          const popup = new maplibregl.Popup({
-            offset: [16, -16],
-            anchor: "bottom-left",
-            closeButton: false,
-          })
-            .setLngLat(lngLat)
-            .setHTML(render())
-            .addTo(map);
-          currentPopupRef.current = popup;
-          bindHandlers(popup);
-          // Animate viewport like hazard pins so the popup adjusts to the screen
-          map.flyTo({
-            center: lngLat,
-            zoom: 14,
-            padding: { top: 400, right: 320, bottom: 160, left: 80 },
-          });
-        } catch (err) {
-          console.error("Failed to render responder popup:", err);
-        }
+        // --- OLD POPUP LOGIC IS REMOVED ---
       });
+      // --- *** END OF MODIFIED CLICK HANDLER *** ---
 
       // Create heatmap layer if heatmap is enabled
       if (isHeatmapEnabled) {
@@ -2046,6 +2149,7 @@ export default function MapLibre3D({
   // ... (Omitted for brevity)
   // Handle search location zooming
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current || !searchLocation) return;
 
     const map = mapRef.current;
@@ -2081,6 +2185,7 @@ export default function MapLibre3D({
   // ... (Omitted for brevity)
   // Ensure controls remain visible after map loads
   useEffect(() => {
+    // ... (rest of the function is unchanged)
     if (!mapRef.current) return;
 
     const ensureControlsVisible = () => {
@@ -2147,6 +2252,7 @@ export default function MapLibre3D({
 
       {/* --- Top Left (Routing panel removed) --- */}
       <div className="absolute top-2 md:top-4 left-2 md:left-4 z-[100] pointer-events-none">
+        {/* ... (rest of the UI is unchanged) */}
         <div className="flex items-center gap-2">
           {/* Back button outside the search box */}
           <Link
@@ -2197,6 +2303,7 @@ export default function MapLibre3D({
 
       {/* ... (Hazard Controls - Top Center - unchanged) */}
       <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-[105] pointer-events-none">
+        {/* ... (rest of the UI is unchanged) */}
         <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
           {[
             {
@@ -2250,6 +2357,7 @@ export default function MapLibre3D({
 
       {/* --- MODIFIED: Right-side Controls (Routing panel logic changed) --- */}
       <div className="absolute flex top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
+        {/* ... (rest of the UI is unchanged) */}
         {/* --- ROUTING PANEL & STATS --- */}
         <div className="pointer-events-auto mr-2">
           {isRoutingPanelOpen && (
@@ -2499,6 +2607,7 @@ export default function MapLibre3D({
           isLegendVisible ? "" : "hidden"
         }`}
       >
+        {/* ... (rest of the UI is unchanged) */}
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 mb-1 md:mb-2">
           <Info size={14} />
           Legend
@@ -2553,6 +2662,13 @@ export default function MapLibre3D({
           </div>
         </div>
       </div>
+
+      {/* --- NEW: RENDER THE SIDEBAR --- */}
+      <ResponderSidebar
+        isOpen={isResponderSidebarOpen}
+        onClose={() => setIsResponderSidebarOpen(false)}
+        data={selectedResponderData}
+      />
     </>
   );
 }
