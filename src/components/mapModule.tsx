@@ -1602,7 +1602,7 @@ export default function MapLibre3D({
 
         // Show popup for cluster
         const popupContent = `
-           <div style="padding: 8px; max-width: 200px; color: black;">
+           <div style="padding: 8px; max-width: 200px; color: black; background: #fff; border-radius: 10%;">
              <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">Cluster</h3>
              <p style="margin: 4px 0;"><strong>Points:</strong> ${pointCount}</p>
              <p style="margin: 4px 0; font-size: 12px; color: #666;">Click to zoom in</p>

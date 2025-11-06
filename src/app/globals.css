@@ -71,5 +71,6 @@ body {
   width: fit-content;
   padding-top: 20rem;
   padding: 0 !important;
+  border-radius: 10%;
 }
 
