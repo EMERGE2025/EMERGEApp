@@ -354,9 +354,6 @@ export default function Hazards() {
           />
         </ClientOnly>
       </div>
-
-      {/* Data table below the map */}
-      <DataTable />
     </main>
   );
 }

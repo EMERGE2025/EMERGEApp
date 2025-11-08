@@ -1189,9 +1189,7 @@ export default function MapLibre3D({
   }, [riskDatabase]);
 
   // --- Responder Popup Helper Functions ---
-  // --- (These functions are no longer used by the click handler, but are kept for reference or other popups) ---
-  // --- (I've removed them from this diff to save space, but they were lines 1024-1188 in the original) ---
-  // ... (renderChipRow, renderResponderPopup, bindResponderPopupHandlers removed)
+  // ... (Omitted, no longer used by click handler)
 
   // ... (useEffect for initial heatmap)
   // ... (Omitted for brevity, unchanged)
@@ -1347,7 +1345,6 @@ export default function MapLibre3D({
 
   // --- MODIFIED: useEffect for hazard switching ---
   useEffect(() => {
-    // ... (rest of the function is unchanged)
     if (!mapRef.current || !riskDatabase || riskDatabase.length === 0) return;
 
     const map = mapRef.current;
@@ -1442,16 +1439,19 @@ export default function MapLibre3D({
             map.addImage(hazard, image);
           }
 
-          map.addLayer({
-            id: `${hazard}-risk`,
-            type: "symbol",
-            source: `${hazard}-risk`,
-            filter: ["!", ["has", "point_count"]],
-            layout: {
-              "icon-image": hazard,
-              "icon-size": 0.5,
-            },
-          });
+          // --- FIX: Add guard check ---
+          if (!map.getLayer(`${hazard}-risk`)) {
+            map.addLayer({
+              id: `${hazard}-risk`,
+              type: "symbol",
+              source: `${hazard}-risk`,
+              filter: ["!", ["has", "point_count"]],
+              layout: {
+                "icon-image": hazard,
+                "icon-size": 0.5,
+              },
+            });
+          }
         })
         .catch((error) => {
           console.error("Failed to load hazard image:", error);
@@ -1487,15 +1487,18 @@ export default function MapLibre3D({
             map.addImage("responder", image);
           }
 
-          map.addLayer({
-            id: "responderLocation",
-            type: "symbol",
-            source: `${hazard}-responder`,
-            layout: {
-              "icon-image": "responder",
-              "icon-size": 0.5,
-            },
-          });
+          // --- FIX: Add guard check ---
+          if (!map.getLayer("responderLocation")) {
+            map.addLayer({
+              id: "responderLocation",
+              type: "symbol",
+              source: `${hazard}-responder`,
+              layout: {
+                "icon-image": "responder",
+                "icon-size": 0.5,
+              },
+            });
+          }
         })
         .catch((error) => {
           console.error("Failed to load responder image:", error);
@@ -1523,69 +1526,81 @@ export default function MapLibre3D({
         });
       }
 
-      map.addLayer({
-        id: "responderRange",
-        type: "line",
-        source: `${hazard}-range`,
-        paint: {
-          "line-color": "#008000",
-          "line-width": 3,
-          "line-opacity": 0.35,
-        },
-      });
+      // --- FIX: Add guard check ---
+      if (!map.getLayer("responderRange")) {
+        map.addLayer({
+          id: "responderRange",
+          type: "line",
+          source: `${hazard}-range`,
+          paint: {
+            "line-color": "#008000",
+            "line-width": 3,
+            "line-opacity": 0.35,
+          },
+        });
+      }
 
       // Add cluster layers
-      map.addLayer({
-        id: "clusters",
-        type: "circle",
-        source: `${hazard}-risk`,
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            "#f23411",
-            100,
-            "#f1f075",
-            750,
-            "#f28cb1",
-          ],
-          "circle-radius": [
-            "step",
-            ["get", "point_count"],
-            20,
-            100,
-            30,
-            750,
-            40,
-          ],
-        },
-      });
+      // --- FIX: Add guard check ---
+      if (!map.getLayer("clusters")) {
+        map.addLayer({
+          id: "clusters",
+          type: "circle",
+          source: `${hazard}-risk`,
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": [
+              "step",
+              ["get", "point_count"],
+              "#f23411",
+              100,
+              "#f1f075",
+              750,
+              "#f28cb1",
+            ],
+            "circle-radius": [
+              "step",
+              ["get", "point_count"],
+              20,
+              100,
+              30,
+              750,
+              40,
+            ],
+          },
+        });
+      }
 
-      map.addLayer({
-        id: "cluster-count",
-        type: "symbol",
-        source: `${hazard}-risk`,
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-font": ["Noto Sans Regular"],
-          "text-size": 12,
-        },
-      });
+      // --- FIX: Add guard check ---
+      if (!map.getLayer("cluster-count")) {
+        map.addLayer({
+          id: "cluster-count",
+          type: "symbol",
+          source: `${hazard}-risk`,
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": "{point_count_abbreviated}",
+            "text-font": ["Noto Sans Regular"],
+            "text-size": 12,
+          },
+        });
+      }
 
-      map.addLayer({
-        id: "unclustered-point",
-        type: "circle",
-        source: `${hazard}-risk`,
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": "#11b4da",
-          "circle-radius": 4,
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#fff",
-        },
-      });
+      // --- FIX: Add guard check ---
+      if (!map.getLayer("unclustered-point")) {
+        map.addLayer({
+          id: "unclustered-point",
+          type: "circle",
+          source: `${hazard}-risk`,
+          filter: ["!", ["has", "point_count"]],
+          paint: {
+            "circle-color": "#11b4da",
+            "circle-radius": 4,
+            "circle-stroke-width": 1,
+            "circle-stroke-color": "#fff",
+          },
+        });
+      }
 
       // ... (map.on('click', 'clusters') - unchanged)
       // ... (Omitted for brevity)
@@ -1602,7 +1617,7 @@ export default function MapLibre3D({
 
         // Show popup for cluster
         const popupContent = `
-           <div style="padding: 8px; max-width: 200px; color: black; background: #fff; border-radius: 10%;">
+           <div style="padding: 8px; max-width: 200px; color: black;">
              <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">Cluster</h3>
              <p style="margin: 4px 0;"><strong>Points:</strong> ${pointCount}</p>
              <p style="margin: 4px 0; font-size: 12px; color: #666;">Click to zoom in</p>
@@ -1718,7 +1733,7 @@ export default function MapLibre3D({
         };
 
         const popupContent = `
-  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827; background:none">
+  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
     <div style="background:#ffffff;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:12px 14px;min-width:280px;max-width:360px;">
       <div style="display:flex;align-items:center;gap:10px;position:relative;">
         <div style="width:28px;height:28px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
@@ -2135,15 +2150,8 @@ export default function MapLibre3D({
     } catch (error) {
       console.error("Error switching hazard:", error);
     }
-  }, [
-    selectedRisk,
-    riskDatabase,
-    currentHazard,
-    isHeatmapEnabled,
-    isRoutingPanelOpen,
-    isPickingStart,
-    isPickingEnd,
-  ]);
+    // --- FIX: Remove unnecessary dependencies ---
+  }, [selectedRisk, riskDatabase, isHeatmapEnabled]);
 
   // ... (useEffect for search location - unchanged)
   // ... (Omitted for brevity)
@@ -2213,7 +2221,7 @@ export default function MapLibre3D({
   // --- RETURN STATEMENT (UI) ---
   return (
     <>
-      <div className="relative w-full h-[calc(100vh-120px)] md:h-[90vh] z-0 rounded-xl shadow-lg">
+      <div className="relative w-full h-[100vh] md:h-[100vh] z-0 rounded-xl shadow-lg">
         {/* ... (Map container and scroll button - unchanged) */}
         <div id="map" className="w-full h-full" />
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
@@ -2236,8 +2244,7 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* ... (Left Settings Sidebar - unchanged) */}
-      <div className="absolute left-2 top-2 z-[110] pointer-events-auto">
+      <div className="absolute bottom-10 left-5 z-[110] pointer-events-auto">
         <SettingsSidebar
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen((s) => !s)}
@@ -2250,9 +2257,9 @@ export default function MapLibre3D({
         />
       </div>
 
-      {/* --- Top Left (Routing panel removed) --- */}
-      <div className="absolute top-2 md:top-4 left-2 md:left-4 z-[100] pointer-events-none">
-        {/* ... (rest of the UI is unchanged) */}
+      {/* --- MODIFIED: Top Left (Search/Back) --- */}
+      {/* Container is pushed right (left-11) on mobile to avoid settings button */}
+      <div className="absolute top-2 md:top-4 left-2 md:left-18 z-[100] pointer-events-none">
         <div className="flex items-center gap-2">
           {/* Back button outside the search box */}
           <Link
@@ -2266,7 +2273,8 @@ export default function MapLibre3D({
           </Link>
 
           {/* Search box */}
-          <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-[40] shadow-xl pl-2 pr-1 md:p-3 md:pr-2 max-w-full md:max-w-md pointer-events-auto border border-white/20 md:w-80 md:h-12 flex items-center">
+          {/* Added max-w-[calc(100vw-100px)] to prevent it from overlapping center/right controls */}
+          <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-[40] shadow-xl pl-2 pr-1 md:p-3 md:pr-2 max-w-[calc(100vw-100px)] md:max-w-md pointer-events-auto border border-white/20 md:w-80 md:h-12 flex items-center">
             <div className="flex items-center gap-1 md:gap-4 w-full h-full">
               <input
                 type="text"
@@ -2301,9 +2309,9 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* ... (Hazard Controls - Top Center - unchanged) */}
-      <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-[105] pointer-events-none">
-        {/* ... (rest of the UI is unchanged) */}
+      {/* --- MODIFIED: Hazard Controls - Top Center --- */}
+      {/* Moved down on mobile (top-14) to avoid search bar */}
+      <div className="absolute top-14 md:top-4 left-1/2 mt-5 -translate-x-1/2 z-[105] pointer-events-none">
         <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
           {[
             {
@@ -2355,11 +2363,12 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* --- MODIFIED: Right-side Controls (Routing panel logic changed) --- */}
-      <div className="absolute flex top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
-        {/* ... (rest of the UI is unchanged) */}
+      {/* --- MODIFIED: Right-side Controls --- */}
+      {/* Stacks vertically on mobile (flex-col-reverse) */}
+      <div className="absolute flex flex-col-reverse md:flex-row gap-2 top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
         {/* --- ROUTING PANEL & STATS --- */}
-        <div className="pointer-events-auto mr-2">
+        {/* Removed mr-2 */}
+        <div className="pointer-events-auto">
           {isRoutingPanelOpen && (
             <>
               {/* --- NEW STATISTICS BOX --- */}
@@ -2395,8 +2404,10 @@ export default function MapLibre3D({
               )}
 
               {/* --- EXISTING ROUTING PANEL (WITH FIXES) --- */}
-              <div className="flex">
-                <div className="pointer-events-auto mr-1 flex flex-col gap-1 md:gap-2">
+              {/* Changed to flex-col md:flex-row */}
+              <div className="flex flex-col md:flex-row gap-2">
+                {/* Pin buttons are now flex-row on mobile */}
+                <div className="pointer-events-auto flex flex-row md:flex-col gap-1 md:gap-2">
                   <button
                     onClick={() => {
                       setPickingMode("start");
@@ -2426,6 +2437,7 @@ export default function MapLibre3D({
                     <MapPin size={20} weight="bold" />
                   </button>
                 </div>
+                {/* Panel content width is responsive (max-w-sm) */}
                 <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-xl p-3 max-w-sm md:max-w-md pointer-events-auto border border-white/20 md:w-80">
                   <h3 className="text-md font-semibold text-gray-900 mb-3">
                     Route Planning
@@ -2601,13 +2613,13 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* ... (Legend - Bottom Right - unchanged) */}
+      {/* --- MODIFIED: Legend - Bottom Right --- */}
+      {/* Fixed positioning and added responsive width */}
       <div
-        className={`absolute bottom-2 left-5 w-80 md:bottom-4 right-2 md:right-4 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20 ${
+        className={`absolute bottom-4 right-4 z-[100] w-[calc(100vw-32px)] max-w-xs md:w-80 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20 ${
           isLegendVisible ? "" : "hidden"
         }`}
       >
-        {/* ... (rest of the UI is unchanged) */}
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 mb-1 md:mb-2">
           <Info size={14} />
           Legend
@@ -2663,7 +2675,6 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* --- NEW: RENDER THE SIDEBAR --- */}
       <ResponderSidebar
         isOpen={isResponderSidebarOpen}
         onClose={() => setIsResponderSidebarOpen(false)}
