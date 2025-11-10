@@ -17,6 +17,10 @@ export default function Hazards() {
     lng: number;
     lat: number;
   } | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,53 +80,76 @@ export default function Hazards() {
       } catch (error) {
         console.error("Error fetching risk data:", error);
         // Set fallback data for testing
-        const fallbackData = [
-          {
-            id: "boundary",
-            boundary: {
-              type: "FeatureCollection",
-              features: [
-                {
-                  type: "Feature",
-                  geometry: {
-                    type: "Polygon",
-                    coordinates: [
-                      [
-                        [122.4, 10.7],
-                        [122.6, 10.7],
-                        [122.6, 10.8],
-                        [122.4, 10.8],
-                        [122.4, 10.7],
-                      ],
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-          {
-            id: "flooding",
-            risk: {
-              type: "FeatureCollection",
-              features: [
-                {
-                  type: "Feature",
-                  geometry: {
-                    type: "Point",
-                    coordinates: [122.5, 10.75],
-                  },
-                  properties: { riskScore: 0.8 },
-                },
-              ],
-            },
-          },
-        ];
-        console.log("Using fallback data:", fallbackData);
-        setRiskData(fallbackData);
+        // const fallbackData = [
+        //   {
+        //     id: "boundary",
+        //     boundary: {
+        //       type: "FeatureCollection",
+        //       features: [
+        //         {
+        //           type: "Feature",
+        //           geometry: {
+        //             type: "Polygon",
+        //             coordinates: [
+        //               [
+        //                 [122.4, 10.7],
+        //                 [122.6, 10.7],
+        //                 [122.6, 10.8],
+        //                 [122.4, 10.8],
+        //                 [122.4, 10.7],
+        //               ],
+        //             ],
+        //           },
+        //         },
+        //       ],
+        //     },
+        //   },
+        //   {
+        //     id: "flooding",
+        //     risk: {
+        //       type: "FeatureCollection",
+        //       features: [
+        //         {
+        //           type: "Feature",
+        //           geometry: {
+        //             type: "Point",
+        //             coordinates: [122.5, 10.75],
+        //           },
+        //           properties: { riskScore: 0.8 },
+        //         },
+        //       ],
+        //     },
+        //   },
+        // ];
+        // console.log("Using fallback data:", fallbackData);
+        // setRiskData(fallbackData);
       }
     };
     fetchData();
   }, []);
+
+  // Gets the user's current location using the browser's Geolocation API
+  const handleGetCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { longitude, latitude } = position.coords;
+          console.log("User location found:", { longitude, latitude });
+          const newLocation = { lng: longitude, lat: latitude };
+          setUserLocation(newLocation);
+        },
+        (error) => {
+          console.error("Error getting user location:", error);
+          alert(
+            "Error: Unable to retrieve your location. Please check browser permissions."
+          );
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert("Geolocation is not supported by this browser.");
+    }
+  };
 
   // OpenStreetMap Geocoding Search
   const handleSearch = async (query: string) => {
@@ -131,7 +158,7 @@ export default function Hazards() {
     setIsSearching(true);
     try {
       // Santa Barbara, Iloilo bounding box (approximate)
-      const bbox = "122.0,10.6,122.8,10.9"; // [min_lon,min_lat,max_lon,max_lat]
+      const bbox = "122.0,10.6,122.8,10.9";
 
       // Use Nominatim API (OpenStreetMap geocoding)
       const searchQuery = encodeURIComponent(query);
@@ -306,7 +333,9 @@ export default function Hazards() {
     <main className="flex flex-col bg-white justify-between min-h-screen relative">
       {/* Hide the global NavBar just on this page */}
       <style jsx global>{`
-        nav { display: none !important; }
+        nav {
+          display: none !important;
+        }
       `}</style>
       <div id="map" className="relative">
         <ClientOnly>
@@ -320,12 +349,11 @@ export default function Hazards() {
             onSearchSubmit={() => handleSearchSubmit({} as React.FormEvent)}
             isSearching={isSearching}
             onHazardChange={setSelectedRisk}
+            userLocation={userLocation}
+            onGetCurrentLocation={handleGetCurrentLocation}
           />
         </ClientOnly>
       </div>
-
-      {/* Data table below the map */}
-      <DataTable />
     </main>
   );
 }
