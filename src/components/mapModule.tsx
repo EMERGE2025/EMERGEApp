@@ -366,102 +366,6 @@ export default function MapLibre3D({
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [clustersCount, setClustersCount] = useState<number>(8);
 
-  // Center the camera so the subject sits near the lower-left corner of the viewport
-  const focusPointBottomLeft = (
-    mapInstance: maplibregl.Map,
-    lngLat: [number, number],
-    zoom = 14
-  ) => {
-    const canvas = mapInstance.getCanvas();
-    const safeWidth = canvas?.width || 1280;
-    const safeHeight = canvas?.height || 720;
-
-    const padding = {
-      top: Math.max(
-        0,
-        Math.min(Math.max(safeHeight * 0.55, 220), Math.max(safeHeight - 40, 0))
-      ),
-      right: Math.max(
-        0,
-        Math.min(Math.max(safeWidth * 0.45, 260), Math.max(safeWidth - 60, 0))
-      ),
-      bottom: Math.max(
-        24,
-        Math.min(Math.max(safeHeight * 0.08, 40), Math.max(safeHeight * 0.35, 24))
-      ),
-      left: Math.max(
-        24,
-        Math.min(Math.max(safeWidth * 0.08, 40), Math.max(safeWidth * 0.25, 24))
-      ),
-    } as maplibregl.PaddingOptions;
-
-    mapInstance.flyTo({
-      center: lngLat,
-      zoom,
-      padding,
-      essential: true,
-    });
-  };
-
-  // Center horizontally while keeping the current vertical paddings
-  const focusPointHorizontalCenter = (
-    mapInstance: maplibregl.Map,
-    lngLat: [number, number],
-    zoom = 14
-  ) => {
-    const canvas = mapInstance.getCanvas();
-    const safeWidth = canvas?.width || 1280;
-    const safeHeight = canvas?.height || 720;
-
-    const verticalTop = Math.max(
-      0,
-      Math.min(Math.max(safeHeight * 0.55, 220), Math.max(safeHeight - 40, 0))
-    );
-    const verticalBottom = Math.max(
-      24,
-      Math.min(Math.max(safeHeight * 0.08, 40), Math.max(safeHeight * 0.35, 24))
-    );
-
-    const horizontal = Math.max(24, Math.min(Math.max(safeWidth * 0.1, 40), Math.max(safeWidth * 0.25, 24)));
-
-    mapInstance.flyTo({
-      center: lngLat,
-      zoom,
-      padding: { top: verticalTop, right: horizontal, bottom: verticalBottom, left: horizontal },
-      essential: true,
-    });
-  };
-
-  const applyPopupChrome = (popup: maplibregl.Popup | null) => {
-    if (!popup) return;
-    try {
-      const el = popup.getElement();
-      if (!el) return;
-      el.style.overflow = "visible";
-      el.classList.add("emerge-rounded-popup");
-
-      const content = el.querySelector(
-        ".maplibregl-popup-content"
-      ) as HTMLElement | null;
-      if (content) {
-        content.style.padding = "0";
-        content.style.background = "transparent";
-        content.style.borderRadius = "20px";
-        content.style.boxShadow = "none";
-        content.style.overflow = "visible";
-      }
-
-      const tip = el.querySelector(".maplibregl-popup-tip") as
-        | HTMLElement
-        | null;
-      if (tip) {
-        tip.style.display = "none";
-      }
-    } catch (err) {
-      console.warn("Failed to decorate popup chrome", err);
-    }
-  };
-
   // --- ROUTING STATE ---
   const [isRoutingPanelOpen, setIsRoutingPanelOpen] = useState(false);
   const [startPoint, setStartPoint] = useState<{
@@ -1752,7 +1656,10 @@ export default function MapLibre3D({
         const zoom = await source.getClusterExpansionZoom(clusterId);
         const coordinates = (clusterFeature.geometry as GeoJSON.Point)
           .coordinates;
-  map.easeTo({ center: coordinates as [number, number], zoom, essential: true });
+        map.easeTo({
+          center: coordinates as [number, number],
+          zoom,
+        });
       });
 
       // ... (map.on('click', `${hazard}-risk`) - unchanged)
@@ -1826,16 +1733,17 @@ export default function MapLibre3D({
         };
 
         const popupContent = `
-  <div style="font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; color:#111827;">
-    <div style="background:#ffffff;border-radius:20px;box-shadow:0 16px 40px rgba(17,24,39,0.25);padding:20px;min-width:300px;max-width:360px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="display:flex;align-items:center;gap:12px;flex:1 1 auto;">
-          <div style="width:36px;height:36px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;">
-            <div style="width:18px;height:18px;background:#ffffff;mask:url('${iconPath}') center/contain no-repeat;-webkit-mask:url('${iconPath}') center/contain no-repeat;"></div>
-          </div>
-          <div style="font-weight:700;font-size:18px;line-height:1.1;color:#111827;">${hazardTitle}</div>
+  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
+    <div style="background:#ffffff;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:12px 14px;min-width:280px;max-width:360px;">
+      <div style="display:flex;align-items:center;gap:10px;position:relative;">
+        <div style="width:28px;height:28px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+          <div style="width:16px;height:16px;background:#ffffff;mask:url('${iconPath}') center/contain no-repeat;-webkit-mask:url('${iconPath}') center/contain no-repeat;"></div>
         </div>
-        <button class="emerge-popup-close" aria-label="Close" style="cursor:pointer;width:28px;height:28px;border:none;outline:none;border-radius:999px;background:#f3f4f6;color:#6b7280;display:inline-flex;align-items:center;justify-content:center;font-size:16px;">×</button>
+        <div style="flex:1 1 auto;">
+          <div style="font-weight:700;font-size:15px;line-height:1.2;">${hazardTitle}</div>
+          <div style="font-size:12px;color:#6b7280;">Calculated by Hazard and Population Data</div>
+        </div>
+        <button class="emerge-popup-close" aria-label="Close" style="cursor:pointer;width:22px;height:22px;border:none;outline:none;border-radius:999px;background:#f3f4f6;color:#6b7280;display:flex;align-items:center;justify-content:center;font-size:14px;position:absolute;right:0;top:0;">×</button>
       </div>
 
       <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
@@ -1845,15 +1753,11 @@ export default function MapLibre3D({
           riskScore
         )}</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
-      <div style="margin-top:6px;font-size:12px;color:#6b7280;">Calculated by Hazard and Population Data</div>
-      <div style="margin-top:18px;border-top:1px solid #e5e7eb;padding-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;">
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Severity</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${toPercent(riskScore)}</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Location</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${barangay}</span>
+        <div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Location</div>
+          <div style="font-weight:600;color:${accent};">${barangay}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
         <div style="grid-column:1 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Coordinates</div>
@@ -1861,9 +1765,6 @@ export default function MapLibre3D({
           displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"
         }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Coordinates</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"}</span>
         </div>
         <div style="grid-column:2 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Population</div>
@@ -1871,9 +1772,6 @@ export default function MapLibre3D({
           population ? population.toLocaleString() : "N/A"
         }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Population</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${population ? population.toLocaleString() : "N/A"}</span>
         </div>
       </div>
     </div>
@@ -1932,7 +1830,6 @@ export default function MapLibre3D({
               .setLngLat(lngLat)
               .setHTML(popupContent)
               .addTo(map);
-            applyPopupChrome(popup);
             currentPopupRef.current = popup;
             // Wire up custom close button
             const el = popup.getElement();
@@ -1947,7 +1844,10 @@ export default function MapLibre3D({
                 currentPopupRef.current = null;
               });
             }
-            map.flyTo({ center: lngLat, zoom: 14, essential: true });
+            map.flyTo({
+              center: lngLat,
+              zoom: 14,
+            });
             console.log("Popup added successfully", popup);
           } catch (error) {
             console.error("Error creating popup:", error);
@@ -2023,16 +1923,17 @@ export default function MapLibre3D({
         };
 
         const popupContent = `
-  <div style="font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; color:#111827;">
-    <div style="background:#ffffff;border-radius:20px;box-shadow:0 16px 40px rgba(17,24,39,0.25);padding:20px;min-width:300px;max-width:360px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="display:flex;align-items:center;gap:12px;flex:1 1 auto;">
-          <div style="width:36px;height:36px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;">
-            <div style="width:18px;height:18px;background:#ffffff;mask:url('${iconPath}') center/contain no-repeat;-webkit-mask:url('${iconPath}') center/contain no-repeat;"></div>
-          </div>
-          <div style="font-weight:700;font-size:18px;line-height:1.1;color:#111827;">${hazardTitle}</div>
+  <div style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111827;">
+    <div style="background:#ffffff;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:12px 14px;min-width:280px;max-width:360px;">
+      <div style="display:flex;align-items:center;gap:10px;position:relative;">
+        <div style="width:28px;height:28px;border-radius:999px;background:${accent};display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+          <div style="width:16px;height:16px;background:#ffffff;mask:url('${iconPath}') center/contain no-repeat;-webkit-mask:url('${iconPath}') center/contain no-repeat;"></div>
         </div>
-        <button class="emerge-popup-close" aria-label="Close" style="cursor:pointer;width:28px;height:28px;border:none;outline:none;border-radius:999px;background:#f3f4f6;color:#6b7280;display:inline-flex;align-items:center;justify-content:center;font-size:16px;">×</button>
+        <div style="flex:1 1 auto;">
+          <div style="font-weight:700;font-size:15px;line-height:1.2;">${hazardTitle}</div>
+          <div style="font-size:12px;color:#6b7280;">Calculated by Hazard and Population Data</div>
+        </div>
+        <button class="emerge-popup-close" aria-label="Close" style="cursor:pointer;width:22px;height:22px;border:none;outline:none;border-radius:999px;background:#f3f4f6;color:#6b7280;display:flex;align-items:center;justify-content:center;font-size:14px;position:absolute;right:0;top:0;">×</button>
       </div>
 
       <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
@@ -2042,15 +1943,11 @@ export default function MapLibre3D({
           riskScore
         )}</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
-      <div style="margin-top:6px;font-size:12px;color:#6b7280;">Calculated by Hazard and Population Data</div>
-      <div style="margin-top:18px;border-top:1px solid #e5e7eb;padding-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;">
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Severity</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${toPercent(riskScore)}</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Location</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${barangay}</span>
+        <div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Location</div>
+          <div style="font-weight:600;color:${accent};">${barangay}</div>
+          <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
         </div>
         <div style="grid-column:1 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Coordinates</div>
@@ -2058,9 +1955,6 @@ export default function MapLibre3D({
           displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"
         }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Coordinates</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${displayLat && displayLng ? `${displayLat}, ${displayLng}` : "N/A"}</span>
         </div>
         <div style="grid-column:2 / span 1;">
           <div style="font-size:12px;color:#6b7280;margin-bottom:2px;">Population</div>
@@ -2068,9 +1962,6 @@ export default function MapLibre3D({
           population ? population.toLocaleString() : "N/A"
         }</div>
           <div style="height:1px;border-top:1px solid #e5e7eb;margin-top:6px;"></div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span style="font-size:12px;color:#6b7280;">Population</span>
-          <span style="font-size:16px;font-weight:600;color:${accent};">${population ? population.toLocaleString() : "N/A"}</span>
         </div>
       </div>
     </div>
@@ -2104,7 +1995,6 @@ export default function MapLibre3D({
               .setLngLat(lngLat)
               .setHTML(popupContent)
               .addTo(map);
-            applyPopupChrome(popup);
             currentPopupRef.current = popup;
             const el = popup.getElement();
             const closeBtn = el?.querySelector(
@@ -2118,7 +2008,7 @@ export default function MapLibre3D({
                 currentPopupRef.current = null;
               });
             }
-            map.flyTo({ center: lngLat, zoom: 14, essential: true });
+            map.flyTo({ center: lngLat, zoom: 14 });
           } catch (error) {
             console.error("Error creating popup (circle):", error);
           }
@@ -2236,137 +2126,9 @@ export default function MapLibre3D({
           document
             .querySelectorAll(".maplibregl-popup")
             .forEach((el) => el.remove());
-        // Sample data. If feature has properties.responders, prefer those.
-        type Person = { id: string; name: string };
-        const fallbackSelected: Person[] = [
-          { id: "r1", name: "Mauricio Manuel Bergancia" },
-          { id: "r2", name: "Michael Rey Tuando" },
-          { id: "r3", name: "Mherlie Joy Chavez" },
-          { id: "r4", name: "Gillie Calanuga" },
-          { id: "r5", name: "Dhominick John Billena" },
-          { id: "r6", name: "Anna Freeman" },
-          { id: "r7", name: "Isabel Cruz" },
-          { id: "r8", name: "Ramon Velasco" },
-          { id: "r9", name: "Liza Sarmiento" },
-          { id: "r10", name: "Paolo Fernandez" },
-          { id: "r11", name: "Kim Santos" },
-          { id: "r12", name: "Janelle Uy" },
-          { id: "r13", name: "Emil Custodio" },
-          { id: "r14", name: "Harold Pineda" },
-          { id: "r15", name: "Carla Navarro" },
-        ];
-        const fallbackAvailable: Person[] = [
-          { id: "r16", name: "Ava Del Rosario" },
-          { id: "r17", name: "Ivan Bautista" },
-          { id: "r18", name: "Joan Reyes" },
-          { id: "r19", name: "Leo Fajardo" },
-          { id: "r20", name: "Nina Dizon" },
-          { id: "r21", name: "Oscar Manalo" },
-          { id: "r22", name: "Pia Madrigal" },
-          { id: "r23", name: "Quinn Delos Santos" },
-          { id: "r24", name: "Rhea Castillo" },
-          { id: "r25", name: "Sam Aquino" },
-          { id: "r26", name: "Tessa Albino" },
-          { id: "r27", name: "Ulysses Dizon" },
-          { id: "r28", name: "Val Navarro" },
-          { id: "r29", name: "Wena Salvador" },
-          { id: "r30", name: "Xian Lozada" },
-        ];
-
-        let selected: Person[] = fallbackSelected.slice();
-        let available: Person[] = fallbackAvailable.slice();
-
-        const renderChipRow = (list: Person[], mode: "remove" | "add") => {
-          return list
-            .map((p) => {
-              const isAdd = mode === "add";
-              const extraAttrs = isAdd
-                ? "aria-label=\"Add responder\""
-                : "aria-label=\"Remove responder\"";
-          const buttonInner = isAdd
-            ? `<span aria-hidden="true" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);font-size:12px;font-weight:700;line-height:1;">×</span>`
-            : `<span aria-hidden="true" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:700;line-height:1;">×</span>`;
-              return `
-              <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:rgba(17,24,39,0.08);">
-                <img src="https://i.pravatar.cc/32?u=${encodeURIComponent(p.id)}" alt="${p.name}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;"/>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <span style="font-size:12px;color:#111827;white-space:nowrap;">${p.name}</span>
-                  <button ${extraAttrs} data-action="${mode}" data-id="${p.id}" style="position:relative;width:18px;height:18px;border-radius:999px;border:none;background:#e5e7eb;color:#111827;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s ease;">${buttonInner}</button>
-                </div>
-              </div>`;
-            })
-            .join("");
-        };
-
-        const render = () => {
-          const recCount = selected.length;
-          const availCount = available.length;
-          const listContainerStyle = "display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;max-height:96px;overflow-y:auto;padding-right:4px;";
-          return `
-          <div style="font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; color:#111827;">
-            <div style="width:500px;padding:14px 18px;background:#ffffff;border-radius:20px;box-shadow:0 16px 40px rgba(17,24,39,0.2);display:flex;flex-direction:column;gap:6px;">
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                  <div style="display:flex;align-items:center;gap:10px;">
-                    <div style="width:34px;height:34px;border-radius:999px;background:#dc2626;position:relative;display:flex;align-items:center;justify-content:center;">
-                      <div style="position:absolute;width:16px;height:4px;border-radius:999px;background:#ffffff;"></div>
-                      <div style="position:absolute;width:4px;height:16px;border-radius:999px;background:#ffffff;"></div>
-                    </div>
-                    <div style="font-size:18px;font-weight:700;color:#111827;">Responders</div>
-                  </div>
-                  <button class="emerge-popup-close" aria-label="Close" style="cursor:pointer;width:28px;height:28px;border:none;outline:none;border-radius:999px;background:#e5e7eb;color:#6b7280;display:inline-flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.15s ease;">×</button>
-                </div>
-                <div style="font-size:12px;color:#6b7280;">Deploy and manage available responders</div>
-              </div>
-              <div style="height:1px;width:100%;background:rgba(17,24,39,0.08);"></div>
-              <div style="display:flex;flex-direction:column;gap:8px;">
-                <div style="font-size:12px;color:#6b7280;">Recommended: <span style="color:#dc2626;font-weight:600;">${recCount} Responders</span></div>
-                <div style="display:flex;flex-direction:column;gap:6px;">
-                  <div style="display:flex;align-items-center;gap:8px;">
-                    <span style="color:#dc2626;font-size:12px;font-weight:600;">Deploy Responder(s)</span>
-                    <span style="width:4px;height:4px;border-radius:999px;background:rgba(17,24,39,0.5);"></span>
-                    <span style="font-size:12px;color:#6b7280;">${recCount} Selected</span>
-                  </div>
-                  <div style="padding:8px;border:1px solid rgba(17,24,39,0.08);border-radius:12px;">
-                    <div style="${listContainerStyle}">${renderChipRow(selected, "remove")}</div>
-                  </div>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:6px;">
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="color:#dc2626;font-size:12px;font-weight:600;">Available Responder(s)</span>
-                    <span style="width:4px;height:4px;border-radius:999px;background:rgba(17,24,39,0.5);"></span>
-                    <span style="font-size:12px;color:#6b7280;">${availCount} Available</span>
-                  </div>
-                  <div style="padding:8px;border:1px solid rgba(17,24,39,0.08);border-radius:12px;">
-                    <div style="${listContainerStyle}">${renderChipRow(available, "add")}</div>
-                  </div>
-                </div>
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start;">
-                <button class="emerge-resp-confirm" style="padding:8px 16px;background:#dc2626;color:#ffffff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s ease;">Confirm</button>
-                <button class="emerge-resp-close" style="padding:8px 16px;background:#e5e7eb;color:#111827;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s ease;">Close</button>
-              </div>
-            </div>
-          </div>`;
-        };
-
-        // Remove any existing popups first
-        try {
-          document.querySelectorAll('.maplibregl-popup').forEach((el) => el.remove());
           currentPopupRef.current?.remove();
           currentPopupRef.current = null;
         } catch {}
-
-        const alignResponderPopup = (popup: maplibregl.Popup) => {
-          const alignNow = () => {
-            const el = popup.getElement();
-            if (!el) return;
-            const rect = el.getBoundingClientRect();
-            popup.setOffset([28, -rect.height / 2]);
-          };
-          requestAnimationFrame(alignNow);
-          setTimeout(alignNow, 120);
-        };
 
         // 4. Fly to the location, adding padding for the sidebar
         map.flyTo({
@@ -2378,118 +2140,6 @@ export default function MapLibre3D({
         // --- OLD POPUP LOGIC IS REMOVED ---
       });
       // --- *** END OF MODIFIED CLICK HANDLER *** ---
-        const bindHandlers = (popup: maplibregl.Popup) => {
-          const root = popup.getElement();
-          if (!root) return;
-          const closeBtn = root.querySelector('.emerge-popup-close') as HTMLElement | null;
-          const confirmBtn = root.querySelector('.emerge-resp-confirm') as HTMLElement | null;
-          const close2 = root.querySelector('.emerge-resp-close') as HTMLElement | null;
-
-          const rewire = () => {
-            popup.setHTML(render());
-            applyPopupChrome(popup);
-            bindHandlers(popup);
-          };
-
-          const applyHoverStyle = (
-            button: HTMLElement | null,
-            baseBg: string,
-            baseColor: string,
-            hoverBg: string,
-            hoverColor: string,
-            extras?: {
-              onEnter?: (btn: HTMLElement) => void;
-              onLeave?: (btn: HTMLElement) => void;
-            }
-          ) => {
-            if (!button) return;
-            button.style.background = baseBg;
-            button.style.color = baseColor;
-            button.addEventListener('mouseenter', () => {
-              button.style.background = hoverBg;
-              button.style.color = hoverColor;
-              extras?.onEnter?.(button);
-            });
-            button.addEventListener('mouseleave', () => {
-              button.style.background = baseBg;
-              button.style.color = baseColor;
-              extras?.onLeave?.(button);
-            });
-            extras?.onLeave?.(button);
-          };
-
-          root.querySelectorAll('[data-action="remove"]').forEach((el) => {
-            el.addEventListener('click', (ev) => {
-              ev.preventDefault(); ev.stopPropagation();
-              const id = (ev.currentTarget as HTMLElement).getAttribute('data-id');
-              if (!id) return;
-              const idx = selected.findIndex((p) => p.id === id);
-              if (idx >= 0) {
-                const [p] = selected.splice(idx, 1);
-                available.unshift(p);
-                rewire();
-              }
-            });
-            applyHoverStyle(
-              el as HTMLElement,
-              '#e5e7eb',
-              '#111827',
-              '#dc2626',
-              '#ffffff'
-            );
-          });
-
-          root.querySelectorAll('[data-action="add"]').forEach((el) => {
-            el.addEventListener('click', (ev) => {
-              ev.preventDefault(); ev.stopPropagation();
-              const id = (ev.currentTarget as HTMLElement).getAttribute('data-id');
-              if (!id) return;
-              const idx = available.findIndex((p) => p.id === id);
-              if (idx >= 0) {
-                const [p] = available.splice(idx, 1);
-                selected.push(p);
-                rewire();
-              }
-            });
-            applyHoverStyle(
-              el as HTMLElement,
-              '#e5e7eb',
-              '#111827',
-              '#dc2626',
-              '#ffffff'
-            );
-          });
-
-          const doClose = () => { popup.remove(); currentPopupRef.current = null; };
-          closeBtn?.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); doClose(); });
-          close2?.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); doClose(); });
-          confirmBtn?.addEventListener('click', (ev) => {
-            ev.preventDefault(); ev.stopPropagation();
-            console.log('Confirmed responders:', selected.map((p) => p.name));
-            doClose();
-          });
-
-          applyHoverStyle(closeBtn, '#e5e7eb', '#6b7280', '#dc2626', '#ffffff');
-          applyHoverStyle(confirmBtn, '#dc2626', '#ffffff', '#b91c1c', '#ffffff');
-          applyHoverStyle(close2, '#e5e7eb', '#111827', '#dc2626', '#ffffff');
-
-          alignResponderPopup(popup);
-        };
-
-        try {
-          const popup = new maplibregl.Popup({ offset: [0, 0], anchor: 'left', closeButton: false })
-            .setLngLat(lngLat)
-            .setHTML(render())
-            .addTo(map);
-          applyPopupChrome(popup);
-          currentPopupRef.current = popup;
-          bindHandlers(popup);
-          // Animate viewport like hazard pins so the popup adjusts to the screen
-            focusPointHorizontalCenter(map, lngLat);
-        } catch (err) {
-          console.error('Failed to render responder popup:', err);
-        }
-      });
 
       // Create heatmap layer if heatmap is enabled
       if (isHeatmapEnabled) {
