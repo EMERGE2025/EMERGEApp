@@ -306,7 +306,8 @@ export default function Hazards() {
             onHazardChange={setSelectedRisk}
             userLocation={userLocation}
             onGetCurrentLocation={handleGetCurrentLocation}
-            uniqueID="0"
+            mode="user"
+            uniqueID="PH063043000"
           />
         </ClientOnly>
       </div>

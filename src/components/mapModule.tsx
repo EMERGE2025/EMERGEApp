@@ -124,8 +124,12 @@ function ResponderSidebar({
 
   useEffect(() => {
     if (!pointDocId || !isOpen || !uniqueID || !selectedRisk) {
+      console.log(`⏭️ [ResponderSidebar] Skipping - pointDocId: ${pointDocId}, isOpen: ${isOpen}, uniqueID: ${uniqueID}, selectedRisk: ${selectedRisk}`);
       return;
     }
+
+    console.log(`🔍 [ResponderSidebar] Loading assignments for point: ${pointDocId}`);
+    console.log(`👥 [ResponderSidebar] Total responders available: ${allResponders.length}`, allResponders);
 
     setLoading(true);
 
@@ -141,8 +145,11 @@ function ResponderSidebar({
 
       if (docSnap.exists()) {
         const docData = docSnap.data();
+        console.log(`📦 [ResponderSidebar] Document data for ${documentId}:`, docData);
+
         // Get the feature object for this specific point (e.g., docData["0"])
         const pointFeature = docData?.[pointDocId];
+        console.log(`📍 [ResponderSidebar] Point feature for ${pointDocId}:`, pointFeature);
 
         // --- NEW: Collect ALL assigned UIDs across ALL points ---
         const globalAssignedUIDs: string[] = [];
@@ -151,10 +158,12 @@ function ResponderSidebar({
             globalAssignedUIDs.push(...value.properties.assignedResponders);
           }
         });
+        console.log(`🌍 [ResponderSidebar] Global assigned UIDs:`, globalAssignedUIDs);
 
         if (pointFeature && pointFeature.properties) {
           // Get the array of UIDs from properties.assignedResponders for THIS point
           const assignedUIDs = pointFeature.properties.assignedResponders || [];
+          console.log(`✅ [ResponderSidebar] Assigned UIDs for this point:`, assignedUIDs);
 
           // Filter all responders into Assigned or Available lists
           for (const responder of allResponders) {
@@ -167,9 +176,12 @@ function ResponderSidebar({
             }
             // If assigned to another point, don't show in available
           }
+
+          console.log(`👥 [ResponderSidebar] Assigned responders (${newAssigned.length}):`, newAssigned);
+          console.log(`📋 [ResponderSidebar] Available responders (${newAvailable.length}):`, newAvailable);
         } else {
           // Point feature doesn't have properties yet
-          console.warn(`Point ${pointDocId} has no properties in ${documentId}`);
+          console.warn(`⚠️ [ResponderSidebar] Point ${pointDocId} has no properties in ${documentId}`);
           // Show only responders not assigned to ANY point
           for (const responder of allResponders) {
             if (!globalAssignedUIDs.includes(responder.id)) {
@@ -179,7 +191,7 @@ function ResponderSidebar({
         }
       } else {
         // Document doesn't exist yet
-        console.warn(`Document not found: ${collectionId}/${documentId}`);
+        console.warn(`❌ [ResponderSidebar] Document not found: ${collectionId}/${documentId}`);
         // Show all responders as available
         newAvailable.push(...allResponders);
       }
@@ -984,8 +996,9 @@ export default function MapLibre3D({
   // --- UPDATED: FIREBASE DATA FETCHING ---
   useEffect(() => {
     // 1. Fetch all responders from the 'responders' document inside the uniqueID collection
-    if (mode === "admin" && uniqueID) {
-      console.log(`🔍 Attempting to fetch responders for uniqueID: ${uniqueID}`);
+    // Fetch for BOTH admin and user modes
+    if (uniqueID) {
+      console.log(`🔍 [${mode}] Attempting to fetch responders for uniqueID: ${uniqueID}`);
 
       // Fetch from: uniqueID/responders document (e.g., PH063043000/responders)
       const respondersDocRef = doc(db, uniqueID, "responders");
@@ -993,15 +1006,15 @@ export default function MapLibre3D({
       const unsubscribe = onSnapshot(
         respondersDocRef,
         (docSnap) => {
-          console.log(`📡 Snapshot received for ${uniqueID}/responders`);
+          console.log(`📡 [${mode}] Snapshot received for ${uniqueID}/responders`);
 
           if (docSnap.exists()) {
             const data = docSnap.data();
-            console.log(`📦 Document data:`, data);
+            console.log(`📦 [${mode}] Document data:`, data);
 
             // Get the responderList array
             const responderList = data?.responderList || [];
-            console.log(`👥 Responder list found:`, responderList);
+            console.log(`👥 [${mode}] Responder list found:`, responderList);
 
             // Map the responderList to Person objects
             const responders: Person[] = responderList.map((r: any) => ({
@@ -1014,16 +1027,16 @@ export default function MapLibre3D({
 
             setAllResponders(responders);
             console.log(
-              `✅ Successfully set ${responders.length} responders:`,
+              `✅ [${mode}] Successfully set ${responders.length} responders:`,
               responders
             );
           } else {
-            console.warn(`⚠️ No responders document found at ${uniqueID}/responders`);
+            console.warn(`⚠️ [${mode}] No responders document found at ${uniqueID}/responders`);
             setAllResponders([]);
           }
         },
         (error) => {
-          console.error("❌ Error fetching responders:", error);
+          console.error(`❌ [${mode}] Error fetching responders:`, error);
           setAllResponders([]);
         }
       );
