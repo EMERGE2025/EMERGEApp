@@ -84,6 +84,7 @@ type Person = {
   name: string;
   email: string;
   role: "responder" | "admin";
+  profilePictureUrl?: string; // Profile picture URL
 };
 // This type is no longer used
 type ResponsePoint = {
@@ -122,16 +123,15 @@ function ResponderSidebar({
   const [available, setAvailable] = useState<Person[]>([]);
 
   useEffect(() => {
-    if (!pointDocId || !isOpen || !uniqueID) {
+    if (!pointDocId || !isOpen || !uniqueID || !selectedRisk) {
       return;
     }
 
     setLoading(true);
 
-    // --- FIX: This is the correct path ---
-    // It points to the *document* holding all responder assignments.
+    // --- UPDATED: Read from responder${risk} document instead of "responders" ---
     const collectionId = uniqueID;
-    const documentId = "responders"; // The single doc holding all assignments
+    const documentId = `responder${selectedRisk}`; // e.g., "responderflooding"
     const pointRef = doc(db, collectionId, documentId);
 
     // Use onSnapshot to listen for real-time updates
@@ -141,19 +141,44 @@ function ResponderSidebar({
 
       if (docSnap.exists()) {
         const docData = docSnap.data();
-        // Get the array of UIDs *from the field* matching the pointDocId (key)
-        const assignedUIDs = docData?.[pointDocId] || [];
+        // Get the feature object for this specific point (e.g., docData["0"])
+        const pointFeature = docData?.[pointDocId];
 
-        // Filter all responders into Assigned or Available lists
-        for (const responder of allResponders) {
-          if (assignedUIDs.includes(responder.id)) {
-            newAssigned.push(responder);
-          } else {
-            newAvailable.push(responder);
+        // --- NEW: Collect ALL assigned UIDs across ALL points ---
+        const globalAssignedUIDs: string[] = [];
+        Object.entries(docData).forEach(([key, value]: [string, any]) => {
+          if (value.type === "Feature" && value.properties?.assignedResponders) {
+            globalAssignedUIDs.push(...value.properties.assignedResponders);
+          }
+        });
+
+        if (pointFeature && pointFeature.properties) {
+          // Get the array of UIDs from properties.assignedResponders for THIS point
+          const assignedUIDs = pointFeature.properties.assignedResponders || [];
+
+          // Filter all responders into Assigned or Available lists
+          for (const responder of allResponders) {
+            if (assignedUIDs.includes(responder.id)) {
+              // This responder is assigned to THIS point
+              newAssigned.push(responder);
+            } else if (!globalAssignedUIDs.includes(responder.id)) {
+              // This responder is NOT assigned to ANY point - available
+              newAvailable.push(responder);
+            }
+            // If assigned to another point, don't show in available
+          }
+        } else {
+          // Point feature doesn't have properties yet
+          console.warn(`Point ${pointDocId} has no properties in ${documentId}`);
+          // Show only responders not assigned to ANY point
+          for (const responder of allResponders) {
+            if (!globalAssignedUIDs.includes(responder.id)) {
+              newAvailable.push(responder);
+            }
           }
         }
       } else {
-        // Document ("responders") doesn't exist yet
+        // Document doesn't exist yet
         console.warn(`Document not found: ${collectionId}/${documentId}`);
         // Show all responders as available
         newAvailable.push(...allResponders);
@@ -166,18 +191,19 @@ function ResponderSidebar({
 
     // Detach listener on cleanup
     return () => unsubscribe();
-  }, [pointDocId, allResponders, isOpen, uniqueID]);
+  }, [pointDocId, allResponders, isOpen, uniqueID, selectedRisk]);
 
   const handleAction = async (personId: string, action: "add" | "remove") => {
-    if (mode !== "admin" || !pointDocId || !uniqueID) return;
+    if (mode !== "admin" || !pointDocId || !uniqueID || !selectedRisk) return;
 
-    // --- FIX: This is the correct path ---
+    // --- UPDATED: Write to responder${risk} document's properties field ---
     const collectionId = uniqueID;
-    const documentId = "responders";
+    const documentId = `responder${selectedRisk}`; // e.g., "responderflooding"
     const pointRef = doc(db, collectionId, documentId);
 
-    // Use the pointDocId (key "0", "1", etc.) as the field key
-    const fieldPath = `${pointDocId}`;
+    // Use the pointDocId (key "0", "1", etc.) to access the feature
+    // We need to update the nested path: pointDocId.properties.assignedResponders
+    const fieldPath = `${pointDocId}.properties.assignedResponders`;
 
     try {
       if (action === "add") {
@@ -200,10 +226,14 @@ function ResponderSidebar({
           await setDoc(
             pointRef,
             {
-              [fieldPath]: arrayUnion(personId),
+              [pointDocId]: {
+                properties: {
+                  assignedResponders: arrayUnion(personId),
+                },
+              },
             },
             { merge: true }
-          ); // Use merge to be safe
+          ); // Use merge to preserve existing data
         } catch (e2) {
           console.error("Failed to create doc and update responders:", e2);
         }
@@ -230,8 +260,24 @@ function ResponderSidebar({
             key={p.id}
             className="pr-1 bg-zinc-900/10 rounded-[40px] flex items-center gap-2 px-2 py-1"
           >
-            {/* Placeholder avatar */}
-            <div className="w-5 h-5 bg-zinc-700 rounded-full flex items-center justify-center">
+            {/* Profile picture or placeholder avatar */}
+            {p.profilePictureUrl ? (
+              <img
+                src={p.profilePictureUrl}
+                alt={p.name}
+                className="w-5 h-5 rounded-full object-cover"
+                onError={(e) => {
+                  // Fallback to placeholder if image fails to load
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                }}
+              />
+            ) : null}
+            <div
+              className={`w-5 h-5 bg-zinc-700 rounded-full flex items-center justify-center ${
+                p.profilePictureUrl ? "hidden" : ""
+              }`}
+            >
               <User size={12} className="text-white" />
             </div>
             <div className="flex items-center gap-1">
@@ -935,38 +981,57 @@ export default function MapLibre3D({
     pickingModeRef.current = pickingMode;
   }, [pickingMode]);
 
-  // --- NEW: FIREBASE DATA FETCHING ---
+  // --- UPDATED: FIREBASE DATA FETCHING ---
   useEffect(() => {
-    // 1. Fetch all responders (if admin)
-    // This logic assumes responders are in a 'users' collection
+    // 1. Fetch all responders from the 'responders' document inside the uniqueID collection
     if (mode === "admin" && uniqueID) {
-      // Only run if we have the uniqueID
-      const fetchAllResponders = async () => {
-        try {
-          // This query now fetches responders specific to the admin's locationID
-          const q = query(
-            collection(db, "users"),
-            where("role", "==", "responder"),
-            where("locationID", "==", uniqueID) // Only get responders for this location
-          );
-          const querySnapshot = await getDocs(q);
-          const responders: Person[] = [];
-          querySnapshot.forEach((doc) => {
-            responders.push({ id: doc.id, ...doc.data() } as Person);
-          });
-          setAllResponders(responders);
-          console.log(
-            `Fetched ${responders.length} responders for admin at ${uniqueID}.`
-          );
-        } catch (error) {
-          console.error("Error fetching all responders:", error);
-        }
-      };
-      fetchAllResponders();
-    }
+      console.log(`🔍 Attempting to fetch responders for uniqueID: ${uniqueID}`);
 
-    // 2. We no longer listen to 'responsePoints' here.
-    // The data is now drawn from the `riskDatabase` prop.
+      // Fetch from: uniqueID/responders document (e.g., PH063043000/responders)
+      const respondersDocRef = doc(db, uniqueID, "responders");
+
+      const unsubscribe = onSnapshot(
+        respondersDocRef,
+        (docSnap) => {
+          console.log(`📡 Snapshot received for ${uniqueID}/responders`);
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            console.log(`📦 Document data:`, data);
+
+            // Get the responderList array
+            const responderList = data?.responderList || [];
+            console.log(`👥 Responder list found:`, responderList);
+
+            // Map the responderList to Person objects
+            const responders: Person[] = responderList.map((r: any) => ({
+              id: r.uid, // Use uid as the id
+              name: r.name,
+              email: r.email,
+              role: r.role,
+              profilePictureUrl: r.profilePictureUrl, // Include profile picture
+            }));
+
+            setAllResponders(responders);
+            console.log(
+              `✅ Successfully set ${responders.length} responders:`,
+              responders
+            );
+          } else {
+            console.warn(`⚠️ No responders document found at ${uniqueID}/responders`);
+            setAllResponders([]);
+          }
+        },
+        (error) => {
+          console.error("❌ Error fetching responders:", error);
+          setAllResponders([]);
+        }
+      );
+
+      return () => unsubscribe();
+    } else {
+      console.log(`⏭️ Skipping responder fetch - mode: ${mode}, uniqueID: ${uniqueID}`);
+    }
   }, [mode, uniqueID]); // Re-run if mode or uniqueID changes
 
   // Handle boundary loading separately

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import RegisterResponder from "@/components/admin/RegisterResponder";
-// We no longer import ManageResponsePoints
+import ManageResponsePoints from "@/components/admin/ManageResponsePoints";
 import {
   MapPin,
   Users,
@@ -47,8 +47,8 @@ function StatCard({
 }
 
 export default function AdminDashboard() {
-  // Default tab is now 'register'
   const [activeTab, setActiveTab] = useState<AdminTab>("register");
+  const [selectedRisk, setSelectedRisk] = useState("flooding");
 
   const tabClass = (tab: AdminTab) =>
     `px-4 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -86,27 +86,60 @@ export default function AdminDashboard() {
 
         {/* Tab Navigation */}
         <div className="flex space-x-2 mb-6">
-          {/* UPDATED: "Manage" tab is now "Register" */}
           <button
             onClick={() => setActiveTab("register")}
             className={tabClass("register")}
           >
             Register New Responder
           </button>
-          {/* UPDATED: This tab is now a link to the map */}
+          <button
+            onClick={() => setActiveTab("manage")}
+            className={tabClass("manage")}
+          >
+            Manage Assignments
+          </button>
           <Link
             href="/admin/responders"
-            className={tabClass("manage")} // Uses 'manage' for style, but it's not a tab
+            className="px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-700 hover:bg-gray-300 flex items-center gap-2"
           >
-            Manage Assignments on Map
-            <ArrowSquareOut size={18} className="ml-2 inline" />
+            View on Map
+            <ArrowSquareOut size={18} />
           </Link>
         </div>
 
+        {/* Hazard Selector (only show when on manage tab) */}
+        {activeTab === "manage" && (
+          <div className="mb-6 flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">
+              Select Hazard:
+            </label>
+            <div className="flex gap-2">
+              {["flooding", "earthquake", "landslide"].map((risk) => (
+                <button
+                  key={risk}
+                  onClick={() => setSelectedRisk(risk)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors capitalize ${
+                    selectedRisk === risk
+                      ? "bg-red-600 text-white"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {risk}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tab Content */}
         <div>
-          {/* We only show the registration component here now */}
           {activeTab === "register" && <RegisterResponder />}
+          {activeTab === "manage" && (
+            <ManageResponsePoints
+              uniqueID="PH063043000"
+              selectedRisk={selectedRisk}
+            />
+          )}
         </div>
       </div>
     </div>

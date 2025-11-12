@@ -1,64 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   MapPin,
   Plus,
   X,
   MagnifyingGlass,
+  CircleNotch,
 } from "@phosphor-icons/react/dist/ssr";
+import { db } from "@/utils/firebase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  query,
+  where,
+  arrayUnion,
+  arrayRemove,
+  onSnapshot,
+} from "firebase/firestore";
 
-// --- Placeholder Data (with more details) ---
-const DUMMY_POINTS = [
-  { id: "point1", name: "Iloilo City Station 1", assignedCount: 2 },
-  { id: "point2", name: "Molo Fire Substation", assignedCount: 0 },
-  { id: "point3", name: "Jaro District Station", assignedCount: 1 },
-];
-
-const DUMMY_RESPONDERS = [
-  {
-    id: "uid-a",
-    name: "Mauricio M. Bergancia",
-    email: "mauricio@example.com",
-    assigned: true,
-  },
-  {
-    id: "uid-b",
-    name: "Michael Rey Tuando",
-    email: "michael@example.com",
-    assigned: true,
-  },
-  {
-    id: "uid-c",
-    name: "Mherlie Joy Chavez",
-    email: "mherlie@example.com",
-    assigned: false,
-  },
-  {
-    id: "uid-d",
-    name: "Gillie Calanuga",
-    email: "gillie@example.com",
-    assigned: false,
-  },
-];
-// --- End Placeholder Data ---
-
-type Point = { id: string; name: string; assignedCount: number };
-type Responder = { id: string; name: string; email: string; assigned: boolean };
+type Point = {
+  id: string;
+  key: string; // The numeric key like "0", "1", "2"
+  name: string;
+  assignedCount: number;
+  assignedUIDs: string[];
+};
+type Responder = {
+  id: string; // Auth UID
+  name: string;
+  email: string;
+  role: string;
+  profilePictureUrl?: string; // Profile picture URL
+};
 
 // --- NEW: Responder Card Component ---
 function ResponderListCard({
   user,
   action,
+  onClick,
 }: {
   user: Responder;
   action: "add" | "remove";
+  onClick: () => void;
 }) {
   return (
     <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border border-gray-200">
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
+        {/* Profile picture or placeholder avatar */}
+        {user.profilePictureUrl ? (
+          <img
+            src={user.profilePictureUrl}
+            alt={user.name}
+            className="w-10 h-10 bg-gray-200 rounded-full object-cover"
+            onError={(e) => {
+              // Fallback to placeholder if image fails to load
+              e.currentTarget.style.display = "none";
+              e.currentTarget.nextElementSibling?.classList.remove("hidden");
+            }}
+          />
+        ) : null}
+        <div
+          className={`w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 ${
+            user.profilePictureUrl ? "hidden" : ""
+          }`}
+        >
           <User size={20} />
         </div>
         <div>
@@ -67,11 +77,17 @@ function ResponderListCard({
         </div>
       </div>
       {action === "remove" ? (
-        <button className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100">
+        <button
+          onClick={onClick}
+          className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"
+        >
           <X size={16} weight="bold" />
         </button>
       ) : (
-        <button className="text-green-600 hover:text-green-700 p-1 rounded-full hover:bg-green-100">
+        <button
+          onClick={onClick}
+          className="text-green-600 hover:text-green-700 p-1 rounded-full hover:bg-green-100"
+        >
           <Plus size={16} weight="bold" />
         </button>
       )}
@@ -79,28 +95,159 @@ function ResponderListCard({
   );
 }
 
-export default function ManageResponsePoints() {
-  const [selectedPoint, setSelectedPoint] = useState<Point | null>(
-    DUMMY_POINTS[0]
-  );
-  const [responders, setResponders] = useState(DUMMY_RESPONDERS);
+export default function ManageResponsePoints({
+  uniqueID = "PH063043000",
+  selectedRisk = "flooding",
+}: {
+  uniqueID?: string;
+  selectedRisk?: string;
+}) {
+  const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
+  const [allPoints, setAllPoints] = useState<Point[]>([]);
+  const [allResponders, setAllResponders] = useState<Responder[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [allAssignedUIDs, setAllAssignedUIDs] = useState<string[]>([]); // Track all assigned responders
 
-  const assigned = responders.filter((r) => r.assigned);
-  const available = responders.filter(
-    (r) =>
-      !r.assigned && r.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Fetch all response points from responder${risk} document
+  useEffect(() => {
+    const documentId = `responder${selectedRisk}`;
+    const pointRef = doc(db, uniqueID, documentId);
+
+    const unsubscribe = onSnapshot(pointRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const docData = docSnap.data();
+        const points: Point[] = [];
+        const globalAssignedUIDs: string[] = []; // Collect all assigned UIDs across all points
+
+        // Iterate through all keys in the document
+        Object.entries(docData).forEach(([key, value]: [string, any]) => {
+          if (value.type === "Feature" && value.properties) {
+            const assignedUIDs = value.properties.assignedResponders || [];
+            points.push({
+              id: `${documentId}_${key}`,
+              key: key,
+              name: value.properties.name || `Point ${key}`,
+              assignedCount: assignedUIDs.length,
+              assignedUIDs: assignedUIDs,
+            });
+
+            // Add all assigned UIDs to the global list
+            globalAssignedUIDs.push(...assignedUIDs);
+          }
+        });
+
+        setAllPoints(points);
+        setAllAssignedUIDs(globalAssignedUIDs); // Store all assigned UIDs
+        if (points.length > 0 && !selectedPoint) {
+          setSelectedPoint(points[0]);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [uniqueID, selectedRisk]);
+
+  // Fetch all responders from the 'responders' document inside the uniqueID collection
+  useEffect(() => {
+    console.log(`🔍 [ManageResponsePoints] Fetching responders for uniqueID: ${uniqueID}`);
+
+    // Fetch from: uniqueID/responders document (e.g., PH063043000/responders)
+    const respondersDocRef = doc(db, uniqueID, "responders");
+
+    const unsubscribe = onSnapshot(
+      respondersDocRef,
+      (docSnap) => {
+        console.log(`📡 [ManageResponsePoints] Snapshot received for ${uniqueID}/responders`);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          console.log(`📦 [ManageResponsePoints] Document data:`, data);
+
+          // Get the responderList array
+          const responderList = data?.responderList || [];
+          console.log(`👥 [ManageResponsePoints] Responder list:`, responderList);
+
+          // Map the responderList to Responder objects
+          const responders: Responder[] = responderList.map((r: any) => ({
+            id: r.uid, // Use uid as the id
+            name: r.name,
+            email: r.email,
+            role: r.role,
+            profilePictureUrl: r.profilePictureUrl, // Include profile picture
+          }));
+
+          setAllResponders(responders);
+          console.log(`✅ [ManageResponsePoints] Set ${responders.length} responders:`, responders);
+        } else {
+          console.warn(`⚠️ [ManageResponsePoints] No document found at ${uniqueID}/responders`);
+          setAllResponders([]);
+        }
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("❌ [ManageResponsePoints] Error fetching responders:", error);
+        setAllResponders([]);
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [uniqueID]);
+
+  // Handle add/remove actions
+  const handleAction = async (responderId: string, action: "add" | "remove") => {
+    if (!selectedPoint) return;
+
+    const documentId = `responder${selectedRisk}`;
+    const pointRef = doc(db, uniqueID, documentId);
+    const fieldPath = `${selectedPoint.key}.properties.assignedResponders`;
+
+    try {
+      if (action === "add") {
+        await updateDoc(pointRef, {
+          [fieldPath]: arrayUnion(responderId),
+        });
+      } else {
+        await updateDoc(pointRef, {
+          [fieldPath]: arrayRemove(responderId),
+        });
+      }
+    } catch (error) {
+      console.error("Error updating responder assignment:", error);
+    }
+  };
+
+  // Filter responders into assigned and available
+  // Assigned: responders assigned to THIS specific point
+  const assigned = allResponders.filter((r) =>
+    selectedPoint?.assignedUIDs.includes(r.id)
   );
+
+  // Available: responders NOT assigned to ANY point (checking global assignments)
+  const available = allResponders.filter(
+    (r) =>
+      !allAssignedUIDs.includes(r.id) && // Not assigned to ANY point
+      r.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <CircleNotch size={32} className="animate-spin text-red-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {/* Column 1: List of Points */}
       <div className="md:col-span-1 bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Response Points
+          Response Points ({selectedRisk})
         </h2>
         <div className="space-y-2">
-          {DUMMY_POINTS.map((point) => (
+          {allPoints.map((point) => (
             <button
               key={point.id}
               onClick={() => setSelectedPoint(point)}
@@ -114,7 +261,7 @@ export default function ManageResponsePoints() {
                 <MapPin size={20} className="mr-3" />
                 <span className="font-medium">{point.name}</span>
               </div>
-              {/* --- NEW: Responder Count Pill --- */}
+              {/* --- Responder Count Pill --- */}
               <span
                 className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                   point.assignedCount > 0
@@ -126,6 +273,11 @@ export default function ManageResponsePoints() {
               </span>
             </button>
           ))}
+          {allPoints.length === 0 && (
+            <div className="text-sm text-center text-gray-400 p-4">
+              No response points found.
+            </div>
+          )}
         </div>
       </div>
 
@@ -152,6 +304,7 @@ export default function ManageResponsePoints() {
                       key={user.id}
                       user={user}
                       action="remove"
+                      onClick={() => handleAction(user.id, "remove")}
                     />
                   ))}
                   {assigned.length === 0 && (
@@ -168,7 +321,7 @@ export default function ManageResponsePoints() {
                   Available Responders ({available.length})
                 </h3>
 
-                {/* --- NEW: Search Bar --- */}
+                {/* --- Search Bar --- */}
                 <div className="relative mb-3">
                   <input
                     type="text"
@@ -186,7 +339,12 @@ export default function ManageResponsePoints() {
 
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {available.map((user) => (
-                    <ResponderListCard key={user.id} user={user} action="add" />
+                    <ResponderListCard
+                      key={user.id}
+                      user={user}
+                      action="add"
+                      onClick={() => handleAction(user.id, "add")}
+                    />
                   ))}
                   {available.length === 0 && (
                     <div className="text-sm text-center text-gray-400 p-4">
