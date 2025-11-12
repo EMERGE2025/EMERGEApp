@@ -1,8 +1,24 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    optimizePackageImports: ['@phosphor-icons/react']
+  // experimental: {
+  //   optimizePackageImports: ['@phosphor-icons/react']
+  // },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/:path*',
+          destination: '/:path*',
+          has: [
+            {
+              type: 'host',
+              value: 'docs.projectemerge.org'
+            }
+          ]
+        }
+      ]
+    };
   },
   images: {
     remotePatterns: [

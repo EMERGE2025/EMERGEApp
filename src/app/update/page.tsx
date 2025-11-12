@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import Link from "next/link"; // Added for the "Return Home" button
+import { CircleNotch, Lock } from "@phosphor-icons/react/dist/ssr"; // Added icons
 
 interface HistoryEntry {
   date: string;
@@ -16,7 +18,9 @@ interface MonthData {
 }
 
 export default function UpdatePage() {
-  const { user } = useAuth();
+  // --- 1. GET AUTH STATE, INCLUDING LOADING AND ROLE ---
+  const { user, userRole, locationID, loading } = useAuth();
+
   const [selectedFiles, setSelectedFiles] = useState<{
     [key: string]: File | null;
   }>({
@@ -38,17 +42,20 @@ export default function UpdatePage() {
   const [logs, setLogs] = useState<string>("");
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:8000/update-logs");
-        const data = await response.json();
-        setLogs(data.logs);
-      } catch (error) {
-        console.error("Failed to fetch logs:", error);
-      }
-    };
-    fetchLogs();
-  }, []);
+    // Only fetch logs if the user is an admin
+    if (userRole === "admin") {
+      const fetchLogs = async () => {
+        try {
+          const response = await fetch("http://127.0.0.1:8000/update-logs");
+          const data = await response.json();
+          setLogs(data.logs);
+        } catch (error) {
+          console.error("Failed to fetch logs:", error);
+        }
+      };
+      fetchLogs();
+    }
+  }, [userRole]); // Dependency updated to userRole
 
   const parseLogs = (logs: string): { [year: string]: MonthData } => {
     const history: { [year: string]: MonthData } = {};
@@ -226,10 +233,16 @@ export default function UpdatePage() {
   };
 
   const handleConfirmUploads = async () => {
-    if (!user) {
-      alert("Please log in to upload files.");
+    // --- UPDATED: Stricter Check ---
+
+    console.log(userRole, locationID);
+    if (userRole !== "admin" || !user || !locationID) {
+      alert(
+        "Security Error: You must be an admin with an assigned locationID to upload files."
+      );
       return;
     }
+
     const filesToUpload = Object.entries(selectedFiles).filter(
       ([_, file]) => file !== null
     );
@@ -245,6 +258,7 @@ export default function UpdatePage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("type", category === "flood" ? "flooding" : category);
+      formData.append("locationID", locationID); // Use locationID from context
       formData.append("boundary_name", "ADM4_EN");
       formData.append("username", user.displayName || user.email || "Unknown");
       formData.append("user_id", user.uid);
@@ -263,6 +277,38 @@ export default function UpdatePage() {
     setUploading(false);
   };
 
+  // --- 2. HANDLE LOADING STATE ---
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#f5f6fa]">
+        <CircleNotch size={48} className="animate-spin text-[#b92727]" />
+        <p className="mt-4 text-gray-600">Verifying credentials...</p>
+      </div>
+    );
+  }
+
+  // --- 3. HANDLE ACCESS DENIED STATE ---
+  if (userRole !== "admin") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#f5f6fa] p-6 text-center">
+        <Lock size={64} className="text-[#b92727] mb-4" />
+        <h1 className="text-2xl font-semibold text-gray-800 mb-2">
+          Access Denied
+        </h1>
+        <p className="text-gray-600 mb-6">
+          You must be an administrator to access this page.
+        </p>
+        <Link
+          href="/"
+          className="bg-[#2E2C2F] text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-[#1a1819] transition-colors"
+        >
+          Return to Home
+        </Link>
+      </div>
+    );
+  }
+
+  // --- 4. RENDER ADMIN CONTENT ---
   return (
     <main className="min-h-screen bg-[#f5f6fa] p-6">
       <div className="max-w-7xl mx-auto">
@@ -584,8 +630,11 @@ export default function UpdatePage() {
             <button
               onClick={handleConfirmUploads}
               disabled={uploading}
-              className="w-full justify-end md:w-auto bg-[#2E2C2F] text-white px-8 py-3 rounded-lg font-medium hover:bg-[#1a1819] transition-colors disabled:opacity-50"
+              className="w-full justify-end md:w-auto bg-[#2E2C2F] text-white px-8 py-3 rounded-lg font-medium hover:bg-[#1a1819] transition-colors disabled:opacity-50 flex items-center"
             >
+              {uploading && (
+                <CircleNotch size={20} className="animate-spin -ml-1 mr-2" />
+              )}
               {uploading ? "Uploading..." : "Confirm Uploads"}
             </button>
             {uploadMessages && (

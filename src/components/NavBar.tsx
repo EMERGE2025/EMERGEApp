@@ -11,8 +11,22 @@ export default function NavBar() {
   const [mapsOpen, setMapsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { user, logout } = useAuth();
+
+  // Get the new userRole from the context
+  const { user, userRole, logout } = useAuth();
   const { hazardType, setHazardType } = useHazard();
+
+  // Helper to get the display name for the role
+  const getRoleDisplayName = () => {
+    if (userRole === "admin") {
+      return "Administrator";
+    }
+    if (userRole === "responder") {
+      return "Responder";
+    }
+    return "User";
+  };
+  const roleName = getRoleDisplayName();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -113,13 +127,15 @@ export default function NavBar() {
                     About
                   </Link>
                 </li>
-                {user?.email?.includes("admin") && (
+
+                {/* --- UPDATED: Use userRole --- */}
+                {userRole === "admin" && (
                   <li>
                     <Link
-                      href="/update"
+                      href="/admin" // Changed from /update to /admin
                       className="font-medium text-black hover:text-[#B92727] transition-colors"
                     >
-                      Admin Update
+                      Admin Dashboard
                     </Link>
                   </li>
                 )}
@@ -135,10 +151,9 @@ export default function NavBar() {
                       <span>
                         {user.displayName || user.email?.split("@")[0]}
                       </span>
+                      {/* --- UPDATED: Use roleName --- */}
                       <span className="text-xs font-normal opacity-85 -mt-1">
-                        {user.email?.includes("admin")
-                          ? "Administrator"
-                          : "User"}
+                        {roleName}
                       </span>
                     </div>
                     <div className="w-9 h-9 rounded-full overflow-hidden">
@@ -158,9 +173,12 @@ export default function NavBar() {
                   {profileOpen && (
                     <ul className="absolute right-0 top-12 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
                       <li>
-                        <button className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left">
+                        <Link
+                          href="/profile" // Link to a profile page
+                          className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left"
+                        >
                           Edit Profile
-                        </button>
+                        </Link>
                       </li>
                       <li>
                         <button
@@ -262,7 +280,9 @@ export default function NavBar() {
                           Upload
                         </Link>
                       </li>
-                      {user?.email?.includes("admin") && (
+
+                      {/* --- UPDATED: Use userRole --- */}
+                      {userRole === "admin" && (
                         <li>
                           <Link
                             href="/admin"
@@ -280,10 +300,9 @@ export default function NavBar() {
                           <span>
                             {user.displayName || user.email?.split("@")[0]}
                           </span>
+                          {/* --- UPDATED: Use roleName --- */}
                           <span className="text-xs font-normal opacity-85 -mt-1">
-                            {user.email?.includes("admin")
-                              ? "Administrator"
-                              : "User"}
+                            {roleName}
                           </span>
                         </div>
                         <div className="w-9 h-9 rounded-full overflow-hidden">

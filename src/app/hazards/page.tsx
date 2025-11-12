@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import ClientOnly from "@/components/clientOnly";
 import MapLibre3D from "@/components/mapModule";
-import DataTable from "@/components/DataTable";
 
 import { db } from "@/utils/firebase";
 import { collection, getDocs } from "firebase/firestore";
@@ -79,50 +78,6 @@ export default function Hazards() {
         setRiskData(data);
       } catch (error) {
         console.error("Error fetching risk data:", error);
-        // Set fallback data for testing
-        // const fallbackData = [
-        //   {
-        //     id: "boundary",
-        //     boundary: {
-        //       type: "FeatureCollection",
-        //       features: [
-        //         {
-        //           type: "Feature",
-        //           geometry: {
-        //             type: "Polygon",
-        //             coordinates: [
-        //               [
-        //                 [122.4, 10.7],
-        //                 [122.6, 10.7],
-        //                 [122.6, 10.8],
-        //                 [122.4, 10.8],
-        //                 [122.4, 10.7],
-        //               ],
-        //             ],
-        //           },
-        //         },
-        //       ],
-        //     },
-        //   },
-        //   {
-        //     id: "flooding",
-        //     risk: {
-        //       type: "FeatureCollection",
-        //       features: [
-        //         {
-        //           type: "Feature",
-        //           geometry: {
-        //             type: "Point",
-        //             coordinates: [122.5, 10.75],
-        //           },
-        //           properties: { riskScore: 0.8 },
-        //         },
-        //       ],
-        //     },
-        //   },
-        // ];
-        // console.log("Using fallback data:", fallbackData);
-        // setRiskData(fallbackData);
       }
     };
     fetchData();
@@ -351,6 +306,7 @@ export default function Hazards() {
             onHazardChange={setSelectedRisk}
             userLocation={userLocation}
             onGetCurrentLocation={handleGetCurrentLocation}
+            uniqueID="0"
           />
         </ClientOnly>
       </div>
