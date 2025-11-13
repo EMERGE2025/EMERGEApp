@@ -11,8 +11,22 @@ export default function NavBar() {
   const [mapsOpen, setMapsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { user, logout } = useAuth();
+
+  // Get the new userRole from the context
+  const { user, userRole, logout } = useAuth();
   const { hazardType, setHazardType } = useHazard();
+
+  // Helper to get the display name for the role
+  const getRoleDisplayName = () => {
+    if (userRole === "admin") {
+      return "Administrator";
+    }
+    if (userRole === "responder") {
+      return "Responder";
+    }
+    return "User";
+  };
+  const roleName = getRoleDisplayName();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -75,35 +89,13 @@ export default function NavBar() {
                   </Link>
                 </li>
                 <li className="relative group">
-                  <button
-                    className="font-medium text-black hover:text-[#B92727] transition-colors flex items-center gap-1"
-                    aria-expanded={mapsOpen}
-                    onClick={() => setMapsOpen((open) => !open)}
+                  <Link
+                    href="/hazards"
+                    className="block px-4 py-2 text-black hover:text-[#B92727]"
+                    onClick={() => setMapsOpen(false)}
                   >
-                    Maps <span className="text-xs">▼</span>
-                  </button>
-                  {mapsOpen && (
-                    <ul className="absolute left-0 top-8 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
-                      <li>
-                        <Link
-                          href="/hazards"
-                          className="block px-4 py-2 text-black hover:text-[#B92727]"
-                          onClick={() => setMapsOpen(false)}
-                        >
-                          Risk Map
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          href="/hazards"
-                          className="block px-4 py-2 text-black hover:text-[#B92727]"
-                          onClick={() => setMapsOpen(false)}
-                        >
-                          Hazard Visualization
-                        </Link>
-                      </li>
-                    </ul>
-                  )}
+                    Risk Map
+                  </Link>
                 </li>
                 <li>
                   <Link
@@ -113,13 +105,15 @@ export default function NavBar() {
                     About
                   </Link>
                 </li>
-                {user?.email?.includes("admin") && (
+
+                {/* --- UPDATED: Use userRole --- */}
+                {userRole === "admin" && (
                   <li>
                     <Link
-                      href="/update"
+                      href="/admin" // Changed from /update to /admin
                       className="font-medium text-black hover:text-[#B92727] transition-colors"
                     >
-                      Admin Update
+                      Admin Dashboard
                     </Link>
                   </li>
                 )}
@@ -135,10 +129,9 @@ export default function NavBar() {
                       <span>
                         {user.displayName || user.email?.split("@")[0]}
                       </span>
+                      {/* --- UPDATED: Use roleName --- */}
                       <span className="text-xs font-normal opacity-85 -mt-1">
-                        {user.email?.includes("admin")
-                          ? "Administrator"
-                          : "User"}
+                        {roleName}
                       </span>
                     </div>
                     <div className="w-9 h-9 rounded-full overflow-hidden">
@@ -158,9 +151,12 @@ export default function NavBar() {
                   {profileOpen && (
                     <ul className="absolute right-0 top-12 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
                       <li>
-                        <button className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left">
+                        <Link
+                          href="/responder/profile"
+                          className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left"
+                        >
                           Edit Profile
-                        </button>
+                        </Link>
                       </li>
                       <li>
                         <button
@@ -209,41 +205,11 @@ export default function NavBar() {
                         </Link>
                       </li>
                       <li>
-                        <button
-                          className="font-medium text-black hover:text-[#B92727] flex items-center gap-1"
-                          onClick={() => setMapsOpen((open) => !open)}
-                        >
-                          Maps <span className="text-xs">▼</span>
-                        </button>
-                        {mapsOpen && (
-                          <ul className="ml-4 mt-2 flex flex-col gap-2">
-                            <li>
-                              <Link
-                                href="/risk-map"
-                                className="text-black hover:text-[#B92727]"
-                                onClick={() => setMapsOpen(false)}
-                              >
-                                Risk Map
-                              </Link>
-                            </li>
-                            <li>
-                              <Link
-                                href="/hazard-visualization"
-                                className="text-black hover:text-[#B92727] text-center"
-                                onClick={() => setMapsOpen(false)}
-                              >
-                                Hazard Visualization
-                              </Link>
-                            </li>
-                          </ul>
-                        )}
-                      </li>
-                      <li>
                         <Link
-                          href="/responder-allocation"
-                          className="font-medium text-black hover:text-[#B92727]"
+                          href="/hazards"
+                          className="text-black hover:text-[#B92727]"
                         >
-                          Responder Allocation
+                          Risk Map
                         </Link>
                       </li>
                       <li>
@@ -254,21 +220,15 @@ export default function NavBar() {
                           About
                         </Link>
                       </li>
-                      <li>
-                        <Link
-                          href="/upload"
-                          className="font-medium text-black hover:text-[#B92727]"
-                        >
-                          Upload
-                        </Link>
-                      </li>
-                      {user?.email?.includes("admin") && (
+
+                      {/* --- UPDATED: Use userRole --- */}
+                      {userRole === "admin" && (
                         <li>
                           <Link
                             href="/admin"
                             className="font-medium text-black hover:text-[#B92727]"
                           >
-                            Admin
+                            Admin Dashboard
                           </Link>
                         </li>
                       )}
@@ -280,10 +240,9 @@ export default function NavBar() {
                           <span>
                             {user.displayName || user.email?.split("@")[0]}
                           </span>
+                          {/* --- UPDATED: Use roleName --- */}
                           <span className="text-xs font-normal opacity-85 -mt-1">
-                            {user.email?.includes("admin")
-                              ? "Administrator"
-                              : "User"}
+                            {roleName}
                           </span>
                         </div>
                         <div className="w-9 h-9 rounded-full overflow-hidden">
