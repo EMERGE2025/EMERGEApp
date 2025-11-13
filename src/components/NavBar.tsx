@@ -89,35 +89,13 @@ export default function NavBar() {
                   </Link>
                 </li>
                 <li className="relative group">
-                  <button
-                    className="font-medium text-black hover:text-[#B92727] transition-colors flex items-center gap-1"
-                    aria-expanded={mapsOpen}
-                    onClick={() => setMapsOpen((open) => !open)}
+                  <Link
+                    href="/hazards"
+                    className="block px-4 py-2 text-black hover:text-[#B92727]"
+                    onClick={() => setMapsOpen(false)}
                   >
-                    Maps <span className="text-xs">▼</span>
-                  </button>
-                  {mapsOpen && (
-                    <ul className="absolute left-0 top-8 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
-                      <li>
-                        <Link
-                          href="/hazards"
-                          className="block px-4 py-2 text-black hover:text-[#B92727]"
-                          onClick={() => setMapsOpen(false)}
-                        >
-                          Risk Map
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          href="/hazards"
-                          className="block px-4 py-2 text-black hover:text-[#B92727]"
-                          onClick={() => setMapsOpen(false)}
-                        >
-                          Hazard Visualization
-                        </Link>
-                      </li>
-                    </ul>
-                  )}
+                    Risk Map
+                  </Link>
                 </li>
                 <li>
                   <Link
@@ -174,7 +152,7 @@ export default function NavBar() {
                     <ul className="absolute right-0 top-12 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
                       <li>
                         <Link
-                          href="/profile" // Link to a profile page
+                          href="/responder/profile"
                           className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left"
                         >
                           Edit Profile
@@ -227,14 +205,12 @@ export default function NavBar() {
                         </Link>
                       </li>
                       <li>
-                        <button>
-                          <Link
-                            href="/hazards"
-                            className="text-black hover:text-[#B92727]"
-                          >
-                            Risk Map
-                          </Link>
-                        </button>
+                        <Link
+                          href="/hazards"
+                          className="text-black hover:text-[#B92727]"
+                        >
+                          Risk Map
+                        </Link>
                       </li>
                       <li>
                         <Link
