@@ -62,7 +62,7 @@ export default function HomePage() {
 
       {/* WHAT EMERGE CAN DO - Gray gradient background */}
       <section
-        className="bg-gradient-to-b from-gray-500 via-gray-400 to-black py-16 md:py-20 px-4 text-[#f5f5f5] bg-cover"
+        className="bg-gradient-to-b from-gray-400 via-gray-400 to-black py-16 md:py-20 px-4 text-[#f5f5f5] bg-cover"
         // style={{ backgroundImage: "url('/features.png')" }}
       >
         <div className="max-w-5xl mx-auto">

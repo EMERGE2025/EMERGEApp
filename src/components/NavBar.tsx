@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import { LogOut } from "lucide-react";
+import { UserCircleDashedIcon } from "@phosphor-icons/react/dist/ssr";
 
 export default function NavBar() {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -44,23 +45,35 @@ export default function NavBar() {
 
       <ul className="hidden md:flex list-none gap-6 lg:gap-8 flex-grow justify-center items-center px-4">
         <li>
-          <Link href="/" className="font-medium text-black hover:text-[#B92727] transition-colors">
+          <Link
+            href="/"
+            className="font-medium text-black hover:text-[#B92727] transition-colors"
+          >
             Home
           </Link>
         </li>
         <li>
-          <Link href="/hazards" className="font-medium text-black hover:text-[#B92727] transition-colors">
+          <Link
+            href="/hazards"
+            className="font-medium text-black hover:text-[#B92727] transition-colors"
+          >
             Risk Map
           </Link>
         </li>
         <li>
-          <Link href="/about" className="font-medium text-black hover:text-[#B92727] transition-colors">
+          <Link
+            href="/about"
+            className="font-medium text-black hover:text-[#B92727] transition-colors"
+          >
             About
           </Link>
         </li>
         {userRole === "admin" && (
           <li>
-            <Link href="/admin" className="font-medium text-black hover:text-[#B92727] transition-colors">
+            <Link
+              href="/admin"
+              className="font-medium text-black hover:text-[#B92727] transition-colors"
+            >
               Admin Dashboard
             </Link>
           </li>
@@ -76,31 +89,36 @@ export default function NavBar() {
                 onClick={() => setProfileOpen(!profileOpen)}
               >
                 <div className="flex flex-col items-end mr-2">
-                  <span className="text-sm">{user.displayName || user.email?.split("@")[0]}</span>
-                  <span className="text-xs font-normal opacity-85 -mt-1">{roleName}</span>
+                  <span className="text-sm">
+                    {user.displayName || user.email?.split("@")[0]}
+                  </span>
+                  <span className="text-xs font-normal opacity-85 -mt-1">
+                    {roleName}
+                  </span>
                 </div>
-                <div className="w-8 h-8 rounded-full overflow-hidden">
-                  <Image
-                    src={user.photoURL || "/profile.jpg"}
-                    alt="Profile"
-                    width={32}
-                    height={32}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
+                <div className="w-full rounded-full overflow-hidden flex">
+                  <UserCircleDashedIcon width={40} height={40} />
                 </div>
               </button>
               {profileOpen && (
                 <ul className="absolute right-0 top-12 bg-white rounded-lg shadow-lg py-2 px-2 min-w-[180px] z-50">
                   <li>
                     <Link
-                      href={userRole === "admin" ? "/admin/profile" : "/responder/profile"}
+                      href={
+                        userRole === "admin"
+                          ? "/admin/profile"
+                          : "/responder/profile"
+                      }
                       className="block px-4 py-2 text-black hover:text-[#B92727]"
                     >
                       Edit Profile
                     </Link>
                   </li>
                   <li>
-                    <button className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left" onClick={logout}>
+                    <button
+                      className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left"
+                      onClick={logout}
+                    >
                       Logout
                     </button>
                   </li>
