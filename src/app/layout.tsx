@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavBar from "../components/NavBar";
+import BottomNav from "../components/BottomNav";
 import Footer from "../components/footer";
 import { Archivo } from "next/font/google";
 import { AuthProvider } from "../contexts/AuthContext";
@@ -40,8 +41,8 @@ export default function RootLayout({
         <AuthProvider>
           <HazardProvider>
             <NavBar />
-            {children}
-            <Footer />
+            <main className="pb-16 md:pb-0">{children}</main>
+            <BottomNav />
           </HazardProvider>
         </AuthProvider>
       </body>

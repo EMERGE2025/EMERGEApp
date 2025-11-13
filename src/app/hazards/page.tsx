@@ -286,10 +286,14 @@ export default function Hazards() {
 
   return (
     <main className="flex flex-col bg-white justify-between min-h-screen relative">
-      {/* Hide the global NavBar just on this page */}
       <style jsx global>{`
         nav {
           display: none !important;
+        }
+        @media (max-width: 768px) {
+          main {
+            padding-bottom: 64px;
+          }
         }
       `}</style>
       <div id="map" className="relative">
