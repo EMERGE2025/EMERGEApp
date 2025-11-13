@@ -1,6 +1,26 @@
-<svg width="40" height="32" viewBox="0 0 40 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect x="24.1428" y="24.3078" width="15.4991" height="7.63959" fill="#B92727"/>
-<rect x="24.1428" y="6.10352e-05" width="15.4991" height="7.63959" fill="#B92727"/>
-<rect y="12.402" width="35.0717" height="7.0443" fill="#B92727"/>
-<rect x="14.0088" y="31.9474" width="31.9474" height="7.05408" transform="rotate(-90 14.0088 31.9474)" fill="#B92727"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88.3 71.1">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #e53935;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g id="_5" data-name="5">
+      <g>
+        <g>
+          <polygon class="cls-1" points="0 71.1 0 69.75 34.41 51.18 34.41 71.1 0 71.1"/>
+          <polygon class="cls-1" points="0 0 0 1.36 34.41 19.93 34.41 0 0 0"/>
+          <polygon class="cls-1" points="0 22.2 0 48.9 24.75 35.55 0 22.2"/>
+        </g>
+        <g>
+          <polygon class="cls-1" points="88.3 71.1 88.3 69.74 53.9 51.18 53.9 71.1 88.3 71.1"/>
+          <polygon class="cls-1" points="88.3 0 88.3 1.36 53.9 19.92 53.9 0 88.3 0"/>
+          <polygon class="cls-1" points="88.3 22.2 88.3 48.9 63.56 35.55 88.3 22.2"/>
+        </g>
+      </g>
+    </g>
+  </g>
 </svg>

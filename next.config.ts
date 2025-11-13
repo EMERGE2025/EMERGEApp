@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         {
           source: '/:path*',
-          destination: '/:path*',
+          destination: '/docs/:path*',
           has: [
             {
               type: 'host',
