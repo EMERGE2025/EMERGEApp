@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import ClientOnly from "@/components/clientOnly";
 import MapLibre3D from "@/components/mapModule";
+// DataTable temporarily removed
 
 import { db } from "@/utils/firebase";
 import { collection, getDocs } from "firebase/firestore";
@@ -311,6 +312,7 @@ export default function Hazards() {
           />
         </ClientOnly>
       </div>
+      {/* Data Table Section removed for now */}
     </main>
   );
 }

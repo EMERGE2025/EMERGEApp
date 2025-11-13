@@ -1,19 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f0f0;
-  --foreground: #171717;
-  --active: #7dc0cc;
-  --white-bg: #fff1e6;
-  --pinColor: #be3c3c;
+  /* Brand palette */
+  --brand-responder: #E53935; /* red */
+  --brand-flood: #1883D0;      /* blue */
+  --brand-earthquake: #36A816; /* green */
+  --brand-landslide: #C38811;  /* light brown */
+  --brand-text: #1C1C1C;       /* black for text */
+  --brand-white: #f5f5f5;      /* white background */
+
+  /* App-level tokens wired to brand */
+  --background: var(--brand-white);
+  --foreground: var(--brand-text);
+  --active: var(--brand-flood);
+  --white-bg: #ffffff;
+  --pinColor: var(--brand-responder);
 }
 
 @theme inline {
+  /* Expose brand colors to Tailwind design tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-brand-red: var(--brand-responder);
+  --color-brand-blue: var(--brand-flood);
+  --color-brand-green: var(--brand-earthquake);
+  --color-brand-brown: var(--brand-landslide);
+  --color-brand-text: var(--brand-text);
+  --color-brand-white: var(--brand-white);
+
+  /* Set Archivo as the default sans font via next/font variable */
+  --font-sans: var(--font-archivo);
   --font-mono: var(--font-geist-mono);
-  /* --font-main: var() */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,8 +43,26 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Archivo', sans-serif;
+  font-family: var(--font-archivo), 'Archivo', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
+
+/* Convenience utility classes for brand usage */
+.text-brand-red { color: var(--brand-responder) !important; }
+.text-brand-blue { color: var(--brand-flood) !important; }
+.text-brand-green { color: var(--brand-earthquake) !important; }
+.text-brand-brown { color: var(--brand-landslide) !important; }
+.text-brand { color: var(--brand-text) !important; }
+
+.bg-brand-red { background-color: var(--brand-responder) !important; }
+.bg-brand-blue { background-color: var(--brand-flood) !important; }
+.bg-brand-green { background-color: var(--brand-earthquake) !important; }
+.bg-brand-brown { background-color: var(--brand-landslide) !important; }
+.bg-brand-white { background-color: var(--brand-white) !important; }
+
+.border-brand-red { border-color: var(--brand-responder) !important; }
+.border-brand-blue { border-color: var(--brand-flood) !important; }
+.border-brand-green { border-color: var(--brand-earthquake) !important; }
+.border-brand-brown { border-color: var(--brand-landslide) !important; }
 
 /* Responsive utilities */
 @media (max-width: 768px) {

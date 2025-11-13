@@ -1,6 +1,7 @@
 "use client";
 
 import MapLibre3D from "@/components/mapModule"; // Adjust this path to your mapModule.tsx
+// DataTable temporarily removed
 import { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "@/utils/firebase";
@@ -108,7 +109,7 @@ export default function AdminRespondersPage() {
   const [userLocation, setUserLocation] = useState(null);
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full min-h-screen">
       {isLoading ? (
         // Show a loading state while data is fetching
         <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-100">
@@ -118,20 +119,25 @@ export default function AdminRespondersPage() {
           </p>
         </div>
       ) : (
-        <MapLibre3D
-          mapType="liberty"
-          selectedRisk={selectedRisk}
-          riskDatabase={riskDatabase}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onSearchSubmit={() => console.log("Search")}
-          isSearching={false}
-          onHazardChange={setSelectedRisk}
-          userLocation={userLocation}
-          onGetCurrentLocation={() => console.log("Get Location")}
-          mode="admin"
-          uniqueID="PH063043000"
-        />
+        <>
+          <div className="w-full h-screen">
+            <MapLibre3D
+              mapType="liberty"
+              selectedRisk={selectedRisk}
+              riskDatabase={riskDatabase}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSearchSubmit={() => console.log("Search")}
+              isSearching={false}
+              onHazardChange={setSelectedRisk}
+              userLocation={userLocation}
+              onGetCurrentLocation={() => console.log("Get Location")}
+              mode="admin"
+              uniqueID="PH063043000"
+            />
+          </div>
+          {/* Data Table Section removed for now */}
+        </>
       )}
     </div>
   );

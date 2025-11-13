@@ -2,12 +2,7 @@
 
 import React, { useState, Fragment } from "react";
 import Link from "next/link";
-import {
-  CaretLeft,
-  CaretRight,
-  Minus,
-  Plus,
-} from "@phosphor-icons/react/dist/ssr";
+import { SidebarSimple } from "@phosphor-icons/react/dist/ssr";
 import { Transition } from "@headlessui/react";
 
 export type SettingsSidebarProps = {
@@ -87,14 +82,14 @@ function EmergeSettingsPanel({
             </span>
           </div>
         </div>
-        {/* --- FIX: This button now just closes the pop-up --- */}
+        {/* --- Toggle button (use sidepanel icon) --- */}
         <button
           onClick={onToggle}
-          className="ml-auto inline-flex items-center justify-center w-7 h-7 rounded-[40] bg-red-500 text-white hover:bg-red-600 active:scale-95 transition border-0 outline-none ring-0 focus:outline-none focus:ring-0 shadow-none"
-          title={"Minimize"}
-          aria-label={"Minimize"}
+          className="ml-auto inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 active:scale-95 transition border-0 outline-none ring-0 focus:outline-none focus:ring-0 shadow-none text-red-600 bg-transparent"
+          title={"Toggle sidebar"}
+          aria-label={"Toggle sidebar"}
         >
-          <Minus size={16} weight="bold" className="text-white" />
+          <SidebarSimple size={20} weight="regular" className="text-red-600" />
         </button>
       </div>
 
@@ -300,7 +295,7 @@ function EmergeSettingsPanel({
 
         {/* Upload New Data */}
         <Link
-          href="/upload"
+          href="/admin/update"
           onClick={() => setSelectedKey("upload")}
           className={makeRowClass(selectedKey === "upload")}
         >
@@ -348,41 +343,18 @@ export default function SettingsSidebar(props: SettingsSidebarProps) {
 
   return (
     <div className="relative">
-      {/* 1. The Toggle Button (Emerge Logo) */}
-      <button
-        onClick={onToggle}
-        aria-label="Toggle Settings"
-        title="Map Settings"
-        className={`pointer-events-auto inline-flex items-center justify-center bg-white rounded-full w-12 h-12 shadow-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition ${
-          isOpen ? "ring-2 ring-red-500" : ""
-        }`}
-      >
-        <img
-          src="/icons/EMERGE Logo_no_outline.svg"
-          alt="Emerge Settings"
-          className="w-7 h-7 object-contain"
-        />
-      </button>
-
-      {/* 2. Responsive Popover Panel (Anchored to Bottom-Left) */}
+      {/* When open, render the full sidebar inline (no logo button) */}
       <Transition
         show={isOpen}
         as={Fragment}
-        enter="transition ease-out duration-100"
-        enterFrom="transform opacity-0 scale-95"
-        enterTo="transform opacity-100 scale-100"
-        leave="transition ease-in duration-75"
-        leaveFrom="transform opacity-100 scale-100"
-        leaveTo="transform opacity-0 scale-95"
+        enter="transition ease-out duration-150"
+        enterFrom="transform opacity-0 translate-y-1"
+        enterTo="transform opacity-100 translate-y-0"
+        leave="transition ease-in duration-100"
+        leaveFrom="transform opacity-100 translate-y-0"
+        leaveTo="transform opacity-0 translate-y-1"
       >
-        {/*
-          --- FIX: Positioned to the side and bottom ---
-          - 'left-14' (56px) moves it to the right of the 12-width (48px) button
-          - 'bottom-0' aligns it to the bottom of the button
-          - 'origin-bottom-left' makes it scale from the correct corner
-        */}
-        <div className="absolute left-14 bottom-0 z-[1000] w-screen max-w-sm origin-bottom-left">
-          {/* We pass all props EXCEPT isOpen to the panel */}
+        <div className="w-screen max-w-sm">
           <EmergeSettingsPanel
             onToggle={onToggle}
             isHeatmapEnabled={isHeatmapEnabled}
@@ -394,6 +366,18 @@ export default function SettingsSidebar(props: SettingsSidebarProps) {
           />
         </div>
       </Transition>
+
+      {/* When closed, show a small reopen chevron button (no logo) */}
+      {!isOpen && (
+        <button
+          onClick={onToggle}
+          aria-label="Open Settings"
+          title="Open Settings"
+          className="pointer-events-auto inline-flex items-center justify-center bg-white rounded-full w-10 h-10 shadow-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition"
+        >
+          <SidebarSimple size={18} weight="bold" className="text-red-600" />
+        </button>
+      )}
     </div>
   );
 }
