@@ -227,42 +227,14 @@ export default function NavBar() {
                         </Link>
                       </li>
                       <li>
-                        <button
-                          className="font-medium text-black hover:text-[#B92727] flex items-center gap-1"
-                          onClick={() => setMapsOpen((open) => !open)}
-                        >
-                          Maps <span className="text-xs">▼</span>
+                        <button>
+                          <Link
+                            href="/hazards"
+                            className="text-black hover:text-[#B92727]"
+                          >
+                            Risk Map
+                          </Link>
                         </button>
-                        {mapsOpen && (
-                          <ul className="ml-4 mt-2 flex flex-col gap-2">
-                            <li>
-                              <Link
-                                href="/risk-map"
-                                className="text-black hover:text-[#B92727]"
-                                onClick={() => setMapsOpen(false)}
-                              >
-                                Risk Map
-                              </Link>
-                            </li>
-                            <li>
-                              <Link
-                                href="/hazard-visualization"
-                                className="text-black hover:text-[#B92727] text-center"
-                                onClick={() => setMapsOpen(false)}
-                              >
-                                Hazard Visualization
-                              </Link>
-                            </li>
-                          </ul>
-                        )}
-                      </li>
-                      <li>
-                        <Link
-                          href="/responder-allocation"
-                          className="font-medium text-black hover:text-[#B92727]"
-                        >
-                          Responder Allocation
-                        </Link>
                       </li>
                       <li>
                         <Link
@@ -270,14 +242,6 @@ export default function NavBar() {
                           className="font-medium text-black hover:text-[#B92727]"
                         >
                           About
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          href="/upload"
-                          className="font-medium text-black hover:text-[#B92727]"
-                        >
-                          Upload
                         </Link>
                       </li>
 
@@ -288,7 +252,7 @@ export default function NavBar() {
                             href="/admin"
                             className="font-medium text-black hover:text-[#B92727]"
                           >
-                            Admin
+                            Admin Dashboard
                           </Link>
                         </li>
                       )}
