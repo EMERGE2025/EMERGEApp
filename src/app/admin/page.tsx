@@ -8,6 +8,7 @@ import {
   Users,
   WarningCircle,
   ArrowSquareOut,
+  UploadIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 
@@ -105,6 +106,13 @@ export default function AdminDashboard() {
             View on Map
             <ArrowSquareOut size={18} />
           </Link>
+          <Link
+            href="/admin/update"
+            className="px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-700 hover:bg-gray-300 flex items-center gap-2"
+          >
+            Update Data
+            <UploadIcon size={18} />
+          </Link>
         </div>
 
         {/* Hazard Selector (only show when on manage tab) */}
@@ -145,4 +153,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
- 

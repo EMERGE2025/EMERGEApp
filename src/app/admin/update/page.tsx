@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../../contexts/AuthContext";
-import Link from "next/link"; // Added for the "Return Home" button
-import { CircleNotch, Lock } from "@phosphor-icons/react/dist/ssr"; // Added icons
+import { useAuth } from "../../../contexts/AuthContext";
+import Link from "next/link";
+import { CircleNotch, Lock } from "@phosphor-icons/react/dist/ssr";
 
 interface HistoryEntry {
   date: string;
