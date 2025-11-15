@@ -306,7 +306,7 @@ export default function DataTable({ rows = sampleRows }: { rows?: Row[] }) {
   };
 
   return (
-  <section ref={sectionRef as any} className={`mt-6 md:mt-10 px-3 md:px-6 ${inter.variable} font-sans`} id="emerge-data-table">
+  <section ref={sectionRef as any} className={`mt-0 md:mt-0 px-3 md:px-6 pt-6 md:pt-8 pb-8 ${inter.variable} font-sans bg-white`} id="emerge-data-table">
       {/* Title */}
       <div className="mb-2">
         <h2 className="text-xl md:text-2xl font-bold tracking-tight">

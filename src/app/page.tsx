@@ -5,166 +5,236 @@ import {
 ChartBarIcon, 
 GlobeIcon, 
 MapPinIcon, 
+PlayCircleIcon, 
 UsersIcon
 } from '@phosphor-icons/react';
 
 export default function HomePage() {
   return (
-    <main>
-      <section
-        className='min-h-[90vh] flex flex-col justify-center items-center text-white text-center p-8 relative bg-cover bg-center bg-blend-color bg-[#9f3122]'
-      >
-        <div className='z-10'>
-          <h1 className='text-4xl md:text-5xl font-bold'>Enhanced Emergency Response,</h1>
-          <h1 className='text-4xl md:text-5xl font-bold'>Tailored for Santa Barbara, Iloilo</h1>
-          <p className='text-base font-normal max-w-[690px] mx-auto mt-4'>
-            EMERGE is an emergency management system that visualizes hazards, analyzes risk zones, and optimizes
-            resource allocation using a clustering algorithm—empowering responders and protecting communities.
-          </p>
-        </div>
+      <main>
+        <section className="relative overflow-hidden bg-gradient-to-b from-[#fafafa] to-[#f0f0f2]">
+          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[500px] md:w-[800px] h-[500px] md:h-[800px] rounded-full bg-[#ffebe9] opacity-40 blur-[80px] pointer-events-none" aria-hidden />
+          <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-20 md:py-28 text-center">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-[#1C1C1C] leading-tight">
+              Enhanced Prepositioning for a
+              <span className="block mt-2">
+                <span className="text-[#1C1C1C]"> </span>
+                <span className="text-[#1C1C1C"> </span>
+                <span className="text-[#E53935]">Secure and Resilient</span>
+                <span className="text-[#1C1C1C]"> Community.</span>
+              </span>
+            </h1>
 
-        <button
-          className='bg-[#dde1e4] text-[#b92727] px-6 py-3 text-lg font-bold rounded-2xl cursor-pointer mt-12 border-none transition-all duration-300 z-10 hover:bg-[#b92727] hover:text-white'
-          onClick={() => (window.location.href = '/risk-map')}
-        >
-          View Risk Map
-        </button>
+            <p className="mt-3 sm:mt-4 max-w-2xl mx-auto text-xs sm:text-sm md:text-base text-[#1C1C1C]">
+              Visualize hazards, assign responders, and plan smarter with EMERGE's data-driven disaster management system.
+            </p>
 
-        <div className='absolute inset-0 w-full h-full z-0' />
-      </section>
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+              <button
+                className="w-full sm:w-auto inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-white text-[#333] border border-gray-200 shadow-sm text-xs sm:text-sm font-semibold hover:shadow-md transition"
+                onClick={() => (window.location.href = '/about')}
+              >
+                Learn more
+              </button>
+
+              <button
+                className="w-full sm:w-auto inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-full bg-[#E53935] text-white text-xs sm:text-sm font-semibold hover:bg-[#a21f1f] transition"
+                onClick={() => (window.location.href = '/risk-map')}
+              >
+                View hazard map
+              </button>
+            </div>
+
+            <div className="mt-10 sm:mt-16 flex flex-col items-center justify-center">
+              <div className="w-full max-w-[280px] sm:max-w-[600px] md:max-w-[900px] flex justify-center">
+                <Image
+                  src="/images/pc-2x.png"
+                  width={920}
+                  height={560}
+                  className="w-full h-auto object-contain"
+                  priority alt={''}                
+                />
+              </div>
+
+              <p className="mt-3 sm:mt-4 max-w-full sm:max-w-4xl px-4 text-center text-xs sm:text-sm md:text-base text-[#1C1C1C]">
+                Powered by proprietary algorithms, EMERGE enhances emergency response and team allocation through a web-based decision support system built around accurate, location-specific data from local governments.
+              </p>
+            </div>
+          </div>
+
+          <div className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-10" style={{ backgroundImage: 'radial-gradient(rgba(0,0,0,0.02) 1px, transparent 1px)', backgroundSize: '4px 4px' }} aria-hidden />
+        </section>
+
+        <section className="bg-gradient-to-b from-[#fafafa] to-[#f0f0f2]">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 text-center">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1C1C1C]">
+              What <span className="text-[#E53935]">EMERGE</span> can do
+            </h2>
+            <p className="mt-2 sm:mt-3 text-xs sm:text-sm md:text-base text-[#1C1C1C] max-w-2xl mx-auto px-2">
+              Core features that combine hazard mapping, data clustering, and resource optimization
+            </p>
+          </div>
+
+          <div className="mt-12 sm:mt-20 max-w-5xl mx-auto px-4 sm:px-6 pb-12 sm:pb-20 space-y-12 sm:space-y-20">
+            <div className="mt-12 sm:mt-20 max-w-5xl mx-auto px-4 sm:px-6 pb-12 sm:pb-20 space-y-12 sm:space-y-20">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
+              <div className="w-full md:w-1/2 text-left">
+                <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-[#E53935]">Hazard Heatmaps</h3>
+                <p className="mt-8 sm:mt-3 text-xs sm:text-sm md:text-base text-[#1C1C1C] max-w-md">
+                  EMERGE combines hazard data, population density, and geography to pinpoint high‑risk areas. This visualization empowers decision‑makers to identify vulnerabilities before disaster hits.
+                </p>
+              </div>
+
+               <div className="w-full md:w-1/2 flex justify-center">
+                <div className="w-full max-w-[280px] sm:max-w-[400px] md:max-w-[600px]">
+                  <Image
+                    src="/images/F1.png"
+                    alt="Hazard Heatmaps"
+                    width={1020}
+                    height={820}
+                    className="w-full h-auto object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+            
+
+            <div className="flex flex-col md:flex-row-reverse items-center md:items-start gap-6 md:gap-8">
+              <div className="w-full md:w-1/2 text-left">
+                <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-[#E53935]">Data-Driven Recommendations</h3>
+                <p className="mt-8 sm:mt-3 text-xs sm:text-sm md:text-base text-[#1C1C1C] max-w-md">
+                  EMERGE uses smart clustering algorithms to assess hazard intensity and location, ensuring responders are deployed quickly and effectively where they're needed most.
+                </p>
+              </div>
+
+              <div className="w-full md:w-1/2 flex justify-center">
+                <div className="w-full max-w-[280px] sm:max-w-[400px] md:max-w-[600px]">
+                  <Image
+                    src="/images/F2.png"
+                    alt="Strategic Resource Allocation"
+                    width={520}
+                    height={320}
+                    className="w-full h-auto object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+
+             <div className="mt-12 sm:mt-20 max-w-5xl mx-auto px-4 sm:px-6 pb-12 sm:pb-20 space-y-12 sm:space-y-20">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
+              <div className="w-full md:w-1/2 text-left">
+                <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-[#E53935]">Barangay-Level Insights</h3>
+                <p className="mt-8 sm:mt-3 text-xs sm:text-sm md:text-base text-[#1C1C1C] max-w-md">
+                  EMERGE provides granular hazard analysis at the barangay level, allowing local governments to tailor emergency response plans and resource allocation to the specific needs of each community.
+                </p>
+              </div>
+
+               <div className="w-full md:w-1/2 flex justify-center">
+                <div className="w-full max-w-[280px] sm:max-w-[400px] md:max-w-[600px]">
+                  <Image
+                    src="/images/F3.png"
+                    alt="Hazard Heatmaps"
+                    width={1020}
+                    height={820}
+                    className="w-full h-auto object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row-reverse items-center md:items-start gap-6 md:gap-8">
+              <div className="w-full md:w-1/2 text-left">
+                <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-[#E53935]">Data-Driven Recommendations</h3>
+                <p className="mt-8 sm:mt-3 text-xs sm:text-sm md:text-base text-[#1C1C1C] max-w-md">
+                  EMERGE generates precise recommendations using verified data from local government units, ensuring that every decision reflects real, location-specific conditions.
+                </p>
+              </div>
+
+              <div className="w-full md:w-1/2 flex justify-center">
+                <div className="w-full max-w-[280px] sm:max-w-[400px] md:max-w-[600px]">
+                  <Image
+                    src="/images/F4.png"
+                    alt="Strategic Resource Allocation"
+                    width={520}
+                    height={320}
+                    className="w-full h-auto object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </section>
 
 
-      <section className='bg-[#dde1e4] py-15 px-4'> 
-        <div className='max-w-5xl mx-auto'>
-          <h2 className='text-3xl md:text-4xl font-bold text-center mb-3 mt-6 text-[#2e2c2f]'>
-        How <span className='text-[#b92727]'>EMERGE</span> works
-          </h2>
-          <p className='text-center text-gray-700 mb-12'>
-        A clustering-enhanced GIS workflow for hazard assessment and strategic resource allocation.
-          </p>
-          <div className='grid grid-cols-1 md:grid-cols-4 gap-6'>
-        <div className='bg-gradient-to-b from-[#e94d58] to-[#e94d58]/80 rounded-2xl p-6 text-white shadow text-left'>
-          <div className='flex items-center mb-4'>
-            <MapPinIcon size={32} weight='bold' className='text-white' />
-          </div>
-          <h3 className='text-2xl font-bold mb-4'>Identify Hazard Areas</h3>
-          <p className='text-sm'>
-            EMERGE uses historical records of floods, earthquakes, and landslides in{` `}
-            <span className='font-bold'> Santa Barbara, Iloilo</span> to identify hazard-prone areas.
-          </p>
-        </div>
-        <div className='bg-gradient-to-b from-[#e94d58] to-[#e94d58]/80 rounded-2xl p-6 text-white shadow text-left'>
-          <div className='flex items-center mb-4'>
-            <GlobeIcon size={32} weight='bold' className='text-white' />
-          </div>
-          <h3 className='text-2xl font-bold mb-4'>Visualize Risk Zones</h3>
-          <p className='text-sm'>
-            Hazards are plotted on an interactive GIS map, showing heat zones and vulnerability levels based on past data.
-          </p>
-        </div>
-        <div className='bg-gradient-to-b from-[#e94d58] to-[#e94d58]/80 rounded-2xl p-6 text-white shadow text-left'>
-          <div className='flex items-center mb-4'>
-            <UsersIcon size={32} weight='bold' className='text-white' />
-          </div>
-          <h3 className='text-2xl font-bold mb-4'>Resource Clustering</h3>
-          <p className='text-sm'>
-            Our system applies a clustering algorithm to suggest efficient responder and supply distribution based on
-            population density and risk severity.
-          </p>
-        </div>
-        <div className='bg-gradient-to-b from-[#e94d58] to-[#e94d58]/80 rounded-2xl p-6 text-white shadow text-left'>
-          <div className='flex items-center mb-4'>
-            <ChartBarIcon size={32} weight='bold' className='text-white' />
-          </div>
-          <h3 className='text-2xl font-bold mb-4'>Strategic Planning</h3>
-          <p className='text-sm'>
-            EMERGE recommends optimal responder assignments and pre-positioning strategies for high-risk zones.
-          </p>
-        </div>
-          </div>
-        </div>
-      </section>
+        <section className="bg-[#111] text-white">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+            <div className="text-center mb-8 sm:mb-12">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold">
+                How <span className="text-[#E53935]">EMERGE</span> works
+              </h2>
+              <p className="mt-2 text-xs sm:text-sm text-gray-300 max-w-2xl mx-auto">
+                A clustering-enhanced GIS workflow for hazard assessment and strategic resource allocation
+              </p>
+            </div>
 
-      <section className='bg-[#650000] py-15 px-4'>
-        <div className='max-w-5xl mx-auto text-[#dde1e4]'> 
-          <h2 className='text-3xl md:text-4xl font-bold text-center mb-3 mt-6'>
-            What <span className='text-[#dde1e4]'>EMERGE</span> can do
-          </h2>
-          <p className='text-center text-[#dde1e4] mb-12'>
-            Core features that combine hazard mapping, data clustering, and resource optimization.
-          </p>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+              <article className="rounded-2xl p-6 bg-gradient-to-b from-[#e94d58] to-[#b92727] shadow-md">
+                <div className="text-sm font-semibold opacity-90">01</div>
+                <h3 className="mt-4 text-lg sm:text-xl font-bold">Analyze Historical Data</h3>
+                <div className="mt-3 text-sm text-white/90">
+                  EMERGE maps hazard-prone areas in Santa Barbara, Iloilo using past disaster data.
+                </div>
+              </article>
 
-        <div className='mt-16 grid grid-cols-1 md:grid-cols-2 gap-y-24 gap-x-8 max-w-6xl mx-auto'>
-      
-          <div className='flex flex-col justify-center items-start'>
-            <h3 className='text-3xl font-bold text-[#dde1e4] mb-2'>Hazard Heatmaps</h3>
-            <p className='text-lg text-[#dde1e4]'>Visualize vulnerable areas using layered historical data.</p>
-          </div>
-          <div className='flex justify-end items-start'>
-            <div className='bg-[#dde1e4] rounded-2xl w-full md:w-[600px] h-[280px]' />
-          </div>
-    
-          <div className='flex justify-start items-end'>
-            <div className='bg-[#dde1e4] rounded-2xl w-full md:w-[600px] h-[280px]' />
-          </div>
-          <div className='flex flex-col justify-center items-start'>
-            <h3 className='text-3xl font-bold text-[#dde1e4] mb-2'>Strategic Resource Allocation</h3>
-            <p className='text-lg text-[#dde1e4]'>Smart deployment of responders based on hazard clustering.</p>
-          </div>
-          <div className='flex flex-col justify-center items-start'>
-            <h3 className='text-3xl font-bold text-[#dde1e4] mb-2'>Barangay-Level Risk
-            Insights</h3>
-            <p className='text-lg text-[#dde1e4]'>Zoom in to identify at-risk areas
-            and population density.</p>
-          </div>
-          <div className='flex justify-end items-start'>
-            <div className='bg-[#dde1e4] rounded-2xl w-full md:w-[600px] h-[280px]' />
-          </div>
-       
-          <div className='flex justify-start items-end'>
-            <div className='bg-[#dde1e4] rounded-2xl w-full md:w-[600px] h-[280px]' />
-          </div>
-          <div className='flex flex-col justify-center items-start'>
-            <h3 className='text-3xl font-bold text-[#dde1e4] mb-2'>Data-Driven Recommendations</h3>
-            <p className='text-lg text-[#dde1e4]'>Support planning with location-based suggestions and risk prioritization.</p>
-          </div>
-        </div>
-      </section>
+              <article className="rounded-2xl p-6 bg-gradient-to-b from-[#e94d58] to-[#b92727] shadow-md">
+                <div className="text-sm font-semibold opacity-90">02</div>
+                <h3 className="mt-4 text-lg sm:text-xl font-bold">Visualize Risk Zones with GIS</h3>
+                <div className="mt-3 text-sm text-white/90">
+                  Hazards appear on an interactive map with heat zones and vulnerability levels.
+                </div>
+              </article>
 
-      <section className='bg-[#dde1e4] py-10 px-4'>
-        <div className='max-w-6xl mx-auto'>
-          <div className='flex items-center mb-10'>
-            <div className='h-2 w-20 bg-[#b92727] mr-4' />
-            <h2 className='text-2xl md:text-3xl font-bold text-[#222] mr-4'>Developed in Coordination With</h2>
-            <div className='flex-1 h-2 bg-[#b92727] ml-2' />
-          </div>
-          <div className='flex justify-center gap-8'>
-            <Image src='/wvsu-logo.PNG' alt='Logo 1' width={112} height={112} className='rounded-xl w-24 h-24 md:w-28 md:h-28 object-contain' />
-            <Image src='/cict-logo.PNG' alt='Logo 2' width={112} height={112} className='rounded-xl w-24 h-24 md:w-28 md:h-28 object-contain' />
-            <Image src='/sb-logo.png' alt='Logo 3' width={112} height={112} className='rounded-xl w-24 h-24 md:w-28 md:h-28 object-contain' />
-            <Image src='/sbdrrmo.jpg' alt='Logo 4' width={112} height={112} className='rounded-xl w-24 h-24 md:w-28 md:h-28 object-contain' />
-            <Image src='/trrdmo.jpg' alt='Logo 5' width={112} height={112} className='rounded-xl w-24 h-24 md:w-28 md:h-28 object-contain' />
-          </div>
-        </div>
-      </section>
+              <article className="rounded-2xl p-6 bg-gradient-to-b from-[#e94d58] to-[#b92727] shadow-md">
+                <div className="text-sm font-semibold opacity-90">03</div>
+                <h3 className="mt-4 text-lg sm:text-xl font-bold">Response Allocation with Clustering</h3>
+                <div className="mt-3 text-sm text-white/90">
+                  Clustering algorithms guide efficient responder and supply distribution.
+                </div>
+              </article>
 
-      <section className='bg-gradient-to-b from-[#b92727] to-[#3f0000]/80 py-15 px-4'>
-        <div className='max-w-5xl mx-auto text-center'>
-          <h2 className='text-3xl md:text-4xl mb-4 text-[#dde1e4]'>
-            Want to know more about <span className='text-[#dde1e4] font-bold'>EMERGE</span>?
-          </h2>
-          <p className='text-md text-[#dde1e4] mb-8'>
-            Read more about how EMERGE helps in building a safer, more resilient community.
-          </p>
-          <button
-            className='bg-[#dde1e4] text-[#b92727] px-4 py-2 text-lg font-bold rounded-2xl cursor-pointer mt-5 border-none transition-all duration-300 z-10 hover:bg-[#b92727] hover:text-white'
-            onClick={() => (window.location.href = '/risk-map')}
-          >
-            About EMERGE
-          </button>
-        </div>
-      </section>
+              <article className="rounded-2xl p-6 bg-gradient-to-b from-[#e94d58] to-[#b92727] shadow-md">
+                <div className="text-sm font-semibold opacity-90">04</div>
+                <h3 className="mt-4 text-lg sm:text-xl font-bold">Support Planning and Readiness</h3>
+                <div className="mt-3 text-sm text-white/90">
+                  EMERGE suggests optimal responder placement in high-risk zones.
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+
+        <section className="bg-[#111] text-white">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+            <div className="flex flex-col md:flex-row items-center md:items-center">
+              <div className="w-full md:w-1/3 text-center md:text-left mb-4 md:mb-0">
+                <p className="text-sm text-white-300 mb-40">Developed in partnership with</p>
+              </div>
+
+              <div className="w-full md:w-2/3 flex justify-center md:justify-start gap-10 items-center flex-wrap">
+                <Image src="/images/alerto.png" alt="Partner 1" width={80} height={80} className="h-16 w-auto object-contain" />
+                <Image src="/images/wvsu.png" alt="Partner 2" width={80} height={80} className="h-16
+                w-auto object-contain" />
+                <Image src="/images/cict.png" alt="Partner 3" width={80} height={80} className="h-16 w-auto object-contain" />
+                {/* <Image src="/images/partner-4.png" alt="Partner 4" width={80} height={80} className="h-12 w-auto object-contain" />
+                <Image src="/images/partner-5.png" alt="Partner 5" width={80} height={80} className="h-12 w-auto object-contain" /> */}
+              </div>
+            </div>
+          </div>
+        </section>
+
     </main>
   );
 }

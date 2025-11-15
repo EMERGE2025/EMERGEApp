@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+// @ts-ignore: allow global CSS side-effect import without module declarations
 import "./globals.css";
-import NavBar from "../components/NavBar";
+import HideableNav from "../components/HideableNav";
 import Footer from "../components/footer";
 import { Archivo } from "next/font/google";
 import { AuthProvider } from "../contexts/AuthContext";
@@ -39,7 +40,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <HazardProvider>
-            <NavBar />
+            <HideableNav />
             {children}
             <Footer />
           </HazardProvider>
@@ -48,14 +49,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-// export default function RootLayout({ children }: { children: React.ReactNode }) {
-//   return (
-//     <html lang="en">
-//       <body>
-//         <NavBar />
-//         {children}
-//       </body>
-//     </html>
-//   );
-// }
