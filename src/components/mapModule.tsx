@@ -124,12 +124,19 @@ function ResponderSidebar({
 
   useEffect(() => {
     if (!pointDocId || !isOpen || !uniqueID || !selectedRisk) {
-      console.log(`⏭️ [ResponderSidebar] Skipping - pointDocId: ${pointDocId}, isOpen: ${isOpen}, uniqueID: ${uniqueID}, selectedRisk: ${selectedRisk}`);
+      console.log(
+        `⏭️ [ResponderSidebar] Skipping - pointDocId: ${pointDocId}, isOpen: ${isOpen}, uniqueID: ${uniqueID}, selectedRisk: ${selectedRisk}`
+      );
       return;
     }
 
-    console.log(`🔍 [ResponderSidebar] Loading assignments for point: ${pointDocId}`);
-    console.log(`👥 [ResponderSidebar] Total responders available: ${allResponders.length}`, allResponders);
+    console.log(
+      `🔍 [ResponderSidebar] Loading assignments for point: ${pointDocId}`
+    );
+    console.log(
+      `👥 [ResponderSidebar] Total responders available: ${allResponders.length}`,
+      allResponders
+    );
 
     setLoading(true);
 
@@ -145,25 +152,40 @@ function ResponderSidebar({
 
       if (docSnap.exists()) {
         const docData = docSnap.data();
-        console.log(`📦 [ResponderSidebar] Document data for ${documentId}:`, docData);
+        console.log(
+          `📦 [ResponderSidebar] Document data for ${documentId}:`,
+          docData
+        );
 
         // Get the feature object for this specific point (e.g., docData["0"])
         const pointFeature = docData?.[pointDocId];
-        console.log(`📍 [ResponderSidebar] Point feature for ${pointDocId}:`, pointFeature);
+        console.log(
+          `📍 [ResponderSidebar] Point feature for ${pointDocId}:`,
+          pointFeature
+        );
 
         // --- NEW: Collect ALL assigned UIDs across ALL points ---
         const globalAssignedUIDs: string[] = [];
         Object.entries(docData).forEach(([key, value]: [string, any]) => {
-          if (value.type === "Feature" && value.properties?.assignedResponders) {
+          if (
+            value.type === "Feature" &&
+            value.properties?.assignedResponders
+          ) {
             globalAssignedUIDs.push(...value.properties.assignedResponders);
           }
         });
-        console.log(`🌍 [ResponderSidebar] Global assigned UIDs:`, globalAssignedUIDs);
+        console.log(
+          `🌍 [ResponderSidebar] Global assigned UIDs:`,
+          globalAssignedUIDs
+        );
 
         if (pointFeature && pointFeature.properties) {
           // Get the array of UIDs from properties.assignedResponders for THIS point
           const assignedUIDs = pointFeature.properties.assignedResponders || [];
-          console.log(`✅ [ResponderSidebar] Assigned UIDs for this point:`, assignedUIDs);
+          console.log(
+            `✅ [ResponderSidebar] Assigned UIDs for this point:`,
+            assignedUIDs
+          );
 
           // Filter all responders into Assigned or Available lists
           for (const responder of allResponders) {
@@ -177,11 +199,19 @@ function ResponderSidebar({
             // If assigned to another point, don't show in available
           }
 
-          console.log(`👥 [ResponderSidebar] Assigned responders (${newAssigned.length}):`, newAssigned);
-          console.log(`📋 [ResponderSidebar] Available responders (${newAvailable.length}):`, newAvailable);
+          console.log(
+            `👥 [ResponderSidebar] Assigned responders (${newAssigned.length}):`,
+            newAssigned
+          );
+          console.log(
+            `📋 [ResponderSidebar] Available responders (${newAvailable.length}):`,
+            newAvailable
+          );
         } else {
           // Point feature doesn't have properties yet
-          console.warn(`⚠️ [ResponderSidebar] Point ${pointDocId} has no properties in ${documentId}`);
+          console.warn(
+            `⚠️ [ResponderSidebar] Point ${pointDocId} has no properties in ${documentId}`
+          );
           // Show only responders not assigned to ANY point
           for (const responder of allResponders) {
             if (!globalAssignedUIDs.includes(responder.id)) {
@@ -191,7 +221,9 @@ function ResponderSidebar({
         }
       } else {
         // Document doesn't exist yet
-        console.warn(`❌ [ResponderSidebar] Document not found: ${collectionId}/${documentId}`);
+        console.warn(
+          `❌ [ResponderSidebar] Document not found: ${collectionId}/${documentId}`
+        );
         // Show all responders as available
         newAvailable.push(...allResponders);
       }
@@ -281,7 +313,9 @@ function ResponderSidebar({
                 onError={(e) => {
                   // Fallback to placeholder if image fails to load
                   e.currentTarget.style.display = "none";
-                  e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                  e.currentTarget.nextElementSibling?.classList.remove(
+                    "hidden"
+                  );
                 }}
               />
             ) : null}
@@ -998,7 +1032,9 @@ export default function MapLibre3D({
     // 1. Fetch all responders from the 'responders' document inside the uniqueID collection
     // Fetch for BOTH admin and user modes
     if (uniqueID) {
-      console.log(`🔍 [${mode}] Attempting to fetch responders for uniqueID: ${uniqueID}`);
+      console.log(
+        `🔍 [${mode}] Attempting to fetch responders for uniqueID: ${uniqueID}`
+      );
 
       // Fetch from: uniqueID/responders document (e.g., PH063043000/responders)
       const respondersDocRef = doc(db, uniqueID, "responders");
@@ -1006,7 +1042,9 @@ export default function MapLibre3D({
       const unsubscribe = onSnapshot(
         respondersDocRef,
         (docSnap) => {
-          console.log(`📡 [${mode}] Snapshot received for ${uniqueID}/responders`);
+          console.log(
+            `📡 [${mode}] Snapshot received for ${uniqueID}/responders`
+          );
 
           if (docSnap.exists()) {
             const data = docSnap.data();
@@ -1031,7 +1069,9 @@ export default function MapLibre3D({
               responders
             );
           } else {
-            console.warn(`⚠️ [${mode}] No responders document found at ${uniqueID}/responders`);
+            console.warn(
+              `⚠️ [${mode}] No responders document found at ${uniqueID}/responders`
+            );
             setAllResponders([]);
           }
         },
@@ -1043,7 +1083,9 @@ export default function MapLibre3D({
 
       return () => unsubscribe();
     } else {
-      console.log(`⏭️ Skipping responder fetch - mode: ${mode}, uniqueID: ${uniqueID}`);
+      console.log(
+        `⏭️ Skipping responder fetch - mode: ${mode}, uniqueID: ${uniqueID}`
+      );
     }
   }, [mode, uniqueID]); // Re-run if mode or uniqueID changes
 
@@ -1483,13 +1525,7 @@ export default function MapLibre3D({
     } catch (error) {
       console.error("Error switching hazard:", error);
     }
-  }, [
-    isMapLoaded,
-    selectedRisk,
-    riskDatabase,
-    isHeatmapEnabled,
-    // We removed responsePoints and syncAllResponderLocations
-  ]);
+  }, [isMapLoaded, selectedRisk, riskDatabase, isHeatmapEnabled]);
 
   // --- UPDATED: Click Handlers useEffect ---
   // Moved all click handlers here to be registered only once
