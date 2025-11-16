@@ -2080,296 +2080,294 @@ export default function MapLibre3D({
               <div className="md:hidden fixed inset-0 bg-black/25 backdrop-blur-sm" />
             </Transition.Child>
 
-            <div className="fixed inset-0 overflow-hidden">
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
               {/* Mobile: Bottom Sheet / PC: Right Sidebar */}
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full md:pl-10">
-                  <Transition.Child
-                    as={Fragment}
-                    enter="transform transition ease-in-out duration-300"
-                    enterFrom="translate-y-full md:translate-y-0 md:translate-x-full"
-                    enterTo="translate-y-0 md:translate-x-0"
-                    leave="transform transition ease-in-out duration-300"
-                    leaveFrom="translate-y-0 md:translate-x-0"
-                    leaveTo="translate-y-full md:translate-y-0 md:translate-x-full"
-                  >
-                    <Dialog.Panel className="pointer-events-auto w-screen md:w-96 fixed bottom-0 md:inset-y-0 md:right-0">
-                      <div className="flex h-auto md:h-full flex-col overflow-y-scroll bg-white shadow-xl rounded-t-2xl md:rounded-none">
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 bg-white sticky top-0 z-10">
-                          <Dialog.Title className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                            <Signpost
-                              size={24}
-                              weight="bold"
-                              className="text-red-600"
-                            />
-                            Route Planning
-                          </Dialog.Title>
-                          <button
-                            onClick={() => setIsRoutingPanelOpen(false)}
-                            className="rounded-lg p-1 hover:bg-gray-100 transition-colors"
-                          >
-                            <X size={24} className="text-gray-600" />
-                          </button>
-                        </div>
+              <div className="flex min-h-full items-end justify-center md:items-center md:justify-end">
+                <Transition.Child
+                  as={Fragment}
+                  enter="transform transition ease-in-out duration-300"
+                  enterFrom="translate-y-full md:translate-y-0 md:translate-x-full"
+                  enterTo="translate-y-0 md:translate-x-0"
+                  leave="transform transition ease-in-out duration-300"
+                  leaveFrom="translate-y-0 md:translate-x-0"
+                  leaveTo="translate-y-full md:translate-y-0 md:translate-x-full"
+                >
+                  <Dialog.Panel className="pointer-events-auto w-full md:w-96 max-h-[85vh] md:h-screen">
+                    <div className="flex h-auto md:h-full flex-col overflow-y-scroll bg-white shadow-xl rounded-t-2xl md:rounded-none">
+                      {/* Header */}
+                      <div className="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 bg-white sticky top-0 z-10">
+                        <Dialog.Title className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <Signpost
+                            size={24}
+                            weight="bold"
+                            className="text-red-600"
+                          />
+                          Route Planning
+                        </Dialog.Title>
+                        <button
+                          onClick={() => setIsRoutingPanelOpen(false)}
+                          className="rounded-lg p-1 hover:bg-gray-100 transition-colors"
+                        >
+                          <X size={24} className="text-gray-600" />
+                        </button>
+                      </div>
 
-                        {/* Content */}
-                        <div className="flex-1 p-4 md:p-5 space-y-4 overflow-y-auto pb-safe">
-                          {/* Statistics Box */}
-                          {routeDuration !== null && (
-                            <div className="bg-red-50 rounded-lg p-4">
-                              <div className="flex items-center gap-2 mb-3">
-                                <Timer
-                                  size={24}
-                                  weight="bold"
-                                  className="text-red-600"
-                                />
-                                <p className="font-semibold text-gray-900">
-                                  Travel Time Estimation
-                                </p>
-                              </div>
-                              <div className="flex justify-around text-center">
-                                <div>
-                                  <div className="text-xs text-gray-600">
-                                    Est. Travel Time
-                                  </div>
-                                  <div className="text-lg font-semibold text-gray-900">
-                                    {formatDuration(routeDuration)}
-                                  </div>
+                      {/* Content */}
+                      <div className="flex-1 p-4 md:p-5 space-y-4 overflow-y-auto pb-safe">
+                        {/* Statistics Box */}
+                        {routeDuration !== null && (
+                          <div className="bg-red-50 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Timer
+                                size={24}
+                                weight="bold"
+                                className="text-red-600"
+                              />
+                              <p className="font-semibold text-gray-900">
+                                Travel Time Estimation
+                              </p>
+                            </div>
+                            <div className="flex justify-around text-center">
+                              <div>
+                                <div className="text-xs text-gray-600">
+                                  Est. Travel Time
                                 </div>
-                                <div className="border-l border-gray-300"></div>
-                                <div>
-                                  <div className="text-xs text-gray-600">
-                                    Est. Arrival Time
-                                  </div>
-                                  <div className="text-lg font-semibold text-gray-900">
-                                    {calculateETA(routeDuration)}
-                                  </div>
+                                <div className="text-lg font-semibold text-gray-900">
+                                  {formatDuration(routeDuration)}
+                                </div>
+                              </div>
+                              <div className="border-l border-gray-300"></div>
+                              <div>
+                                <div className="text-xs text-gray-600">
+                                  Est. Arrival Time
+                                </div>
+                                <div className="text-lg font-semibold text-gray-900">
+                                  {calculateETA(routeDuration)}
                                 </div>
                               </div>
                             </div>
-                          )}
+                          </div>
+                        )}
 
-                          {/* Pin Buttons */}
-                          <div className="flex gap-2">
-                            <button
+                        {/* Pin Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setPickingMode("start");
+                              createDraggablePin("start");
+                              setIsRoutingPanelOpen(false);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+                              pickingMode === "start"
+                                ? "bg-red-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            <Crosshair size={20} weight="bold" />
+                            Set Start
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPickingMode("end");
+                              createDraggablePin("end");
+                              setIsRoutingPanelOpen(false);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+                              pickingMode === "end"
+                                ? "bg-red-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            <MapPin size={20} weight="bold" />
+                            Set End
+                          </button>
+                        </div>
+
+                        {/* Start Point Section */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                            <Crosshair size={16} className="text-gray-500" />
+                            Start Point
+                          </label>
+                          <div className="relative">
+                            <div
                               onClick={() => {
                                 setPickingMode("start");
                                 createDraggablePin("start");
                                 setIsRoutingPanelOpen(false);
                               }}
-                              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+                              className={`w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-900 cursor-pointer select-none transition-all ${
                                 pickingMode === "start"
-                                  ? "bg-red-600 text-white"
-                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  ? "ring-2 border-red-500 ring-red-500"
+                                  : "border-gray-200 hover:border-gray-300"
                               }`}
                             >
-                              <Crosshair size={20} weight="bold" />
-                              Set Start
-                            </button>
-                            <button
+                              {startAddress || "Click to pick on map"}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Latitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={startPoint?.lat ?? ""}
+                                onChange={(e) => {
+                                  const lat = parseFloat(e.target.value);
+                                  if (!isNaN(lat) && startPoint) {
+                                    setStartPoint({ ...startPoint, lat });
+                                  } else if (!isNaN(lat)) {
+                                    setStartPoint({ lat, lng: 0 });
+                                  }
+                                }}
+                                placeholder="14.5995"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Longitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={startPoint?.lng ?? ""}
+                                onChange={(e) => {
+                                  const lng = parseFloat(e.target.value);
+                                  if (!isNaN(lng) && startPoint) {
+                                    setStartPoint({ ...startPoint, lng });
+                                  } else if (!isNaN(lng)) {
+                                    setStartPoint({ lat: 0, lng });
+                                  }
+                                }}
+                                placeholder="120.9842"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* End Point Section */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                            <MapPin size={16} className="text-gray-500" />
+                            End Point
+                          </label>
+                          <div className="relative">
+                            <div
                               onClick={() => {
                                 setPickingMode("end");
                                 createDraggablePin("end");
                                 setIsRoutingPanelOpen(false);
                               }}
-                              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+                              className={`w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-900 cursor-pointer select-none transition-all ${
                                 pickingMode === "end"
-                                  ? "bg-red-600 text-white"
-                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  ? "ring-2 border-red-500 ring-red-500"
+                                  : "border-gray-200 hover:border-gray-300"
                               }`}
                             >
-                              <MapPin size={20} weight="bold" />
-                              Set End
-                            </button>
+                              {endAddress || "Click to pick on map"}
+                            </div>
                           </div>
-
-                          {/* Start Point Section */}
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                              <Crosshair size={16} className="text-gray-500" />
-                              Start Point
-                            </label>
-                            <div className="relative">
-                              <div
-                                onClick={() => {
-                                  setPickingMode("start");
-                                  createDraggablePin("start");
-                                  setIsRoutingPanelOpen(false);
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Latitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={endPoint?.lat ?? ""}
+                                onChange={(e) => {
+                                  const lat = parseFloat(e.target.value);
+                                  if (!isNaN(lat) && endPoint) {
+                                    setEndPoint({ ...endPoint, lat });
+                                  } else if (!isNaN(lat)) {
+                                    setEndPoint({ lat, lng: 0 });
+                                  }
                                 }}
-                                className={`w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-900 cursor-pointer select-none transition-all ${
-                                  pickingMode === "start"
-                                    ? "ring-2 border-red-500 ring-red-500"
-                                    : "border-gray-200 hover:border-gray-300"
-                                }`}
-                              >
-                                {startAddress || "Click to pick on map"}
-                              </div>
+                                placeholder="14.5995"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs text-gray-600">
-                                  Latitude
-                                </label>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  value={startPoint?.lat ?? ""}
-                                  onChange={(e) => {
-                                    const lat = parseFloat(e.target.value);
-                                    if (!isNaN(lat) && startPoint) {
-                                      setStartPoint({ ...startPoint, lat });
-                                    } else if (!isNaN(lat)) {
-                                      setStartPoint({ lat, lng: 0 });
-                                    }
-                                  }}
-                                  placeholder="14.5995"
-                                  className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs text-gray-600">
-                                  Longitude
-                                </label>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  value={startPoint?.lng ?? ""}
-                                  onChange={(e) => {
-                                    const lng = parseFloat(e.target.value);
-                                    if (!isNaN(lng) && startPoint) {
-                                      setStartPoint({ ...startPoint, lng });
-                                    } else if (!isNaN(lng)) {
-                                      setStartPoint({ lat: 0, lng });
-                                    }
-                                  }}
-                                  placeholder="120.9842"
-                                  className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* End Point Section */}
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                              <MapPin size={16} className="text-gray-500" />
-                              End Point
-                            </label>
-                            <div className="relative">
-                              <div
-                                onClick={() => {
-                                  setPickingMode("end");
-                                  createDraggablePin("end");
-                                  setIsRoutingPanelOpen(false);
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Longitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={endPoint?.lng ?? ""}
+                                onChange={(e) => {
+                                  const lng = parseFloat(e.target.value);
+                                  if (!isNaN(lng) && endPoint) {
+                                    setEndPoint({ ...endPoint, lng });
+                                  } else if (!isNaN(lng)) {
+                                    setEndPoint({ lat: 0, lng });
+                                  }
                                 }}
-                                className={`w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-900 cursor-pointer select-none transition-all ${
-                                  pickingMode === "end"
-                                    ? "ring-2 border-red-500 ring-red-500"
-                                    : "border-gray-200 hover:border-gray-300"
-                                }`}
-                              >
-                                {endAddress || "Click to pick on map"}
-                              </div>
+                                placeholder="120.9842"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs text-gray-600">
-                                  Latitude
-                                </label>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  value={endPoint?.lat ?? ""}
-                                  onChange={(e) => {
-                                    const lat = parseFloat(e.target.value);
-                                    if (!isNaN(lat) && endPoint) {
-                                      setEndPoint({ ...endPoint, lat });
-                                    } else if (!isNaN(lat)) {
-                                      setEndPoint({ lat, lng: 0 });
-                                    }
-                                  }}
-                                  placeholder="14.5995"
-                                  className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs text-gray-600">
-                                  Longitude
-                                </label>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  value={endPoint?.lng ?? ""}
-                                  onChange={(e) => {
-                                    const lng = parseFloat(e.target.value);
-                                    if (!isNaN(lng) && endPoint) {
-                                      setEndPoint({ ...endPoint, lng });
-                                    } else if (!isNaN(lng)) {
-                                      setEndPoint({ lat: 0, lng });
-                                    }
-                                  }}
-                                  placeholder="120.9842"
-                                  className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Transport Mode */}
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                              <Car size={18} className="text-gray-400" />
-                            </div>
-                            <select
-                              value={selectedTransportMode}
-                              onChange={(e) =>
-                                setSelectedTransportMode(e.target.value)
-                              }
-                              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-3 pl-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 appearance-none cursor-pointer"
-                            >
-                              <option value="driving-car">Car</option>
-                              <option value="cycling-regular">Bicycle</option>
-                              <option value="foot-walking">Walking</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                              <svg
-                                className="w-4 h-4 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 9l-7 7-7-7"
-                                />
-                              </svg>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="grid grid-cols-2 gap-3 pt-2">
-                            <button
-                              onClick={clearRoute}
-                              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 text-sm font-medium rounded-lg transition-colors"
-                            >
-                              Clear
-                            </button>
-                            <button
-                              onClick={handleGetRoute}
-                              disabled={isFetchingRoute}
-                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isFetchingRoute ? "Routing..." : "Get Route"}
-                            </button>
                           </div>
                         </div>
+
+                        {/* Transport Mode */}
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Car size={18} className="text-gray-400" />
+                          </div>
+                          <select
+                            value={selectedTransportMode}
+                            onChange={(e) =>
+                              setSelectedTransportMode(e.target.value)
+                            }
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-3 pl-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 appearance-none cursor-pointer"
+                          >
+                            <option value="driving-car">Car</option>
+                            <option value="cycling-regular">Bicycle</option>
+                            <option value="foot-walking">Walking</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                            <svg
+                              className="w-4 h-4 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <button
+                            onClick={clearRoute}
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={handleGetRoute}
+                            disabled={isFetchingRoute}
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isFetchingRoute ? "Routing..." : "Get Route"}
+                          </button>
+                        </div>
                       </div>
-                    </Dialog.Panel>
-                  </Transition.Child>
-                </div>
+                    </div>
+                  </Dialog.Panel>
+                </Transition.Child>
               </div>
             </div>
           </Dialog>
@@ -2400,16 +2398,6 @@ export default function MapLibre3D({
             title="Zoom Out"
           >
             <Minus size={20} weight="bold" className="text-gray-600" />
-          </button>
-          <button
-            onClick={() => setIsRoutingPanelOpen((o) => !o)}
-            aria-label="Toggle Route Planning"
-            title="Route Planning"
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl ${
-              isRoutingPanelOpen ? "bg-red-100 text-red-700" : "text-gray-600"
-            }`}
-          >
-            <Signpost size={20} weight="bold" />
           </button>
           {/* --- MY LOCATION BUTTON --- */}
           <button
@@ -2456,7 +2444,7 @@ export default function MapLibre3D({
 
       {/* Current Location Coordinates Display */}
       {showLocationCoords && userLocation && (
-        <div className="absolute bottom-28 left-5 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-3 md:p-4 pointer-events-auto border border-white/20 max-w-xs">
+        <div className="absolute bottom-28 left-4 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-3 md:p-4 pointer-events-auto border border-white/20 max-w-xs">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
@@ -2495,9 +2483,21 @@ export default function MapLibre3D({
         </div>
       )}
 
+      {/* Route Planning Button - Bottom Right */}
+      <button
+        onClick={() => setIsRoutingPanelOpen((o) => !o)}
+        aria-label="Route Planning"
+        title="Route Planning"
+        className={`absolute bottom-4 right-4 z-[100] bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full p-4 md:p-5 transition-all duration-200 pointer-events-auto border border-white/20 hover:scale-110 active:scale-95 hover:shadow-2xl ${
+          isRoutingPanelOpen ? "bg-red-100 ring-2 ring-red-500" : ""
+        }`}
+      >
+        <Signpost size={24} weight="bold" className={isRoutingPanelOpen ? "text-red-600" : "text-gray-700"} />
+      </button>
+
       {/* Legend - Bottom Right */}
       <div
-        className={`absolute bottom-4 right-4 z-[100] w-[calc(100vw-32px)] max-w-xs md:w-80 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20 ${
+        className={`absolute bottom-20 right-4 z-[100] w-[calc(100vw-32px)] max-w-xs md:w-80 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20 ${
           isLegendVisible ? "" : "hidden"
         }`}
       >
