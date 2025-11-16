@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import ClientOnly from "@/components/clientOnly";
 import MapLibre3D from "@/components/mapModule";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { db } from "@/utils/firebase";
 import { collection, getDocs } from "firebase/firestore";
 
 export default function Hazards() {
+  const { userRole } = useAuth();
   const [selectedRisk, setSelectedRisk] = useState("flooding");
   const [riskData, setRiskData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -310,7 +312,7 @@ export default function Hazards() {
             onHazardChange={setSelectedRisk}
             userLocation={userLocation}
             onGetCurrentLocation={handleGetCurrentLocation}
-            mode="user"
+            mode={userRole || "user"}
             uniqueID="PH063043000"
           />
         </ClientOnly>

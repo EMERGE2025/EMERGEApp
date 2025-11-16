@@ -148,7 +148,10 @@ export default function ResponderProfilePage() {
           setEditedProfile(profileData);
         } else {
           console.error("❌ Current user not found in responderList");
-          console.log("Available UIDs:", responderList.map((r: any) => r.uid));
+          console.log(
+            "Available UIDs:",
+            responderList.map((r: any) => r.uid)
+          );
         }
 
         setLoading(false);
@@ -316,7 +319,7 @@ export default function ResponderProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 text-black">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">

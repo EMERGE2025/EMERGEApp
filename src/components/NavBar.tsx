@@ -85,19 +85,34 @@ export default function NavBar() {
           <>
             <div className="relative dropdown hidden md:block">
               <button
-                className="flex items-center bg-[#B92727] text-white rounded-xl px-3 lg:px-4 py-2 font-bold gap-2"
+                className="flex items-center bg-[#B92727] text-white rounded-xl px-3 lg:px-4 py-2 font-bold gap-2 lg:gap-3"
                 onClick={() => setProfileOpen(!profileOpen)}
               >
-                <div className="flex flex-col items-end mr-2">
-                  <span className="text-sm">
+                <div className="flex flex-col items-end min-w-0">
+                  <span className="text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px] lg:max-w-[150px]">
                     {user.displayName || user.email?.split("@")[0]}
                   </span>
-                  <span className="text-xs font-normal opacity-85 -mt-1">
+                  <span className="text-xs font-normal opacity-85 -mt-1 whitespace-nowrap">
                     {roleName}
                   </span>
                 </div>
-                <div className="w-full rounded-full overflow-hidden flex">
-                  <UserCircleDashedIcon width={40} height={40} />
+                <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden flex items-center justify-center bg-white/20 flex-shrink-0">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || "Profile"}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
+                  <UserCircleDashedIcon
+                    size={24}
+                    weight="bold"
+                    className={`text-white ${user.photoURL ? "hidden" : ""}`}
+                  />
                 </div>
               </button>
               {profileOpen && (

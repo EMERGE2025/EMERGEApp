@@ -47,6 +47,7 @@ import {
   GeoPoint,
   writeBatch,
 } from "firebase/firestore";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- Types ---
 export type MarkerData = {
@@ -85,6 +86,11 @@ type Person = {
   email: string;
   role: "responder" | "admin";
   profilePictureUrl?: string; // Profile picture URL
+  skills?: {
+    hard?: string[]; // Array of hard skills
+    soft?: string[]; // Array of soft skills
+  };
+  personality?: string; // Personality type or description
 };
 // This type is no longer used
 type ResponsePoint = {
@@ -297,51 +303,124 @@ function ResponderSidebar({
     list: Person[];
     modeAction: "remove" | "add" | "user"; // "user" mode is read-only
   }) => {
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2">
         {list.map((p) => (
-          <div
-            key={p.id}
-            className="pr-1 bg-zinc-900/10 rounded-[40px] flex items-center gap-2 px-2 py-1"
-          >
-            {/* Profile picture or placeholder avatar */}
-            {p.profilePictureUrl ? (
-              <img
-                src={p.profilePictureUrl}
-                alt={p.name}
-                className="w-5 h-5 rounded-full object-cover"
-                onError={(e) => {
-                  // Fallback to placeholder if image fails to load
-                  e.currentTarget.style.display = "none";
-                  e.currentTarget.nextElementSibling?.classList.remove(
-                    "hidden"
-                  );
-                }}
-              />
-            ) : null}
+          <div key={p.id} className="flex flex-col gap-2">
             <div
-              className={`w-5 h-5 bg-zinc-700 rounded-full flex items-center justify-center ${
-                p.profilePictureUrl ? "hidden" : ""
-              }`}
+              className="pr-1 bg-zinc-900/10 rounded-lg flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-zinc-900/15 transition-colors"
+              onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
             >
-              <User size={12} className="text-white" />
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="opacity-90 text-[12px] text-[#111827]">
-                {p.name}
+              {/* Profile picture or placeholder avatar */}
+              {p.profilePictureUrl ? (
+                <img
+                  src={p.profilePictureUrl}
+                  alt={p.name}
+                  className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling?.classList.remove(
+                      "hidden"
+                    );
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-6 h-6 bg-zinc-700 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  p.profilePictureUrl ? "hidden" : ""
+                }`}
+              >
+                <User size={14} className="text-white" />
               </div>
-              {/* Only show button if admin */}
-              {mode === "admin" && (
-                <button
-                  onClick={() =>
-                    handleAction(p.id, modeAction as "add" | "remove")
-                  }
-                  className="w-3.5 h-3.5 inline-flex items-center justify-center rounded-[30px] text-[10px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition"
-                >
-                  {modeAction === "remove" ? "×" : "+"}
-                </button>
-              )}
+              <div className="flex-1 flex items-center justify-between gap-2">
+                <div className="opacity-90 text-[13px] font-medium text-[#111827]">
+                  {p.name}
+                </div>
+                <div className="flex items-center gap-1">
+                  {/* Expand/Collapse indicator */}
+                  <div className="text-[10px] text-zinc-500">
+                    {expandedId === p.id ? "▼" : "▶"}
+                  </div>
+                  {/* Only show button if admin */}
+                  {mode === "admin" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAction(p.id, modeAction as "add" | "remove");
+                      }}
+                      className="w-4 h-4 inline-flex items-center justify-center rounded-full text-[11px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition"
+                    >
+                      {modeAction === "remove" ? "×" : "+"}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {/* Expanded details */}
+            {expandedId === p.id && (
+              <div className="ml-9 mr-2 p-3 bg-white rounded-lg border border-zinc-200 space-y-2.5">
+                {/* Personality */}
+                {p.personality && (
+                  <div>
+                    <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+                      Personality
+                    </div>
+                    <div className="text-[12px] text-zinc-800 font-medium">
+                      {p.personality}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hard Skills */}
+                {p.skills?.hard && p.skills.hard.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">
+                      Hard Skills
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.skills.hard.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[11px] font-medium rounded-full"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Soft Skills */}
+                {p.skills?.soft && p.skills.soft.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">
+                      Soft Skills
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.skills.soft.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 bg-green-100 text-green-700 text-[11px] font-medium rounded-full"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show message if no data */}
+                {!p.personality && (!p.skills?.hard || p.skills.hard.length === 0) && (!p.skills?.soft || p.skills.soft.length === 0) && (
+                  <div className="text-[11px] text-zinc-400 italic text-center py-2">
+                    No additional information available
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -507,9 +586,12 @@ export default function MapLibre3D({
   onHazardChange: (hazard: string) => void;
   userLocation: { lng: number; lat: number } | null;
   onGetCurrentLocation: () => void;
-  mode?: "user" | "admin"; // --- NEW PROP ---
+  mode?: "user" | "admin" | "responder"; // --- NEW PROP ---
   uniqueID: string; // --- NEW PROP ---
 }) {
+  // --- AUTH CONTEXT ---
+  const { user } = useAuth();
+
   const mapRef = useRef<maplibregl.Map | null>(null);
   const currentPopupRef = useRef<maplibregl.Popup | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([]);
@@ -553,6 +635,18 @@ export default function MapLibre3D({
 
   // --- CURRENT LOCATION DISPLAY STATE ---
   const [showLocationCoords, setShowLocationCoords] = useState(false);
+
+  // --- BLOCKAGE STATE ---
+  type Blockage = {
+    id: string;
+    name: string;
+    coordinates: string; // Store as JSON string to avoid nested arrays in Firestore
+    createdBy: string;
+    createdAt: number;
+  };
+  const [blockages, setBlockages] = useState<Blockage[]>([]);
+  const [isDrawingBlockage, setIsDrawingBlockage] = useState(false);
+  const [drawingPoints, setDrawingPoints] = useState<number[][]>([]);
 
   // --- UPDATED RESPONDER STATE ---
   const [isResponderSidebarOpen, setIsResponderSidebarOpen] = useState(false);
@@ -836,7 +930,7 @@ export default function MapLibre3D({
     }
   };
 
-  // ... (routing functions unchanged: fetchRoute, handleGetRoute, clearRoute, createDraggablePin) ...
+  // ... (routing functions: fetchRoute, handleGetRoute, clearRoute, createDraggablePin) ...
   const fetchRoute = async (
     start: { lng: number; lat: number },
     end: { lng: number; lat: number },
@@ -846,7 +940,37 @@ export default function MapLibre3D({
     setRouteGeoJSON(null);
     setRouteDuration(null);
     const url = "/api/route";
-    const body = JSON.stringify({ start, end, mode });
+
+    // Convert blockages to avoid_polygons format for OpenRouteService
+    // OpenRouteService expects a GeoJSON Polygon or MultiPolygon
+    let avoidPolygons = undefined;
+    if (blockages.length > 0) {
+      console.log("Processing blockages for routing:", blockages);
+
+      if (blockages.length === 1) {
+        // Single polygon
+        const coords = JSON.parse(blockages[0].coordinates);
+        avoidPolygons = {
+          type: "Polygon" as const,
+          coordinates: coords
+        };
+      } else {
+        // Multiple polygons - use MultiPolygon
+        avoidPolygons = {
+          type: "MultiPolygon" as const,
+          coordinates: blockages.map(b => JSON.parse(b.coordinates))
+        };
+      }
+
+      console.log("Avoid polygons for routing:", JSON.stringify(avoidPolygons, null, 2));
+    }
+
+    const body = JSON.stringify({
+      start,
+      end,
+      mode,
+      avoid_polygons: avoidPolygons
+    });
 
     try {
       const response = await fetch(url, {
@@ -1064,6 +1188,8 @@ export default function MapLibre3D({
               email: r.email,
               role: r.role,
               profilePictureUrl: r.profilePictureUrl, // Include profile picture
+              skills: r.skills, // Include skills object with hard and soft arrays
+              personality: r.personality, // Include personality
             }));
 
             setAllResponders(responders);
@@ -1091,6 +1217,98 @@ export default function MapLibre3D({
       );
     }
   }, [mode, uniqueID]); // Re-run if mode or uniqueID changes
+
+  // --- FETCH BLOCKAGES FROM FIREBASE ---
+  useEffect(() => {
+    if (!uniqueID) {
+      console.log("⏭️ Skipping blockage fetch - no uniqueID");
+      return;
+    }
+
+    const blockageDocRef = doc(db, uniqueID, "blockage");
+    const unsubscribe = onSnapshot(
+      blockageDocRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const blockageList = data?.blockages || [];
+          setBlockages(blockageList);
+          console.log(`🚧 Fetched ${blockageList.length} blockages:`, blockageList);
+        } else {
+          console.log("📝 No blockage document found");
+          setBlockages([]);
+        }
+      },
+      (error) => {
+        console.error("❌ Error fetching blockages:", error);
+        setBlockages([]);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [uniqueID]);
+
+  // --- BLOCKAGE MANAGEMENT FUNCTIONS ---
+  const addBlockage = async (name: string, coordinates: number[][][]) => {
+    if (!uniqueID || !user) {
+      console.error("❌ Cannot add blockage: missing uniqueID or user");
+      return;
+    }
+
+    // Convert coordinates to JSON string to avoid nested arrays in Firestore
+    const newBlockage: Blockage = {
+      id: `blockage_${Date.now()}`,
+      name,
+      coordinates: JSON.stringify(coordinates),
+      createdBy: user.uid,
+      createdAt: Date.now(),
+    };
+
+    const blockageDocRef = doc(db, uniqueID, "blockage");
+
+    try {
+      const docSnap = await getDoc(blockageDocRef);
+
+      if (docSnap.exists()) {
+        // Document exists, update it
+        const existingBlockages = docSnap.data()?.blockages || [];
+        await updateDoc(blockageDocRef, {
+          blockages: [...existingBlockages, newBlockage],
+        });
+        console.log("✅ Blockage added successfully");
+      } else {
+        // Document doesn't exist, create it
+        await setDoc(blockageDocRef, {
+          blockages: [newBlockage],
+        });
+        console.log("✅ Blockage document created with first blockage");
+      }
+    } catch (err) {
+      console.error("❌ Error adding blockage:", err);
+      alert(`Error adding blockage: ${err}`);
+    }
+  };
+
+  const removeBlockage = async (blockageId: string) => {
+    if (!uniqueID) return;
+
+    const blockageDocRef = doc(db, uniqueID, "blockage");
+
+    try {
+      const docSnap = await getDoc(blockageDocRef);
+      if (docSnap.exists()) {
+        const existingBlockages = docSnap.data()?.blockages || [];
+        const updatedBlockages = existingBlockages.filter((b: Blockage) => b.id !== blockageId);
+
+        await updateDoc(blockageDocRef, {
+          blockages: updatedBlockages,
+        });
+        console.log("✅ Blockage removed successfully");
+      }
+    } catch (error) {
+      console.error("❌ Error removing blockage:", error);
+    }
+  };
 
   // Handle boundary loading separately
   useEffect(() => {
@@ -1253,6 +1471,352 @@ export default function MapLibre3D({
       );
     }
   }, [routeGeoJSON]);
+
+  // --- BLOCKAGE DRAWING HANDLER ---
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+    const map = mapRef.current;
+
+    const handleMapClick = (e: maplibregl.MapMouseEvent) => {
+      if (!isDrawingBlockage) return;
+
+      try {
+        const { lng, lat } = e.lngLat;
+        console.log("✏️ Drawing point:", { lng, lat, currentPoints: drawingPoints.length });
+
+        const newPoints = [...drawingPoints, [lng, lat]];
+        setDrawingPoints(newPoints);
+
+        console.log("✅ Point added successfully. Total points:", newPoints.length);
+      } catch (error) {
+        console.error("❌ Error in handleMapClick:", error);
+      }
+    };
+
+    const handleKeyPress = async (e: KeyboardEvent) => {
+      if (!isDrawingBlockage) return;
+
+      if (e.key === "Enter" && drawingPoints.length >= 3) {
+        // Complete the polygon
+        const blockageName = prompt("Enter blockage name:") || "Unnamed Blockage";
+
+        // Close the polygon by adding first point at the end
+        const closedCoordinates = [...drawingPoints, drawingPoints[0]];
+
+        // Create polygon coordinates in GeoJSON format
+        const polygonCoordinates = [closedCoordinates];
+
+        console.log("Saving blockage:", { name: blockageName, coordinates: polygonCoordinates });
+        await addBlockage(blockageName, polygonCoordinates);
+
+        // Clean up
+        setIsDrawingBlockage(false);
+        setDrawingPoints([]);
+
+        alert("Blockage added successfully!");
+      } else if (e.key === "Escape") {
+        // Cancel drawing
+        console.log("Canceling blockage drawing");
+        setIsDrawingBlockage(false);
+        setDrawingPoints([]);
+
+        alert("Blockage drawing cancelled");
+      }
+    };
+
+    if (isDrawingBlockage) {
+      console.log("🎨 Drawing mode activated - attaching click handler");
+      console.log("Map object exists:", !!map);
+      console.log("Map loaded:", isMapLoaded);
+
+      // Add the click handler
+      map.on("click", handleMapClick);
+      window.addEventListener("keydown", handleKeyPress);
+
+      // Change cursor to crosshair when drawing
+      if (map.getCanvas()) {
+        map.getCanvas().style.cursor = "crosshair";
+        console.log("✅ Cursor changed to crosshair, ready to draw!");
+      }
+
+      // Test if clicks are being captured
+      const testHandler = (e: any) => {
+        console.log("🖱️ MAP CLICKED! Position:", e.lngLat);
+      };
+      map.on("click", testHandler);
+
+      return () => {
+        console.log("🧹 Cleaning up drawing handlers");
+        map.off("click", handleMapClick);
+        map.off("click", testHandler);
+        window.removeEventListener("keydown", handleKeyPress);
+        if (map.getCanvas()) {
+          map.getCanvas().style.cursor = "";
+        }
+      };
+    } else {
+      return () => {
+        map.off("click", handleMapClick);
+        window.removeEventListener("keydown", handleKeyPress);
+        if (map.getCanvas()) {
+          map.getCanvas().style.cursor = "";
+        }
+      };
+    }
+  }, [isDrawingBlockage, drawingPoints, addBlockage, isMapLoaded]);
+
+  // --- DISPLAY DRAWING PREVIEW ---
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded || !isDrawingBlockage) return;
+    const map = mapRef.current;
+
+    const drawingSourceId = "drawing-preview-source";
+    const drawingPointsLayerId = "drawing-preview-points";
+    const drawingLineLayerId = "drawing-preview-line";
+    const drawingPolygonLayerId = "drawing-preview-polygon";
+
+    try {
+      // Remove existing preview layers
+      if (map.getLayer(drawingPolygonLayerId)) map.removeLayer(drawingPolygonLayerId);
+      if (map.getLayer(drawingLineLayerId)) map.removeLayer(drawingLineLayerId);
+      if (map.getLayer(drawingPointsLayerId)) map.removeLayer(drawingPointsLayerId);
+      if (map.getSource(drawingSourceId)) map.removeSource(drawingSourceId);
+
+      if (drawingPoints.length === 0) return;
+
+      // Create GeoJSON with points and lines
+      const features: GeoJSON.Feature[] = [];
+
+      // Add point markers
+      drawingPoints.forEach((point, index) => {
+        features.push({
+          type: "Feature",
+          properties: { index },
+          geometry: {
+            type: "Point",
+            coordinates: point,
+          },
+        });
+      });
+
+      // Add line if we have at least 2 points
+      if (drawingPoints.length >= 2) {
+        features.push({
+          type: "Feature",
+          properties: { type: "line" },
+          geometry: {
+            type: "LineString",
+            coordinates: drawingPoints,
+          },
+        });
+      }
+
+      // Add polygon preview if we have at least 3 points
+      if (drawingPoints.length >= 3) {
+        const closedCoords = [...drawingPoints, drawingPoints[0]];
+        features.push({
+          type: "Feature",
+          properties: { type: "polygon" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [closedCoords],
+          },
+        });
+      }
+
+      const geoJSON: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: features,
+      };
+
+      // Add source
+      map.addSource(drawingSourceId, {
+        type: "geojson",
+        data: geoJSON,
+      });
+
+      // Add polygon fill layer (if 3+ points)
+      if (drawingPoints.length >= 3) {
+        map.addLayer({
+          id: drawingPolygonLayerId,
+          type: "fill",
+          source: drawingSourceId,
+          filter: ["==", ["get", "type"], "polygon"],
+          paint: {
+            "fill-color": "#ff6600",
+            "fill-opacity": 0.2,
+          },
+        });
+      }
+
+      // Add line layer (if 2+ points)
+      if (drawingPoints.length >= 2) {
+        map.addLayer({
+          id: drawingLineLayerId,
+          type: "line",
+          source: drawingSourceId,
+          filter: ["==", ["get", "type"], "line"],
+          paint: {
+            "line-color": "#ff6600",
+            "line-width": 2,
+            "line-dasharray": [2, 2],
+          },
+        });
+      }
+
+      // Add point markers layer
+      map.addLayer({
+        id: drawingPointsLayerId,
+        type: "circle",
+        source: drawingSourceId,
+        filter: ["has", "index"],
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "#ff6600",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      });
+
+      console.log("✏️ Drawing preview updated:", drawingPoints.length, "points");
+    } catch (error) {
+      console.error("❌ Error updating drawing preview:", error);
+    }
+
+    return () => {
+      try {
+        if (map.getLayer(drawingPolygonLayerId)) map.removeLayer(drawingPolygonLayerId);
+        if (map.getLayer(drawingLineLayerId)) map.removeLayer(drawingLineLayerId);
+        if (map.getLayer(drawingPointsLayerId)) map.removeLayer(drawingPointsLayerId);
+        if (map.getSource(drawingSourceId)) map.removeSource(drawingSourceId);
+      } catch (error) {
+        console.error("Error cleaning up drawing preview:", error);
+      }
+    };
+  }, [drawingPoints, isDrawingBlockage, isMapLoaded]);
+
+  // --- DISPLAY BLOCKAGES ON MAP ---
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+    const map = mapRef.current;
+
+    const blockageSourceId = "blockages-source";
+    const blockageLayerId = "blockages-layer";
+    const blockageOutlineLayerId = "blockages-outline-layer";
+
+    try {
+      // Remove existing layers and source
+      if (map.getLayer(blockageOutlineLayerId)) {
+        map.removeLayer(blockageOutlineLayerId);
+      }
+      if (map.getLayer(blockageLayerId)) {
+        map.removeLayer(blockageLayerId);
+      }
+      if (map.getSource(blockageSourceId)) {
+        map.removeSource(blockageSourceId);
+      }
+
+      if (blockages.length === 0) {
+        console.log("No blockages to display");
+        return;
+      }
+
+      console.log("🗺️ Displaying blockages:", blockages);
+
+      // Create GeoJSON from blockages
+      const blockageGeoJSON: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: blockages.map((blockage) => {
+          try {
+            console.log("📍 Processing blockage:", blockage.name, "ID:", blockage.id);
+            console.log("📍 Raw coordinates string:", blockage.coordinates);
+
+            const coordinates = JSON.parse(blockage.coordinates);
+            console.log("📍 Parsed coordinates:", coordinates);
+
+            const feature = {
+              type: "Feature" as const,
+              properties: {
+                id: blockage.id,
+                name: blockage.name,
+              },
+              geometry: {
+                type: "Polygon" as const,
+                coordinates: coordinates,
+              },
+            };
+
+            console.log("✅ Created feature:", feature);
+            return feature;
+          } catch (error) {
+            console.error("❌ Error parsing blockage coordinates:", error, blockage);
+            return null;
+          }
+        }).filter(Boolean) as GeoJSON.Feature[],
+      };
+
+      console.log("🎨 Final GeoJSON:", JSON.stringify(blockageGeoJSON, null, 2));
+
+      if (blockageGeoJSON.features.length === 0) {
+        console.warn("⚠️ No valid blockage features to display");
+        return;
+      }
+
+      // Add source
+      map.addSource(blockageSourceId, {
+        type: "geojson",
+        data: blockageGeoJSON,
+      });
+
+      // Add fill layer
+      map.addLayer({
+        id: blockageLayerId,
+        type: "fill",
+        source: blockageSourceId,
+        paint: {
+          "fill-color": "#ff6600",
+          "fill-opacity": 0.3,
+        },
+      });
+
+      // Add outline layer
+      map.addLayer({
+        id: blockageOutlineLayerId,
+        type: "line",
+        source: blockageSourceId,
+        paint: {
+          "line-color": "#ff6600",
+          "line-width": 2,
+          "line-dasharray": [2, 2],
+        },
+      });
+
+      // Add click handler to show blockage info
+      map.on("click", blockageLayerId, (e) => {
+        if (!e.features || e.features.length === 0) return;
+        const feature = e.features[0];
+        const name = feature.properties?.name || "Unknown";
+
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`<strong>Blockage:</strong> ${name}`)
+          .addTo(map);
+      });
+
+      // Change cursor on hover
+      map.on("mouseenter", blockageLayerId, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+
+      map.on("mouseleave", blockageLayerId, () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      console.log("✅ Blockages displayed successfully");
+    } catch (error) {
+      console.error("❌ Error displaying blockages on map:", error);
+    }
+  }, [blockages, isMapLoaded]);
 
   // --- REMOVED: syncAllResponderLocations function ---
   // --- REMOVED: useEffect for Admin Sync ---
@@ -1537,6 +2101,9 @@ export default function MapLibre3D({
     const map = mapRef.current;
 
     const onClusterClick = async (e: maplibregl.MapLayerMouseEvent) => {
+      // Don't handle clicks when in drawing mode
+      if (isDrawingBlockage) return;
+
       const features = map.queryRenderedFeatures(e.point, {
         layers: ["clusters"],
       });
@@ -1573,6 +2140,9 @@ export default function MapLibre3D({
     };
 
     const onRiskClick = (e: maplibregl.MapLayerMouseEvent) => {
+      // Don't handle clicks when in drawing mode
+      if (isDrawingBlockage) return;
+
       const features = map.queryRenderedFeatures(e.point, {
         layers: [`${selectedRisk}-risk`, "unclustered-point"],
       });
@@ -1724,6 +2294,9 @@ export default function MapLibre3D({
     };
 
     const onResponderClick = (e: maplibregl.MapLayerMouseEvent) => {
+      // Don't handle clicks when in drawing mode
+      if (isDrawingBlockage) return;
+
       const features = map.queryRenderedFeatures(e.point, {
         layers: ["responderLocation"],
       });
@@ -1864,7 +2437,7 @@ export default function MapLibre3D({
         () => (map.getCanvas().style.cursor = "")
       );
     };
-  }, [isMapLoaded, selectedRisk, pickingMode, startPin, endPin]); // Dependencies for click handlers
+  }, [isMapLoaded, selectedRisk, pickingMode, startPin, endPin, isDrawingBlockage]); // Dependencies for click handlers
 
   // Handle search location zooming
   useEffect(() => {
@@ -1918,6 +2491,76 @@ export default function MapLibre3D({
       <div className="relative w-full h-[100vh] md:h-[100vh] z-0 rounded-xl shadow-lg">
         {/* Map container */}
         <div id="map" className="w-full h-full" />
+
+        {/* Drawing Mode Indicator */}
+        {isDrawingBlockage && (
+          <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none">
+            <div className="bg-orange-500 text-white px-6 py-3 rounded-lg shadow-lg border-2 border-white animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
+                <div className="text-sm md:text-base font-bold">
+                  🚧 Drawing Blockage Mode
+                </div>
+              </div>
+              <div className="text-xs mt-1 opacity-90">
+                Click on the map to add points (minimum 3 points required)
+              </div>
+              <div className="text-xs mt-1 font-semibold">
+                Points: {drawingPoints.length}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Drawing Action Buttons */}
+        {isDrawingBlockage && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[200] flex gap-3">
+            <button
+              onClick={() => {
+                console.log("Canceling blockage drawing");
+                setIsDrawingBlockage(false);
+                setDrawingPoints([]);
+                alert("Blockage drawing cancelled");
+              }}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg border-2 border-white transition-all active:scale-95"
+            >
+              ✕ Cancel
+            </button>
+            <button
+              onClick={async () => {
+                if (drawingPoints.length < 3) {
+                  alert("Please add at least 3 points to create a blockage area");
+                  return;
+                }
+
+                const blockageName = prompt("Enter blockage name:") || "Unnamed Blockage";
+
+                // Close the polygon by adding first point at the end
+                const closedCoordinates = [...drawingPoints, drawingPoints[0]];
+
+                // Create polygon coordinates in GeoJSON format
+                const polygonCoordinates = [closedCoordinates];
+
+                console.log("Saving blockage:", { name: blockageName, coordinates: polygonCoordinates });
+                await addBlockage(blockageName, polygonCoordinates);
+
+                // Clean up
+                setIsDrawingBlockage(false);
+                setDrawingPoints([]);
+
+                alert("Blockage added successfully!");
+              }}
+              disabled={drawingPoints.length < 3}
+              className={`px-6 py-3 rounded-lg font-semibold shadow-lg border-2 border-white transition-all active:scale-95 ${
+                drawingPoints.length >= 3
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-400 text-gray-200 cursor-not-allowed"
+              }`}
+            >
+              ✓ Save Blockage {drawingPoints.length >= 3 ? "" : `(${3 - drawingPoints.length} more point${3 - drawingPoints.length === 1 ? "" : "s"})`}
+            </button>
+          </div>
+        )}
 
         {/* Scroll button */}
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
@@ -2347,6 +2990,49 @@ export default function MapLibre3D({
                             </svg>
                           </div>
                         </div>
+
+                        {/* Blockages Section - Responders and Admins */}
+                        {(mode === "responder" || mode === "admin") && (
+                          <div className="space-y-2 bg-orange-50 p-3 rounded-lg border border-orange-200">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-gray-800">
+                                🚧 Road Blockages ({blockages.length})
+                              </label>
+                              <button
+                                onClick={() => {
+                                  console.log("Add blockage clicked - mode:", mode);
+                                  setIsDrawingBlockage(true);
+                                  setDrawingPoints([]);
+                                  setIsRoutingPanelOpen(false);
+                                  alert("Click on the map to draw the blockage polygon.\n\nPress Enter when done (min 3 points).\nPress Escape to cancel.");
+                                }}
+                                className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors shadow-sm"
+                              >
+                                + Add Blockage
+                              </button>
+                            </div>
+                            {blockages.length > 0 && (
+                              <div className="max-h-32 overflow-y-auto space-y-1 bg-gray-50 rounded-lg p-2">
+                                {blockages.map((blockage) => (
+                                  <div
+                                    key={blockage.id}
+                                    className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-gray-200"
+                                  >
+                                    <span className="text-xs text-gray-700 truncate flex-1">
+                                      {blockage.name}
+                                    </span>
+                                    <button
+                                      onClick={() => removeBlockage(blockage.id)}
+                                      className="ml-2 text-red-600 hover:text-red-800 text-xs font-bold"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Action Buttons */}
                         <div className="grid grid-cols-2 gap-3 pt-2">
