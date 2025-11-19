@@ -110,6 +110,13 @@ export default function AdminRespondersPage() {
 
   return (
     <div className="relative w-full min-h-screen">
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          main {
+            padding-bottom: 0 !important;
+          }
+        }
+      `}</style>
       {isLoading ? (
         // Show a loading state while data is fetching
         <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-100">

@@ -101,7 +101,7 @@ body {
 }
 
 .maplibregl-popup-content {
-  background: none !important; 
+  background: none !important;
   color: none;
   width: fit-content;
   padding-top: 20rem;
@@ -109,3 +109,17 @@ body {
   border-radius: 10%;
 }
 
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}

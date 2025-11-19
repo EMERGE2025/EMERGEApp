@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { start, end, mode } = body;
+    const { start, end, mode, avoid_polygons } = body;
 
     // Check for missing parameters
     if (!start || !end || !mode) {
@@ -26,12 +26,24 @@ export async function POST(request: Request) {
 
     // This is the external API call, happening on the server
     const orsUrl = `https://api.openrouteservice.org/v2/directions/${mode}/geojson`;
-    const orsBody = JSON.stringify({
+
+    // Build the request body
+    const requestBody: any = {
       coordinates: [
         [start.lng, start.lat],
         [end.lng, end.lat],
       ],
-    });
+    };
+
+    // Add avoid_polygons if provided
+    if (avoid_polygons) {
+      requestBody.options = {
+        avoid_polygons: avoid_polygons,
+      };
+      console.log("Adding avoid_polygons to route request:", avoid_polygons);
+    }
+
+    const orsBody = JSON.stringify(requestBody);
 
     const orsResponse = await fetch(orsUrl, {
       method: "POST",

@@ -47,6 +47,7 @@ import {
   GeoPoint,
   writeBatch,
 } from "firebase/firestore";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- Types ---
 export type MarkerData = {
@@ -85,6 +86,11 @@ type Person = {
   email: string;
   role: "responder" | "admin";
   profilePictureUrl?: string; // Profile picture URL
+  skills?: {
+    hard?: string[]; // Array of hard skills
+    soft?: string[]; // Array of soft skills
+  };
+  personality?: string; // Personality type or description
 };
 // This type is no longer used
 type ResponsePoint = {
@@ -111,7 +117,7 @@ function ResponderSidebar({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  mode: "user" | "admin";
+  mode: "user" | "admin" | "responder";
   pointDocId: string | null;
   pointName: string;
   allResponders: Person[];
@@ -124,12 +130,19 @@ function ResponderSidebar({
 
   useEffect(() => {
     if (!pointDocId || !isOpen || !uniqueID || !selectedRisk) {
-      console.log(`⏭️ [ResponderSidebar] Skipping - pointDocId: ${pointDocId}, isOpen: ${isOpen}, uniqueID: ${uniqueID}, selectedRisk: ${selectedRisk}`);
+      console.log(
+        `⏭️ [ResponderSidebar] Skipping - pointDocId: ${pointDocId}, isOpen: ${isOpen}, uniqueID: ${uniqueID}, selectedRisk: ${selectedRisk}`
+      );
       return;
     }
 
-    console.log(`🔍 [ResponderSidebar] Loading assignments for point: ${pointDocId}`);
-    console.log(`👥 [ResponderSidebar] Total responders available: ${allResponders.length}`, allResponders);
+    console.log(
+      `🔍 [ResponderSidebar] Loading assignments for point: ${pointDocId}`
+    );
+    console.log(
+      `👥 [ResponderSidebar] Total responders available: ${allResponders.length}`,
+      allResponders
+    );
 
     setLoading(true);
 
@@ -145,25 +158,40 @@ function ResponderSidebar({
 
       if (docSnap.exists()) {
         const docData = docSnap.data();
-        console.log(`📦 [ResponderSidebar] Document data for ${documentId}:`, docData);
+        console.log(
+          `📦 [ResponderSidebar] Document data for ${documentId}:`,
+          docData
+        );
 
         // Get the feature object for this specific point (e.g., docData["0"])
         const pointFeature = docData?.[pointDocId];
-        console.log(`📍 [ResponderSidebar] Point feature for ${pointDocId}:`, pointFeature);
+        console.log(
+          `📍 [ResponderSidebar] Point feature for ${pointDocId}:`,
+          pointFeature
+        );
 
         // --- NEW: Collect ALL assigned UIDs across ALL points ---
         const globalAssignedUIDs: string[] = [];
         Object.entries(docData).forEach(([key, value]: [string, any]) => {
-          if (value.type === "Feature" && value.properties?.assignedResponders) {
+          if (
+            value.type === "Feature" &&
+            value.properties?.assignedResponders
+          ) {
             globalAssignedUIDs.push(...value.properties.assignedResponders);
           }
         });
-        console.log(`🌍 [ResponderSidebar] Global assigned UIDs:`, globalAssignedUIDs);
+        console.log(
+          `🌍 [ResponderSidebar] Global assigned UIDs:`,
+          globalAssignedUIDs
+        );
 
         if (pointFeature && pointFeature.properties) {
           // Get the array of UIDs from properties.assignedResponders for THIS point
           const assignedUIDs = pointFeature.properties.assignedResponders || [];
-          console.log(`✅ [ResponderSidebar] Assigned UIDs for this point:`, assignedUIDs);
+          console.log(
+            `✅ [ResponderSidebar] Assigned UIDs for this point:`,
+            assignedUIDs
+          );
 
           // Filter all responders into Assigned or Available lists
           for (const responder of allResponders) {
@@ -177,11 +205,19 @@ function ResponderSidebar({
             // If assigned to another point, don't show in available
           }
 
-          console.log(`👥 [ResponderSidebar] Assigned responders (${newAssigned.length}):`, newAssigned);
-          console.log(`📋 [ResponderSidebar] Available responders (${newAvailable.length}):`, newAvailable);
+          console.log(
+            `👥 [ResponderSidebar] Assigned responders (${newAssigned.length}):`,
+            newAssigned
+          );
+          console.log(
+            `📋 [ResponderSidebar] Available responders (${newAvailable.length}):`,
+            newAvailable
+          );
         } else {
           // Point feature doesn't have properties yet
-          console.warn(`⚠️ [ResponderSidebar] Point ${pointDocId} has no properties in ${documentId}`);
+          console.warn(
+            `⚠️ [ResponderSidebar] Point ${pointDocId} has no properties in ${documentId}`
+          );
           // Show only responders not assigned to ANY point
           for (const responder of allResponders) {
             if (!globalAssignedUIDs.includes(responder.id)) {
@@ -191,7 +227,9 @@ function ResponderSidebar({
         }
       } else {
         // Document doesn't exist yet
-        console.warn(`❌ [ResponderSidebar] Document not found: ${collectionId}/${documentId}`);
+        console.warn(
+          `❌ [ResponderSidebar] Document not found: ${collectionId}/${documentId}`
+        );
         // Show all responders as available
         newAvailable.push(...allResponders);
       }
@@ -265,49 +303,118 @@ function ResponderSidebar({
     list: Person[];
     modeAction: "remove" | "add" | "user"; // "user" mode is read-only
   }) => {
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2">
         {list.map((p) => (
-          <div
-            key={p.id}
-            className="pr-1 bg-zinc-900/10 rounded-[40px] flex items-center gap-2 px-2 py-1"
-          >
-            {/* Profile picture or placeholder avatar */}
-            {p.profilePictureUrl ? (
-              <img
-                src={p.profilePictureUrl}
-                alt={p.name}
-                className="w-5 h-5 rounded-full object-cover"
-                onError={(e) => {
-                  // Fallback to placeholder if image fails to load
-                  e.currentTarget.style.display = "none";
-                  e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                }}
-              />
-            ) : null}
+          <div key={p.id} className="flex flex-col gap-2">
             <div
-              className={`w-5 h-5 bg-zinc-700 rounded-full flex items-center justify-center ${
-                p.profilePictureUrl ? "hidden" : ""
-              }`}
+              className="pr-1 bg-zinc-900/10 rounded-lg flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-zinc-900/15 transition-colors"
+              onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
             >
-              <User size={12} className="text-white" />
+              {/* Profile picture or placeholder avatar */}
+              {p.profilePictureUrl ? (
+                <img
+                  src={p.profilePictureUrl}
+                  alt={p.name}
+                  className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-6 h-6 bg-zinc-700 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  p.profilePictureUrl ? "hidden" : ""
+                }`}
+              >
+                <User size={14} className="text-white" />
+              </div>
+              <div className="flex-1 flex items-center justify-between gap-2">
+                <div className="opacity-90 text-[13px] font-medium text-[#111827]">{p.name}</div>
+                <div className="flex items-center gap-1">
+                  {/* Expand/Collapse indicator */}
+                  <div className="text-[10px] text-zinc-500">{expandedId === p.id ? "▼" : "▶"}</div>
+                  {/* Only show button if admin */}
+                  {mode === "admin" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAction(p.id, modeAction as "add" | "remove");
+                      }}
+                      className="w-4 h-4 inline-flex items-center justify-center rounded-full text-[11px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition"
+                    >
+                      {modeAction === "remove" ? "×" : "+"}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="opacity-90 text-[12px] text-[#111827]">{p.name}</div>
-              {/* Only show button if admin */}
-              {mode === "admin" && (
-                <button
-                  onClick={() => handleAction(p.id, modeAction as "add" | "remove")}
-                  className={`w-4 h-4 grid place-items-center rounded-full text-[10px] leading-none border border-gray-400 text-gray-700 transition-colors ${
-                    modeAction !== "user"
-                      ? "hover:bg-[#E53935] hover:text-white hover:border-[#E53935]"
-                      : ""
-                  }`}
-                >
-                  {modeAction === "remove" ? "×" : "+"}
-                </button>
-              )}
-            </div>
+
+            {/* Expanded details */}
+            {expandedId === p.id && (
+              <div className="ml-9 mr-2 p-3 bg-white rounded-lg border border-zinc-200 space-y-2.5">
+                {/* Personality */}
+                {p.personality && (
+                  <div>
+                    <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+                      Personality
+                    </div>
+                    <div className="text-[12px] text-zinc-800 font-medium">
+                      {p.personality}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hard Skills */}
+                {p.skills?.hard && p.skills.hard.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">
+                      Hard Skills
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.skills.hard.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[11px] font-medium rounded-full"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Soft Skills */}
+                {p.skills?.soft && p.skills.soft.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">
+                      Soft Skills
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.skills.soft.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 bg-green-100 text-green-700 text-[11px] font-medium rounded-full"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show message if no data */}
+                {!p.personality && (!p.skills?.hard || p.skills.hard.length === 0) && (!p.skills?.soft || p.skills.soft.length === 0) && (
+                  <div className="text-[11px] text-zinc-400 italic text-center py-2">
+                    No additional information available
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -464,9 +571,12 @@ export default function MapLibre3D({
   onHazardChange: (hazard: string) => void;
   userLocation: { lng: number; lat: number } | null;
   onGetCurrentLocation: () => void;
-  mode?: "user" | "admin"; // --- NEW PROP ---
+  mode?: "user" | "admin" | "responder"; // --- NEW PROP ---
   uniqueID: string; // --- NEW PROP ---
 }) {
+  // --- AUTH CONTEXT ---
+  const { user } = useAuth();
+
   const mapRef = useRef<maplibregl.Map | null>(null);
   const currentPopupRef = useRef<maplibregl.Popup | null>(null);
   const [activeLayers, setActiveLayers] = useState<string[]>([]);
@@ -508,6 +618,21 @@ export default function MapLibre3D({
     useState<maplibregl.Marker | null>(null);
   const [startPin, setStartPin] = useState<maplibregl.Marker | null>(null);
   const [endPin, setEndPin] = useState<maplibregl.Marker | null>(null);
+
+  // --- CURRENT LOCATION DISPLAY STATE ---
+  const [showLocationCoords, setShowLocationCoords] = useState(false);
+
+  // --- BLOCKAGE STATE ---
+  type Blockage = {
+    id: string;
+    name: string;
+    coordinates: string; // Store as JSON string to avoid nested arrays in Firestore
+    createdBy: string;
+    createdAt: number;
+  };
+  const [blockages, setBlockages] = useState<Blockage[]>([]);
+  const [isDrawingBlockage, setIsDrawingBlockage] = useState(false);
+  const [drawingPoints, setDrawingPoints] = useState<number[][]>([]);
 
   // --- UPDATED RESPONDER STATE ---
   const [isResponderSidebarOpen, setIsResponderSidebarOpen] = useState(false);
@@ -790,7 +915,7 @@ export default function MapLibre3D({
     }
   };
 
-  // ... (routing functions unchanged: fetchRoute, handleGetRoute, clearRoute, createDraggablePin) ...
+  // ... (routing functions: fetchRoute, handleGetRoute, clearRoute, createDraggablePin) ...
   const fetchRoute = async (
     start: { lng: number; lat: number },
     end: { lng: number; lat: number },
@@ -800,7 +925,37 @@ export default function MapLibre3D({
     setRouteGeoJSON(null);
     setRouteDuration(null);
     const url = "/api/route";
-    const body = JSON.stringify({ start, end, mode });
+
+    // Convert blockages to avoid_polygons format for OpenRouteService
+    // OpenRouteService expects a GeoJSON Polygon or MultiPolygon
+    let avoidPolygons = undefined;
+    if (blockages.length > 0) {
+      console.log("Processing blockages for routing:", blockages);
+
+      if (blockages.length === 1) {
+        // Single polygon
+        const coords = JSON.parse(blockages[0].coordinates);
+        avoidPolygons = {
+          type: "Polygon" as const,
+          coordinates: coords
+        };
+      } else {
+        // Multiple polygons - use MultiPolygon
+        avoidPolygons = {
+          type: "MultiPolygon" as const,
+          coordinates: blockages.map(b => JSON.parse(b.coordinates))
+        };
+      }
+
+      console.log("Avoid polygons for routing:", JSON.stringify(avoidPolygons, null, 2));
+    }
+
+    const body = JSON.stringify({
+      start,
+      end,
+      mode,
+      avoid_polygons: avoidPolygons
+    });
 
     try {
       const response = await fetch(url, {
@@ -989,7 +1144,9 @@ export default function MapLibre3D({
     // 1. Fetch all responders from the 'responders' document inside the uniqueID collection
     // Fetch for BOTH admin and user modes
     if (uniqueID) {
-      console.log(`🔍 [${mode}] Attempting to fetch responders for uniqueID: ${uniqueID}`);
+      console.log(
+        `🔍 [${mode}] Attempting to fetch responders for uniqueID: ${uniqueID}`
+      );
 
       // Fetch from: uniqueID/responders document (e.g., PH063043000/responders)
       const respondersDocRef = doc(db, uniqueID, "responders");
@@ -997,7 +1154,9 @@ export default function MapLibre3D({
       const unsubscribe = onSnapshot(
         respondersDocRef,
         (docSnap) => {
-          console.log(`📡 [${mode}] Snapshot received for ${uniqueID}/responders`);
+          console.log(
+            `📡 [${mode}] Snapshot received for ${uniqueID}/responders`
+          );
 
           if (docSnap.exists()) {
             const data = docSnap.data();
@@ -1014,6 +1173,8 @@ export default function MapLibre3D({
               email: r.email,
               role: r.role,
               profilePictureUrl: r.profilePictureUrl, // Include profile picture
+              skills: r.skills, // Include skills object with hard and soft arrays
+              personality: r.personality, // Include personality
             }));
 
             setAllResponders(responders);
@@ -1022,7 +1183,9 @@ export default function MapLibre3D({
               responders
             );
           } else {
-            console.warn(`⚠️ [${mode}] No responders document found at ${uniqueID}/responders`);
+            console.warn(
+              `⚠️ [${mode}] No responders document found at ${uniqueID}/responders`
+            );
             setAllResponders([]);
           }
         },
@@ -1034,9 +1197,103 @@ export default function MapLibre3D({
 
       return () => unsubscribe();
     } else {
-      console.log(`⏭️ Skipping responder fetch - mode: ${mode}, uniqueID: ${uniqueID}`);
+      console.log(
+        `⏭️ Skipping responder fetch - mode: ${mode}, uniqueID: ${uniqueID}`
+      );
     }
   }, [mode, uniqueID]); // Re-run if mode or uniqueID changes
+
+  // --- FETCH BLOCKAGES FROM FIREBASE ---
+  useEffect(() => {
+    if (!uniqueID) {
+      console.log("⏭️ Skipping blockage fetch - no uniqueID");
+      return;
+    }
+
+    const blockageDocRef = doc(db, uniqueID, "blockage");
+    const unsubscribe = onSnapshot(
+      blockageDocRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const blockageList = data?.blockages || [];
+          setBlockages(blockageList);
+          console.log(`🚧 Fetched ${blockageList.length} blockages:`, blockageList);
+        } else {
+          console.log("📝 No blockage document found");
+          setBlockages([]);
+        }
+      },
+      (error) => {
+        console.error("❌ Error fetching blockages:", error);
+        setBlockages([]);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [uniqueID]);
+
+  // --- BLOCKAGE MANAGEMENT FUNCTIONS ---
+  const addBlockage = async (name: string, coordinates: number[][][]) => {
+    if (!uniqueID || !user) {
+      console.error("❌ Cannot add blockage: missing uniqueID or user");
+      return;
+    }
+
+    // Convert coordinates to JSON string to avoid nested arrays in Firestore
+    const newBlockage: Blockage = {
+      id: `blockage_${Date.now()}`,
+      name,
+      coordinates: JSON.stringify(coordinates),
+      createdBy: user.uid,
+      createdAt: Date.now(),
+    };
+
+    const blockageDocRef = doc(db, uniqueID, "blockage");
+
+    try {
+      const docSnap = await getDoc(blockageDocRef);
+
+      if (docSnap.exists()) {
+        // Document exists, update it
+        const existingBlockages = docSnap.data()?.blockages || [];
+        await updateDoc(blockageDocRef, {
+          blockages: [...existingBlockages, newBlockage],
+        });
+        console.log("✅ Blockage added successfully");
+      } else {
+        // Document doesn't exist, create it
+        await setDoc(blockageDocRef, {
+          blockages: [newBlockage],
+        });
+        console.log("✅ Blockage document created with first blockage");
+      }
+    } catch (err) {
+      console.error("❌ Error adding blockage:", err);
+      alert(`Error adding blockage: ${err}`);
+    }
+  };
+
+  const removeBlockage = async (blockageId: string) => {
+    if (!uniqueID) return;
+
+    const blockageDocRef = doc(db, uniqueID, "blockage");
+
+    try {
+      const docSnap = await getDoc(blockageDocRef);
+      if (docSnap.exists()) {
+        const existingBlockages = docSnap.data()?.blockages || [];
+        const updatedBlockages = existingBlockages.filter((b: Blockage) => b.id !== blockageId);
+
+        await updateDoc(blockageDocRef, {
+          blockages: updatedBlockages,
+        });
+        console.log("✅ Blockage removed successfully");
+      }
+    } catch (error) {
+      console.error("❌ Error removing blockage:", error);
+    }
+  };
 
   // Handle boundary loading separately
   useEffect(() => {
@@ -1198,6 +1455,352 @@ export default function MapLibre3D({
       );
     }
   }, [routeGeoJSON]);
+
+  // --- BLOCKAGE DRAWING HANDLER ---
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+    const map = mapRef.current;
+
+    const handleMapClick = (e: maplibregl.MapMouseEvent) => {
+      if (!isDrawingBlockage) return;
+
+      try {
+        const { lng, lat } = e.lngLat;
+        console.log("✏️ Drawing point:", { lng, lat, currentPoints: drawingPoints.length });
+
+        const newPoints = [...drawingPoints, [lng, lat]];
+        setDrawingPoints(newPoints);
+
+        console.log("✅ Point added successfully. Total points:", newPoints.length);
+      } catch (error) {
+        console.error("❌ Error in handleMapClick:", error);
+      }
+    };
+
+    const handleKeyPress = async (e: KeyboardEvent) => {
+      if (!isDrawingBlockage) return;
+
+      if (e.key === "Enter" && drawingPoints.length >= 3) {
+        // Complete the polygon
+        const blockageName = prompt("Enter blockage name:") || "Unnamed Blockage";
+
+        // Close the polygon by adding first point at the end
+        const closedCoordinates = [...drawingPoints, drawingPoints[0]];
+
+        // Create polygon coordinates in GeoJSON format
+        const polygonCoordinates = [closedCoordinates];
+
+        console.log("Saving blockage:", { name: blockageName, coordinates: polygonCoordinates });
+        await addBlockage(blockageName, polygonCoordinates);
+
+        // Clean up
+        setIsDrawingBlockage(false);
+        setDrawingPoints([]);
+
+        alert("Blockage added successfully!");
+      } else if (e.key === "Escape") {
+        // Cancel drawing
+        console.log("Canceling blockage drawing");
+        setIsDrawingBlockage(false);
+        setDrawingPoints([]);
+
+        alert("Blockage drawing cancelled");
+      }
+    };
+
+    if (isDrawingBlockage) {
+      console.log("🎨 Drawing mode activated - attaching click handler");
+      console.log("Map object exists:", !!map);
+      console.log("Map loaded:", isMapLoaded);
+
+      // Add the click handler
+      map.on("click", handleMapClick);
+      window.addEventListener("keydown", handleKeyPress);
+
+      // Change cursor to crosshair when drawing
+      if (map.getCanvas()) {
+        map.getCanvas().style.cursor = "crosshair";
+        console.log("✅ Cursor changed to crosshair, ready to draw!");
+      }
+
+      // Test if clicks are being captured
+      const testHandler = (e: any) => {
+        console.log("🖱️ MAP CLICKED! Position:", e.lngLat);
+      };
+      map.on("click", testHandler);
+
+      return () => {
+        console.log("🧹 Cleaning up drawing handlers");
+        map.off("click", handleMapClick);
+        map.off("click", testHandler);
+        window.removeEventListener("keydown", handleKeyPress);
+        if (map.getCanvas()) {
+          map.getCanvas().style.cursor = "";
+        }
+      };
+    } else {
+      return () => {
+        map.off("click", handleMapClick);
+        window.removeEventListener("keydown", handleKeyPress);
+        if (map.getCanvas()) {
+          map.getCanvas().style.cursor = "";
+        }
+      };
+    }
+  }, [isDrawingBlockage, drawingPoints, addBlockage, isMapLoaded]);
+
+  // --- DISPLAY DRAWING PREVIEW ---
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded || !isDrawingBlockage) return;
+    const map = mapRef.current;
+
+    const drawingSourceId = "drawing-preview-source";
+    const drawingPointsLayerId = "drawing-preview-points";
+    const drawingLineLayerId = "drawing-preview-line";
+    const drawingPolygonLayerId = "drawing-preview-polygon";
+
+    try {
+      // Remove existing preview layers
+      if (map.getLayer(drawingPolygonLayerId)) map.removeLayer(drawingPolygonLayerId);
+      if (map.getLayer(drawingLineLayerId)) map.removeLayer(drawingLineLayerId);
+      if (map.getLayer(drawingPointsLayerId)) map.removeLayer(drawingPointsLayerId);
+      if (map.getSource(drawingSourceId)) map.removeSource(drawingSourceId);
+
+      if (drawingPoints.length === 0) return;
+
+      // Create GeoJSON with points and lines
+      const features: GeoJSON.Feature[] = [];
+
+      // Add point markers
+      drawingPoints.forEach((point, index) => {
+        features.push({
+          type: "Feature",
+          properties: { index },
+          geometry: {
+            type: "Point",
+            coordinates: point,
+          },
+        });
+      });
+
+      // Add line if we have at least 2 points
+      if (drawingPoints.length >= 2) {
+        features.push({
+          type: "Feature",
+          properties: { type: "line" },
+          geometry: {
+            type: "LineString",
+            coordinates: drawingPoints,
+          },
+        });
+      }
+
+      // Add polygon preview if we have at least 3 points
+      if (drawingPoints.length >= 3) {
+        const closedCoords = [...drawingPoints, drawingPoints[0]];
+        features.push({
+          type: "Feature",
+          properties: { type: "polygon" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [closedCoords],
+          },
+        });
+      }
+
+      const geoJSON: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: features,
+      };
+
+      // Add source
+      map.addSource(drawingSourceId, {
+        type: "geojson",
+        data: geoJSON,
+      });
+
+      // Add polygon fill layer (if 3+ points)
+      if (drawingPoints.length >= 3) {
+        map.addLayer({
+          id: drawingPolygonLayerId,
+          type: "fill",
+          source: drawingSourceId,
+          filter: ["==", ["get", "type"], "polygon"],
+          paint: {
+            "fill-color": "#ff6600",
+            "fill-opacity": 0.2,
+          },
+        });
+      }
+
+      // Add line layer (if 2+ points)
+      if (drawingPoints.length >= 2) {
+        map.addLayer({
+          id: drawingLineLayerId,
+          type: "line",
+          source: drawingSourceId,
+          filter: ["==", ["get", "type"], "line"],
+          paint: {
+            "line-color": "#ff6600",
+            "line-width": 2,
+            "line-dasharray": [2, 2],
+          },
+        });
+      }
+
+      // Add point markers layer
+      map.addLayer({
+        id: drawingPointsLayerId,
+        type: "circle",
+        source: drawingSourceId,
+        filter: ["has", "index"],
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "#ff6600",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      });
+
+      console.log("✏️ Drawing preview updated:", drawingPoints.length, "points");
+    } catch (error) {
+      console.error("❌ Error updating drawing preview:", error);
+    }
+
+    return () => {
+      try {
+        if (map.getLayer(drawingPolygonLayerId)) map.removeLayer(drawingPolygonLayerId);
+        if (map.getLayer(drawingLineLayerId)) map.removeLayer(drawingLineLayerId);
+        if (map.getLayer(drawingPointsLayerId)) map.removeLayer(drawingPointsLayerId);
+        if (map.getSource(drawingSourceId)) map.removeSource(drawingSourceId);
+      } catch (error) {
+        console.error("Error cleaning up drawing preview:", error);
+      }
+    };
+  }, [drawingPoints, isDrawingBlockage, isMapLoaded]);
+
+  // --- DISPLAY BLOCKAGES ON MAP ---
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+    const map = mapRef.current;
+
+    const blockageSourceId = "blockages-source";
+    const blockageLayerId = "blockages-layer";
+    const blockageOutlineLayerId = "blockages-outline-layer";
+
+    try {
+      // Remove existing layers and source
+      if (map.getLayer(blockageOutlineLayerId)) {
+        map.removeLayer(blockageOutlineLayerId);
+      }
+      if (map.getLayer(blockageLayerId)) {
+        map.removeLayer(blockageLayerId);
+      }
+      if (map.getSource(blockageSourceId)) {
+        map.removeSource(blockageSourceId);
+      }
+
+      if (blockages.length === 0) {
+        console.log("No blockages to display");
+        return;
+      }
+
+      console.log("🗺️ Displaying blockages:", blockages);
+
+      // Create GeoJSON from blockages
+      const blockageGeoJSON: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: blockages.map((blockage) => {
+          try {
+            console.log("📍 Processing blockage:", blockage.name, "ID:", blockage.id);
+            console.log("📍 Raw coordinates string:", blockage.coordinates);
+
+            const coordinates = JSON.parse(blockage.coordinates);
+            console.log("📍 Parsed coordinates:", coordinates);
+
+            const feature = {
+              type: "Feature" as const,
+              properties: {
+                id: blockage.id,
+                name: blockage.name,
+              },
+              geometry: {
+                type: "Polygon" as const,
+                coordinates: coordinates,
+              },
+            };
+
+            console.log("✅ Created feature:", feature);
+            return feature;
+          } catch (error) {
+            console.error("❌ Error parsing blockage coordinates:", error, blockage);
+            return null;
+          }
+        }).filter(Boolean) as GeoJSON.Feature[],
+      };
+
+      console.log("🎨 Final GeoJSON:", JSON.stringify(blockageGeoJSON, null, 2));
+
+      if (blockageGeoJSON.features.length === 0) {
+        console.warn("⚠️ No valid blockage features to display");
+        return;
+      }
+
+      // Add source
+      map.addSource(blockageSourceId, {
+        type: "geojson",
+        data: blockageGeoJSON,
+      });
+
+      // Add fill layer
+      map.addLayer({
+        id: blockageLayerId,
+        type: "fill",
+        source: blockageSourceId,
+        paint: {
+          "fill-color": "#ff6600",
+          "fill-opacity": 0.3,
+        },
+      });
+
+      // Add outline layer
+      map.addLayer({
+        id: blockageOutlineLayerId,
+        type: "line",
+        source: blockageSourceId,
+        paint: {
+          "line-color": "#ff6600",
+          "line-width": 2,
+          "line-dasharray": [2, 2],
+        },
+      });
+
+      // Add click handler to show blockage info
+      map.on("click", blockageLayerId, (e) => {
+        if (!e.features || e.features.length === 0) return;
+        const feature = e.features[0];
+        const name = feature.properties?.name || "Unknown";
+
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`<strong>Blockage:</strong> ${name}`)
+          .addTo(map);
+      });
+
+      // Change cursor on hover
+      map.on("mouseenter", blockageLayerId, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+
+      map.on("mouseleave", blockageLayerId, () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      console.log("✅ Blockages displayed successfully");
+    } catch (error) {
+      console.error("❌ Error displaying blockages on map:", error);
+    }
+  }, [blockages, isMapLoaded]);
 
   // --- REMOVED: syncAllResponderLocations function ---
   // --- REMOVED: useEffect for Admin Sync ---
@@ -1467,13 +2070,7 @@ export default function MapLibre3D({
     } catch (error) {
       console.error("Error switching hazard:", error);
     }
-  }, [
-    isMapLoaded,
-    selectedRisk,
-    riskDatabase,
-    isHeatmapEnabled,
-    // We removed responsePoints and syncAllResponderLocations
-  ]);
+  }, [isMapLoaded, selectedRisk, riskDatabase, isHeatmapEnabled]);
 
   // --- UPDATED: Click Handlers useEffect ---
   // Moved all click handlers here to be registered only once
@@ -1482,6 +2079,9 @@ export default function MapLibre3D({
     const map = mapRef.current;
 
     const onClusterClick = async (e: maplibregl.MapLayerMouseEvent) => {
+      // Don't handle clicks when in drawing mode
+      if (isDrawingBlockage) return;
+
       const features = map.queryRenderedFeatures(e.point, {
         layers: ["clusters"],
       });
@@ -1495,7 +2095,7 @@ export default function MapLibre3D({
          <div style="padding: 8px; max-width: 200px; color: black;">
            <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">Cluster</h3>
            <p style="margin: 4px 0;"><strong>Points:</strong> ${pointCount}</p>
-           <p style="margin: 4px 0; font-size: 12px; color: #666;">Click to zoom in</p>
+           <p style="margin: 4px 0; font-size: 12px; color: #667;">Click to zoom in</p>
          </div>
        `;
       try {
@@ -1518,6 +2118,9 @@ export default function MapLibre3D({
     };
 
     const onRiskClick = (e: maplibregl.MapLayerMouseEvent) => {
+      // Don't handle clicks when in drawing mode
+      if (isDrawingBlockage) return;
+
       const features = map.queryRenderedFeatures(e.point, {
         layers: [`${selectedRisk}-risk`],
       });
@@ -1675,6 +2278,9 @@ export default function MapLibre3D({
     };
 
     const onResponderClick = (e: maplibregl.MapLayerMouseEvent) => {
+      // Don't handle clicks when in drawing mode
+      if (isDrawingBlockage) return;
+
       const features = map.queryRenderedFeatures(e.point, {
         layers: ["responderLocation"],
       });
@@ -1814,7 +2420,7 @@ export default function MapLibre3D({
         () => (map.getCanvas().style.cursor = "")
       );
     };
-  }, [isMapLoaded, selectedRisk, pickingMode, startPin, endPin]); // Dependencies for click handlers
+  }, [isMapLoaded, selectedRisk, pickingMode, startPin, endPin, isDrawingBlockage]); // Dependencies for click handlers
 
   // Handle search location zooming
   useEffect(() => {
@@ -1864,13 +2470,77 @@ export default function MapLibre3D({
 
   // --- RETURN STATEMENT (UI) ---
   return (
-    <>
+    <React.Fragment>
       <div className="relative w-full h-[100vh] md:h-[100vh] z-0 rounded-xl shadow-lg">
         {/* Map container */}
         <div id="map" className="w-full h-full" />
 
-  {/* Scroll button */}
-  <div className="absolute bottom-8 md:bottom-10 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
+        {/* Drawing Mode Indicator */}
+        {isDrawingBlockage && (
+          <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none">
+            <div className="bg-orange-500 text-white px-6 py-3 rounded-lg shadow-lg border-2 border-white animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
+                <div className="text-sm md:text-base font-bold">🚧 Drawing Blockage Mode</div>
+              </div>
+              <div className="text-xs mt-1 opacity-90">Click on the map to add points (minimum 3 points required)</div>
+              <div className="text-xs mt-1 font-semibold">Points: {drawingPoints.length}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Drawing Action Buttons */}
+        {isDrawingBlockage && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[200] flex gap-3">
+            <button
+              onClick={() => {
+                console.log("Canceling blockage drawing");
+                setIsDrawingBlockage(false);
+                setDrawingPoints([]);
+                alert("Blockage drawing cancelled");
+              }}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg border-2 border-white transition-all active:scale-95"
+            >
+              ✕ Cancel
+            </button>
+            <button
+              onClick={async () => {
+                if (drawingPoints.length < 3) {
+                  alert("Please add at least 3 points to create a blockage area");
+                  return;
+                }
+
+                const blockageName = prompt("Enter blockage name:") || "Unnamed Blockage";
+
+                // Close the polygon by adding first point at the end
+                const closedCoordinates = [...drawingPoints, drawingPoints[0]];
+
+                // Create polygon coordinates in GeoJSON format
+                const polygonCoordinates = [closedCoordinates];
+
+                console.log("Saving blockage:", { name: blockageName, coordinates: polygonCoordinates });
+                await addBlockage(blockageName, polygonCoordinates);
+
+                // Clean up
+                setIsDrawingBlockage(false);
+                setDrawingPoints([]);
+
+                alert("Blockage added successfully!");
+              }}
+              disabled={drawingPoints.length < 3}
+              className={`px-6 py-3 rounded-lg font-semibold shadow-lg border-2 border-white transition-all active:scale-95 ${
+                drawingPoints.length >= 3
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-400 text-gray-200 cursor-not-allowed"
+              }`}
+            >
+              ✓ Save Blockage {drawingPoints.length >= 3 ? "" : `(${3 - drawingPoints.length} more point${3 - drawingPoints.length === 1 ? "" : "s"})`}
+            </button>
+          </div>
+        )}
+
+        {/* Scroll button */}
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
           <button
             type="button"
             aria-label="Scroll to bottom"
@@ -1988,18 +2658,365 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Login / Sign up button - right side across sizes */}
-      <div className="absolute top-2 md:top-4 right-2 z-[106] pointer-events-none">
-        <Link href="/login" className="pointer-events-auto">
-          <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full h-10 md:h-12 px-3 md:px-4 border border-white/20 text-gray-700 hover:shadow-2xl transition">
-            <User size={18} className="text-gray-600" />
-            <span className="text-sm font-medium">Login<span className="hidden md:inline"> / Sign up</span></span>
-          </span>
-        </Link>
-      </div>
+      {/* Right-side Controls */}
+      <div className="absolute flex flex-col-reverse md:flex-row gap-2 top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
+        {/* --- ROUTE PLANNING MODAL --- */}
+        <Transition appear show={isRoutingPanelOpen} as={Fragment}>
+          <Dialog
+            as="div"
+            className="relative z-[200]"
+            onClose={() => setIsRoutingPanelOpen(false)}
+          >
+            {/* Backdrop - Mobile Only */}
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="md:hidden fixed inset-0 bg-black/25 backdrop-blur-sm" />
+            </Transition.Child>
 
-      {/* Controls (Menu, Zoom) - bottom-right across all sizes */}
-      <div className="absolute flex bottom-4 right-2 transform z-[100] pointer-events-none">
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+              {/* Mobile: Bottom Sheet / PC: Right Sidebar */}
+              <div className="flex min-h-full items-end justify-center md:items-center md:justify-end">
+                <Transition.Child
+                  as={Fragment}
+                  enter="transform transition ease-in-out duration-300"
+                  enterFrom="translate-y-full md:translate-y-0 md:translate-x-full"
+                  enterTo="translate-y-0 md:translate-x-0"
+                  leave="transform transition ease-in-out duration-300"
+                  leaveFrom="translate-y-0 md:translate-x-0"
+                  leaveTo="translate-y-full md:translate-y-0 md:translate-x-full"
+                >
+                  <Dialog.Panel className="pointer-events-auto w-full md:w-96 max-h-[85vh] md:h-screen">
+                    <div className="flex h-auto md:h-full flex-col overflow-y-scroll bg-white shadow-xl rounded-t-2xl md:rounded-none">
+                      {/* Header */}
+                      <div className="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 bg-white sticky top-0 z-10">
+                        <Dialog.Title className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <Signpost
+                            size={24}
+                            weight="bold"
+                            className="text-red-600"
+                          />
+                          Route Planning
+                        </Dialog.Title>
+                        <button
+                          onClick={() => setIsRoutingPanelOpen(false)}
+                          className="rounded-lg p-1 hover:bg-gray-100 transition-colors"
+                        >
+                          <X size={24} className="text-gray-600" />
+                        </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 p-4 md:p-5 space-y-4 overflow-y-auto pb-safe">
+                        {/* Statistics Box */}
+                        {routeDuration !== null && (
+                          <div className="bg-red-50 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Timer
+                                size={24}
+                                weight="bold"
+                                className="text-red-600"
+                              />
+                              <p className="font-semibold text-gray-900">
+                                Travel Time Estimation
+                              </p>
+                            </div>
+                            <div className="flex justify-around text-center">
+                              <div>
+                                <div className="text-xs text-gray-600">
+                                  Est. Travel Time
+                                </div>
+                                <div className="text-lg font-semibold text-gray-900">
+                                  {formatDuration(routeDuration)}
+                                </div>
+                              </div>
+                              <div className="border-l border-gray-300"></div>
+                              <div>
+                                <div className="text-xs text-gray-600">
+                                  Est. Arrival Time
+                                </div>
+                                <div className="text-lg font-semibold text-gray-900">
+                                  {calculateETA(routeDuration)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Pin Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setPickingMode("start");
+                              createDraggablePin("start");
+                              setIsRoutingPanelOpen(false);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+                              pickingMode === "start"
+                                ? "bg-red-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            <Crosshair size={20} weight="bold" />
+                            Set Start
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPickingMode("end");
+                              createDraggablePin("end");
+                              setIsRoutingPanelOpen(false);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all ${
+                              pickingMode === "end"
+                                ? "bg-red-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            <MapPin size={20} weight="bold" />
+                            Set End
+                          </button>
+                        </div>
+
+                        {/* Start Point Section */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                            <Crosshair size={16} className="text-gray-500" />
+                            Start Point
+                          </label>
+                          <div className="relative">
+                            <div
+                              onClick={() => {
+                                setPickingMode("start");
+                                createDraggablePin("start");
+                                setIsRoutingPanelOpen(false);
+                              }}
+                              className={`w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-900 cursor-pointer select-none transition-all ${
+                                pickingMode === "start"
+                                  ? "ring-2 border-red-500 ring-red-500"
+                                  : "border-gray-200 hover:border-gray-300"
+                              }`}
+                            >
+                              {startAddress || "Click to pick on map"}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Latitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={startPoint?.lat ?? ""}
+                                onChange={(e) => {
+                                  const lat = parseFloat(e.target.value);
+                                  if (!isNaN(lat) && startPoint) {
+                                    setStartPoint({ ...startPoint, lat });
+                                  } else if (!isNaN(lat)) {
+                                    setStartPoint({ lat, lng: 0 });
+                                  }
+                                }}
+                                placeholder="14.5995"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Longitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={startPoint?.lng ?? ""}
+                                onChange={(e) => {
+                                  const lng = parseFloat(e.target.value);
+                                  if (!isNaN(lng) && startPoint) {
+                                    setStartPoint({ ...startPoint, lng });
+                                  } else if (!isNaN(lng)) {
+                                    setStartPoint({ lat: 0, lng });
+                                  }
+                                }}
+                                placeholder="120.9842"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* End Point Section */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                            <MapPin size={16} className="text-gray-500" />
+                            End Point
+                          </label>
+                          <div className="relative">
+                            <div
+                              onClick={() => {
+                                setPickingMode("end");
+                                createDraggablePin("end");
+                                setIsRoutingPanelOpen(false);
+                              }}
+                              className={`w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-900 cursor-pointer select-none transition-all ${
+                                pickingMode === "end"
+                                  ? "ring-2 border-red-500 ring-red-500"
+                                  : "border-gray-200 hover:border-gray-300"
+                              }`}
+                            >
+                              {endAddress || "Click to pick on map"}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Latitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={endPoint?.lat ?? ""}
+                                onChange={(e) => {
+                                  const lat = parseFloat(e.target.value);
+                                  if (!isNaN(lat) && endPoint) {
+                                    setEndPoint({ ...endPoint, lat });
+                                  } else if (!isNaN(lat)) {
+                                    setEndPoint({ lat, lng: 0 });
+                                  }
+                                }}
+                                placeholder="14.5995"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-600">
+                                Longitude
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={endPoint?.lng ?? ""}
+                                onChange={(e) => {
+                                  const lng = parseFloat(e.target.value);
+                                  if (!isNaN(lng) && endPoint) {
+                                    setEndPoint({ ...endPoint, lng });
+                                  } else if (!isNaN(lng)) {
+                                    setEndPoint({ lat: 0, lng });
+                                  }
+                                }}
+                                placeholder="120.9842"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Transport Mode */}
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Car size={18} className="text-gray-400" />
+                          </div>
+                          <select
+                            value={selectedTransportMode}
+                            onChange={(e) =>
+                              setSelectedTransportMode(e.target.value)
+                            }
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-3 pl-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 appearance-none cursor-pointer"
+                          >
+                            <option value="driving-car">Car</option>
+                            <option value="cycling-regular">Bicycle</option>
+                            <option value="foot-walking">Walking</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                            <svg
+                              className="w-4 h-4 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+
+                        {/* Blockages Section - Responders and Admins */}
+                        {(mode === "responder" || mode === "admin") && (
+                          <div className="space-y-2 bg-orange-50 p-3 rounded-lg border border-orange-200">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-gray-800">
+                                🚧 Road Blockages ({blockages.length})
+                              </label>
+                              <button
+                                onClick={() => {
+                                  console.log("Add blockage clicked - mode:", mode);
+                                  setIsDrawingBlockage(true);
+                                  setDrawingPoints([]);
+                                  setIsRoutingPanelOpen(false);
+                                  alert("Click on the map to draw the blockage polygon.\n\nPress Enter when done (min 3 points).\nPress Escape to cancel.");
+                                }}
+                                className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors shadow-sm"
+                              >
+                                + Add Blockage
+                              </button>
+                            </div>
+                            {blockages.length > 0 && (
+                              <div className="max-h-32 overflow-y-auto space-y-1 bg-gray-50 rounded-lg p-2">
+                                {blockages.map((blockage) => (
+                                  <div
+                                    key={blockage.id}
+                                    className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-gray-200"
+                                  >
+                                    <span className="text-xs text-gray-700 truncate flex-1">
+                                      {blockage.name}
+                                    </span>
+                                    <button
+                                      onClick={() => removeBlockage(blockage.id)}
+                                      className="ml-2 text-red-600 hover:text-red-800 text-xs font-bold"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <button
+                            onClick={clearRoute}
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={handleGetRoute}
+                            disabled={isFetchingRoute}
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isFetchingRoute ? "Routing..." : "Get Route"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Dialog.Panel>
+                </Transition.Child>
+              </div>
+            </div>
+          </Dialog>
+        </Transition>
+
+        {/* Map Control Button Cluster */}
         <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
           <Menu as="div" className="relative">
             <Menu.Button
@@ -2091,20 +3108,134 @@ export default function MapLibre3D({
           >
             <Minus size={20} weight="bold" className="text-gray-600" />
           </button>
+
+          {/* My Location */}
+          <button
+            onClick={() => {
+              onGetCurrentLocation();
+              setShowLocationCoords(true);
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl ${
+              showLocationCoords ? "bg-red-100 text-red-700" : ""
+            }`}
+            title="My Location"
+          >
+            <Crosshair
+              size={20}
+              weight="bold"
+              className={showLocationCoords ? "text-red-600" : "text-gray-600"}
+            />
+          </button>
+
+          {/* 3D Toggle (alternate entry) */}
+          <button
+            onClick={() => {
+              if (!mapRef.current) return;
+              const map = mapRef.current;
+              const currentPitch = map.getPitch();
+              const newPitch = currentPitch === 0 ? 60 : 0;
+              const newBearing = currentPitch === 0 ? 180 : 0;
+              map.easeTo({ pitch: newPitch, bearing: newBearing, duration: 1000 });
+              setIs3D(newPitch !== 0);
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
+          >
+            <Globe size={20} weight="bold" className={is3D ? "text-red-600" : "text-gray-600"} />
+          </button>
         </div>
       </div>
 
-      {/* Right-side responder sidebar (data-driven) */}
+      {/* Current Location Coordinates Display */}
+      {showLocationCoords && userLocation && (
+        <div className="absolute bottom-28 left-4 z-[100] bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-3 md:p-4 pointer-events-auto border border-white/20 max-w-xs">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Crosshair size={20} weight="bold" className="text-red-600" />
+                <h3 className="text-sm font-semibold text-gray-900">Current Location</h3>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-600 w-16">Latitude:</span>
+                  <span className="text-sm font-mono font-semibold text-gray-900">{userLocation.lat.toFixed(4)}°</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-600 w-16">Longitude:</span>
+                  <span className="text-sm font-mono font-semibold text-gray-900">{userLocation.lng.toFixed(4)}°</span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLocationCoords(false)}
+              className="rounded-lg p-1 hover:bg-gray-100 transition-colors flex-shrink-0"
+              aria-label="Close coordinates display"
+            >
+              <X size={18} className="text-gray-600" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Route Planning Button - Bottom Right */}
+      <button
+        onClick={() => setIsRoutingPanelOpen((o) => !o)}
+        aria-label="Route Planning"
+        title="Route Planning"
+        className={`absolute bottom-4 right-4 z-[100] bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full p-4 md:p-5 transition-all duration-200 pointer-events-auto border border-white/20 hover:scale-110 active:scale-95 hover:shadow-2xl ${
+          isRoutingPanelOpen ? "bg-red-100 ring-2 ring-red-500" : ""
+        }`}
+      >
+        <Signpost size={24} weight="bold" className={isRoutingPanelOpen ? "text-red-600" : "text-gray-700"} />
+      </button>
+
+      {/* Legend - Bottom Right */}
+      <div
+        className={`absolute bottom-20 right-4 z-[100] w-[calc(100vw-32px)] max-w-xs md:w-80 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl p-2 md:p-3 pointer-events-auto border border-white/20 ${
+          isLegendVisible ? "" : "hidden"
+        }`}
+      >
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 mb-1 md:mb-2">
+          <Info size={14} />
+          Legend
+        </div>
+        <div className="text-xs text-gray-500 mb-2">Use buttons above to toggle heatmap and markers</div>
+        <div className="space-y-1">
+          {/* Enhanced Heatmap Legend */}
+          <div className="mb-2">
+            <div className="text-xs font-medium text-gray-600 mb-2">Combined Risk Assessment</div>
+            <div className="space-y-1">
+              <div className="w-full h-3 rounded-sm bg-gradient-to-r from-green-400 via-yellow-400 to-red-600 border border-gray-300"></div>
+              <div className="flex justify-between text-xs text-gray-600"><span>Low Risk</span><span>High Risk</span></div>
+              <div className="text-xs text-gray-500 text-center space-y-1">
+                <div>Hazard Intensity × Population Vulnerability</div>
+                <div className="text-xs text-blue-600">🔵 Low vulnerability areas</div>
+                <div className="text-xs text-red-600">🔴 High vulnerability areas</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hazard Points Legend */}
+          <div className="border-t border-gray-200 pt-2">
+            <div className="text-xs font-medium text-gray-600 mb-1">Hazard Points</div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1 md:gap-2"><div className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></div><span className="text-xs text-gray-600">High Risk</span></div>
+              <div className="flex items-center gap-1 md:gap-2"><div className="w-2 h-2 md:w-3 md:h-3 bg-yellow-500 rounded-full"></div><span className="text-xs text-gray-600">Medium Risk</span></div>
+              <div className="flex items-center gap-1 md:gap-2"><div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full"></div><span className="text-xs text-gray-600">Low Risk</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <ResponderSidebar
         isOpen={isResponderSidebarOpen}
         onClose={() => setIsResponderSidebarOpen(false)}
         pointDocId={selectedPointDocId}
         allResponders={allResponders}
-        mode={mode} // Pass the map's mode down
-        uniqueID={uniqueID} // Pass the collection ID
-        pointName={selectedResponderData?.name || "Loading..."} // Pass the name
-        selectedRisk={selectedRisk} // Pass the current risk
+        mode={mode}
+        uniqueID={uniqueID}
+        pointName={selectedResponderData?.name || "Loading..."}
+        selectedRisk={selectedRisk}
       />
-    </>
+    </React.Fragment>
   );
 }

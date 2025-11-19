@@ -3,6 +3,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import NavBar from "./NavBar";
+import BottomNav from "./BottomNav";
 
 /**
  * Renders NavBar on all routes except those that should hide it.
@@ -10,9 +11,18 @@ import NavBar from "./NavBar";
  */
 export default function HideableNav() {
   const pathname = usePathname();
-  const hideOnRoutes: RegExp[] = [/^\/admin\/responders(\/.*)?$/];
+  // Hide navigation entirely on routes that render the map module
+  const hideOnRoutes: RegExp[] = [
+    /^\/admin\/responders(\/.*)?$/,
+    /^\/hazards(\/.*)?$/,
+  ];
 
   const shouldHide = hideOnRoutes.some((re) => re.test(pathname || ""));
   if (shouldHide) return null;
-  return <NavBar />;
+  return (
+    <>
+      <NavBar />
+      <BottomNav />
+    </>
+  );
 }
