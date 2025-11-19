@@ -2555,27 +2555,32 @@ export default function MapLibre3D({
         />
       </div>
 
-      {/* Top Left (Search/Back) */}
-      <div className="absolute top-2 md:top-4 left-2 md:left-18 z-[100] pointer-events-none">
-        <div className="flex items-center gap-2">
+      {/* Top Search Bar - Full Width */}
+      <div className="absolute top-0 left-0 right-0 z-[100] pointer-events-none">
+        <div className="flex items-center gap-2 md:gap-3 p-2 md:p-4">
           {/* Back button */}
           <Link
             href="/"
             aria-label="Back to Home"
-            className="pointer-events-auto"
+            className="pointer-events-auto flex-shrink-0"
           >
-            <span className="inline-flex items-center justify-center bg-white text-red-600 rounded-full w-7 h-7 md:w-12 md:h-12 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition">
-              <ArrowLeft size={16} weight="bold" />
+            <span className="inline-flex items-center justify-center bg-white text-red-600 rounded-full w-10 h-10 md:w-12 md:h-12 shadow-lg border border-gray-200 hover:bg-red-50 active:scale-95 transition">
+              <ArrowLeft size={18} weight="bold" />
             </span>
           </Link>
 
-          {/* Search box */}
-          <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-[40] shadow-xl pl-2 pr-1 md:p-3 md:pr-2 max-w-full md:max-w-md pointer-events-auto border border-white/20 md:w-full md:h-12 flex items-center">
-            <div className="flex items-center gap-1 md:gap-4 w-full h-full">
+          {/* Search box - Full Width */}
+          <div className="flex-1 bg-white/95 backdrop-blur-md rounded-xl md:rounded-2xl shadow-xl pointer-events-auto border border-white/20">
+            <div className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-2.5 md:py-3">
+              <MagnifyingGlassIcon
+                size={20}
+                weight="bold"
+                className="text-gray-400 flex-shrink-0"
+              />
               <input
                 type="text"
-                className="flex-1 bg-transparent outline-none text-xs md:text-sm text-black max-w-2xl"
-                placeholder="Search locations"
+                className="flex-1 bg-transparent outline-none text-sm md:text-base text-gray-900 placeholder:text-gray-400"
+                placeholder="Search locations, addresses, or landmarks..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && onSearchSubmit()}
@@ -2583,21 +2588,21 @@ export default function MapLibre3D({
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-black min-w-[10px] min-h-[24px] flex items-center justify-center mr-0 pr-0"
-                  style={{ marginRight: 0, paddingRight: 0 }}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-all flex-shrink-0"
+                  aria-label="Clear search"
                 >
-                  <X size={16} />
+                  <X size={18} weight="bold" />
                 </button>
               )}
               <button
                 onClick={onSearchSubmit}
                 disabled={isSearching}
-                className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full p-1 md:p-2 transition-colors md:min-w-[36px] md:min-h-[36px] flex items-center justify-center ml-2 md:ml-4 mr-0"
+                className="bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-50 text-white rounded-xl px-4 md:px-6 py-2 md:py-2.5 transition-all shadow-md hover:shadow-lg active:scale-95 font-semibold text-sm md:text-base flex-shrink-0"
               >
                 {isSearching ? (
-                  <div className="animate-spin w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
                 ) : (
-                  <MagnifyingGlassIcon size={16} weight={"bold"} />
+                  "Search"
                 )}
               </button>
             </div>
@@ -2606,7 +2611,7 @@ export default function MapLibre3D({
       </div>
 
       {/* Hazard Controls - Top Center */}
-      <div className="absolute top-14 md:top-4 left-1/2 mt-5 -translate-x-1/2 z-[105] pointer-events-none">
+      <div className="absolute top-20 md:top-20 left-1/2 mt-5 -translate-x-1/2 z-[105] pointer-events-none">
         <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
           {[
             {
@@ -2646,7 +2651,6 @@ export default function MapLibre3D({
                   className="w-4 h-4"
                   style={{
                     background: active ? "#ffffff" : "#6b7280",
-                    // FIX: Absolute path
                     WebkitMask: `url('/icons/${h.icon}') center/contain no-repeat`,
                     mask: `url('/icons/${h.icon}') center/contain no-repeat`,
                     display: "inline-block",
@@ -2661,7 +2665,7 @@ export default function MapLibre3D({
 
       {/* Drawing Mode Indicator - Enhanced for Mobile & Desktop */}
       {isDrawingBlockage && (
-        <div className="absolute left-2 top-35 z-[200] pointer-events-none">
+        <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none w-[90%] sm:w-auto max-w-md">
           <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-lg shadow-2xl border-2 border-white animate-pulse">
             <div className="flex items-center justify-center gap-2 md:gap-3">
               <div className="w-2 h-2 md:w-3 md:h-3 bg-white rounded-full animate-ping"></div>
@@ -2759,8 +2763,8 @@ export default function MapLibre3D({
         </div>
       )}
 
-      {/* Right-side Controls */}
-      <div className="absolute flex flex-col-reverse md:flex-row gap-2 top-2 md:top-4 right-2 z-[100] pointer-events-none">
+      {/* Right-side Controls - Below Search Bar */}
+      <div className="absolute flex flex-col-reverse md:flex-row gap-2 top-25 right-2 md:right-4 z-[100] pointer-events-none">
         {/* --- ROUTE PLANNING MODAL --- */}
         <Transition appear show={isRoutingPanelOpen} as={Fragment}>
           <Dialog
@@ -3095,7 +3099,9 @@ export default function MapLibre3D({
                                       className="ml-2 text-red-600 hover:text-white hover:bg-red-600 w-5 h-5 rounded flex items-center justify-center transition-all duration-200 active:scale-90"
                                       title="Remove blockage"
                                     >
-                                      <span className="text-base font-bold leading-none">×</span>
+                                      <span className="text-base font-bold leading-none">
+                                        ×
+                                      </span>
                                     </button>
                                   </div>
                                 ))}
@@ -3119,7 +3125,9 @@ export default function MapLibre3D({
                             className="group relative bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
                           >
                             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-                            <span className="relative">{isFetchingRoute ? "Routing..." : "Get Route"}</span>
+                            <span className="relative">
+                              {isFetchingRoute ? "Routing..." : "Get Route"}
+                            </span>
                           </button>
                         </div>
                       </div>
@@ -3132,7 +3140,7 @@ export default function MapLibre3D({
         </Transition>
 
         {/* Map Control Button Cluster */}
-        <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
+        <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto top-20">
           {/* Zoom In Button */}
           <button
             onClick={() => {
