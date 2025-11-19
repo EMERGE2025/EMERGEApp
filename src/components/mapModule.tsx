@@ -1,9 +1,9 @@
 "use client";
 
+import React, { useEffect, useRef, useState, Fragment, useCallback } from "react";
 import maplibregl, { Popup, Marker } from "maplibre-gl";
 // @ts-ignore: side-effect CSS import without type declarations
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState, Fragment, useCallback } from "react";
 import Link from "next/link";
 import { Menu, Transition, Dialog } from "@headlessui/react";
 import SettingsSidebar from "./SettingsSidebar";
@@ -1890,16 +1890,20 @@ export default function MapLibre3D({
       {/* Left stack: Back + Search on top, Sidebar below */}
       <div className="absolute top-2 md:top-4 left-0 md:left-0 z-[110] pointer-events-none w-full max-w-md">
         <div className="flex flex-col gap-2 pointer-events-auto pl-2">
-          <div className="flex items-center gap-2">
-            {/* Back button */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Back button (phone/tablet responsive) */}
             <Link href="/" aria-label="Back to Home">
-              <span className="inline-flex items-center justify-center bg-white text-red-600 rounded-full w-7 h-7 md:w-12 md:h-12 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition">
-                <ArrowLeft size={16} weight="bold" />
+              <span
+                className="inline-flex items-center justify-center bg-white text-red-600 rounded-full h-10 w-10 md:h-12 md:w-12 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition"
+              >
+                <ArrowLeft size={18} weight="bold" />
               </span>
             </Link>
 
-            {/* Search box */}
-            <div className="bg-white/90 backdrop-blur-md rounded-lg md:rounded-[40] shadow-xl pl-2 pr-1 md:p-3 md:pr-2 max-w-full pointer-events-auto border border-white/20 w-[calc(100%-56px)] md:h-12 flex items-center">
+            {/* Search box (responsive width & consistent radius) */}
+            <div
+              className="bg-white/90 backdrop-blur-md rounded-[40px] shadow-xl px-3 md:px-4 py-1 md:py-0 pointer-events-auto border border-white/20 h-10 md:h-12 flex items-center w-full max-w-[200px] sm:max-w-[260px] md:max-w-[420px] transition-all"
+            >
               <div className="flex items-center gap-1 md:gap-4 w-full h-full">
                 <input
                   type="text"
@@ -1920,7 +1924,7 @@ export default function MapLibre3D({
                 <button
                   onClick={onSearchSubmit}
                   disabled={isSearching}
-                  className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full p-1 md:p-2 transition-colors md:min-w-[36px] md:min-h-[36px] flex items-center justify-center ml-2"
+                  className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full h-8 w-8 md:h-6 md:w-6 flex items-center justify-center ml-2 shrink-0"
                 >
                   {isSearching ? (
                     <div className="animate-spin w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full"></div>
@@ -1948,8 +1952,8 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Hazard Controls - Top Center segmented chips aligned with search */}
-      <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-[105] pointer-events-none h-12 md:h-12 flex items-center">
+      {/* Hazard Controls - top-right on mobile, centered on md+ */}
+      <div className="absolute top-14 right-2 md:top-4 md:left-1/2 md:-translate-x-1/2 md:right-auto z-[105] pointer-events-none h-10 md:h-12 flex items-center">
         <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
           {[
             { id: "flooding", label: "Flood", color: "#0ea5e9", icon: "/icons/flood icon.svg" },
@@ -1984,8 +1988,18 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Right-side Controls (Menu, Zoom) */}
-      <div className="absolute flex top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
+      {/* Login / Sign up button - right side across sizes */}
+      <div className="absolute top-2 md:top-4 right-2 z-[106] pointer-events-none">
+        <Link href="/login" className="pointer-events-auto">
+          <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full h-10 md:h-12 px-3 md:px-4 border border-white/20 text-gray-700 hover:shadow-2xl transition">
+            <User size={18} className="text-gray-600" />
+            <span className="text-sm font-medium">Login<span className="hidden md:inline"> / Sign up</span></span>
+          </span>
+        </Link>
+      </div>
+
+      {/* Controls (Menu, Zoom) - bottom-right across all sizes */}
+      <div className="absolute flex bottom-4 right-2 transform z-[100] pointer-events-none">
         <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
           <Menu as="div" className="relative">
             <Menu.Button
