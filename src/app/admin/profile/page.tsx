@@ -84,7 +84,7 @@ export default function AdminProfilePage() {
       }
 
       try {
-        const adminDocRef = doc(db, "users", user.uid);
+        const adminDocRef = doc(db, "ADMINISTRATORS", user.uid);
         const adminDoc = await getDoc(adminDocRef);
 
         if (adminDoc.exists()) {
@@ -165,7 +165,7 @@ export default function AdminProfilePage() {
     setSaving(true);
 
     try {
-      const adminDocRef = doc(db, "users", profile.uid);
+      const adminDocRef = doc(db, "ADMINISTRATORS", profile.uid);
 
       await updateDoc(adminDocRef, {
         name: editedProfile.name,
@@ -174,10 +174,10 @@ export default function AdminProfilePage() {
         department: editedProfile.department,
       });
 
+      // Update only displayName in Firebase Auth (not photoURL since it's too long for base64)
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, {
           displayName: editedProfile.name,
-          photoURL: editedProfile.profilePictureUrl,
         });
       }
 
@@ -217,7 +217,9 @@ export default function AdminProfilePage() {
           >
             <ArrowLeft size={20} weight="bold" />
           </Link>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Admin Profile</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Admin Profile
+          </h1>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6 space-y-6">

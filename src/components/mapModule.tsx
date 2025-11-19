@@ -84,7 +84,7 @@ type Person = {
   id: string; // This is the Auth UID
   name: string;
   email: string;
-  role: "responder" | "admin";
+  role: "responder" | "admin" | "user";
   profilePictureUrl?: string; // Profile picture URL
   skills?: {
     hard?: string[]; // Array of hard skills
@@ -117,6 +117,7 @@ function ResponderSidebar({
 }: {
   isOpen: boolean;
   onClose: () => void;
+  mode: "user" | "admin" | "responder";
   mode: "user" | "admin" | "responder";
   pointDocId: string | null;
   pointName: string;
@@ -408,11 +409,13 @@ function ResponderSidebar({
                 )}
 
                 {/* Show message if no data */}
-                {!p.personality && (!p.skills?.hard || p.skills.hard.length === 0) && (!p.skills?.soft || p.skills.soft.length === 0) && (
-                  <div className="text-[11px] text-zinc-400 italic text-center py-2">
-                    No additional information available
-                  </div>
-                )}
+                {!p.personality &&
+                  (!p.skills?.hard || p.skills.hard.length === 0) &&
+                  (!p.skills?.soft || p.skills.soft.length === 0) && (
+                    <div className="text-[11px] text-zinc-400 italic text-center py-2">
+                      No additional information available
+                    </div>
+                  )}
               </div>
             )}
           </div>
@@ -937,24 +940,27 @@ export default function MapLibre3D({
         const coords = JSON.parse(blockages[0].coordinates);
         avoidPolygons = {
           type: "Polygon" as const,
-          coordinates: coords
+          coordinates: coords,
         };
       } else {
         // Multiple polygons - use MultiPolygon
         avoidPolygons = {
           type: "MultiPolygon" as const,
-          coordinates: blockages.map(b => JSON.parse(b.coordinates))
+          coordinates: blockages.map((b) => JSON.parse(b.coordinates)),
         };
       }
 
-      console.log("Avoid polygons for routing:", JSON.stringify(avoidPolygons, null, 2));
+      console.log(
+        "Avoid polygons for routing:",
+        JSON.stringify(avoidPolygons, null, 2)
+      );
     }
 
     const body = JSON.stringify({
       start,
       end,
       mode,
-      avoid_polygons: avoidPolygons
+      avoid_polygons: avoidPolygons,
     });
 
     try {
@@ -1218,7 +1224,10 @@ export default function MapLibre3D({
           const data = docSnap.data();
           const blockageList = data?.blockages || [];
           setBlockages(blockageList);
-          console.log(`🚧 Fetched ${blockageList.length} blockages:`, blockageList);
+          console.log(
+            `🚧 Fetched ${blockageList.length} blockages:`,
+            blockageList
+          );
         } else {
           console.log("📝 No blockage document found");
           setBlockages([]);
@@ -1283,7 +1292,9 @@ export default function MapLibre3D({
       const docSnap = await getDoc(blockageDocRef);
       if (docSnap.exists()) {
         const existingBlockages = docSnap.data()?.blockages || [];
-        const updatedBlockages = existingBlockages.filter((b: Blockage) => b.id !== blockageId);
+        const updatedBlockages = existingBlockages.filter(
+          (b: Blockage) => b.id !== blockageId
+        );
 
         await updateDoc(blockageDocRef, {
           blockages: updatedBlockages,
@@ -1466,47 +1477,52 @@ export default function MapLibre3D({
 
       try {
         const { lng, lat } = e.lngLat;
-        console.log("✏️ Drawing point:", { lng, lat, currentPoints: drawingPoints.length });
+        console.log("✏️ Drawing point:", {
+          lng,
+          lat,
+          currentPoints: drawingPoints.length,
+        });
 
         const newPoints = [...drawingPoints, [lng, lat]];
         setDrawingPoints(newPoints);
 
-        console.log("✅ Point added successfully. Total points:", newPoints.length);
+        console.log(
+          "✅ Point added successfully. Total points:",
+          newPoints.length
+        );
       } catch (error) {
         console.error("❌ Error in handleMapClick:", error);
       }
     };
 
-    const handleKeyPress = async (e: KeyboardEvent) => {
-      if (!isDrawingBlockage) return;
-
-      if (e.key === "Enter" && drawingPoints.length >= 3) {
-        // Complete the polygon
-        const blockageName = prompt("Enter blockage name:") || "Unnamed Blockage";
-
-        // Close the polygon by adding first point at the end
-        const closedCoordinates = [...drawingPoints, drawingPoints[0]];
-
-        // Create polygon coordinates in GeoJSON format
-        const polygonCoordinates = [closedCoordinates];
-
-        console.log("Saving blockage:", { name: blockageName, coordinates: polygonCoordinates });
-        await addBlockage(blockageName, polygonCoordinates);
-
-        // Clean up
-        setIsDrawingBlockage(false);
-        setDrawingPoints([]);
-
-        alert("Blockage added successfully!");
-      } else if (e.key === "Escape") {
-        // Cancel drawing
-        console.log("Canceling blockage drawing");
-        setIsDrawingBlockage(false);
-        setDrawingPoints([]);
-
-        alert("Blockage drawing cancelled");
-      }
-    };
+    // Keyboard handlers removed - now using bottom buttons for control
+    // const handleKeyPress = async (e: KeyboardEvent) => {
+    //   if (!isDrawingBlockage) return;
+    //   if (e.key === "Enter" && drawingPoints.length >= 3) {
+    //     // Complete the polygon
+    //     const blockageName =
+    //       prompt("Enter blockage name:") || "Unnamed Blockage";
+    //     // Close the polygon by adding first point at the end
+    //     const closedCoordinates = [...drawingPoints, drawingPoints[0]];
+    //     // Create polygon coordinates in GeoJSON format
+    //     const polygonCoordinates = [closedCoordinates];
+    //     console.log("Saving blockage:", {
+    //       name: blockageName,
+    //       coordinates: polygonCoordinates,
+    //     });
+    //     await addBlockage(blockageName, polygonCoordinates);
+    //     // Clean up
+    //     setIsDrawingBlockage(false);
+    //     setDrawingPoints([]);
+    //     alert("Blockage added successfully!");
+    //   } else if (e.key === "Escape") {
+    //     // Cancel drawing
+    //     console.log("Canceling blockage drawing");
+    //     setIsDrawingBlockage(false);
+    //     setDrawingPoints([]);
+    //     alert("Blockage drawing cancelled");
+    //   }
+    // };
 
     if (isDrawingBlockage) {
       console.log("🎨 Drawing mode activated - attaching click handler");
@@ -1515,7 +1531,8 @@ export default function MapLibre3D({
 
       // Add the click handler
       map.on("click", handleMapClick);
-      window.addEventListener("keydown", handleKeyPress);
+      // Keyboard control removed - using bottom buttons instead
+      // window.addEventListener("keydown", handleKeyPress);
 
       // Change cursor to crosshair when drawing
       if (map.getCanvas()) {
@@ -1533,7 +1550,8 @@ export default function MapLibre3D({
         console.log("🧹 Cleaning up drawing handlers");
         map.off("click", handleMapClick);
         map.off("click", testHandler);
-        window.removeEventListener("keydown", handleKeyPress);
+        // Keyboard handler removed
+        // window.removeEventListener("keydown", handleKeyPress);
         if (map.getCanvas()) {
           map.getCanvas().style.cursor = "";
         }
@@ -1541,7 +1559,8 @@ export default function MapLibre3D({
     } else {
       return () => {
         map.off("click", handleMapClick);
-        window.removeEventListener("keydown", handleKeyPress);
+        // Keyboard handler removed
+        // window.removeEventListener("keydown", handleKeyPress);
         if (map.getCanvas()) {
           map.getCanvas().style.cursor = "";
         }
@@ -1561,9 +1580,11 @@ export default function MapLibre3D({
 
     try {
       // Remove existing preview layers
-      if (map.getLayer(drawingPolygonLayerId)) map.removeLayer(drawingPolygonLayerId);
+      if (map.getLayer(drawingPolygonLayerId))
+        map.removeLayer(drawingPolygonLayerId);
       if (map.getLayer(drawingLineLayerId)) map.removeLayer(drawingLineLayerId);
-      if (map.getLayer(drawingPointsLayerId)) map.removeLayer(drawingPointsLayerId);
+      if (map.getLayer(drawingPointsLayerId))
+        map.removeLayer(drawingPointsLayerId);
       if (map.getSource(drawingSourceId)) map.removeSource(drawingSourceId);
 
       if (drawingPoints.length === 0) return;
@@ -1662,16 +1683,23 @@ export default function MapLibre3D({
         },
       });
 
-      console.log("✏️ Drawing preview updated:", drawingPoints.length, "points");
+      console.log(
+        "✏️ Drawing preview updated:",
+        drawingPoints.length,
+        "points"
+      );
     } catch (error) {
       console.error("❌ Error updating drawing preview:", error);
     }
 
     return () => {
       try {
-        if (map.getLayer(drawingPolygonLayerId)) map.removeLayer(drawingPolygonLayerId);
-        if (map.getLayer(drawingLineLayerId)) map.removeLayer(drawingLineLayerId);
-        if (map.getLayer(drawingPointsLayerId)) map.removeLayer(drawingPointsLayerId);
+        if (map.getLayer(drawingPolygonLayerId))
+          map.removeLayer(drawingPolygonLayerId);
+        if (map.getLayer(drawingLineLayerId))
+          map.removeLayer(drawingLineLayerId);
+        if (map.getLayer(drawingPointsLayerId))
+          map.removeLayer(drawingPointsLayerId);
         if (map.getSource(drawingSourceId)) map.removeSource(drawingSourceId);
       } catch (error) {
         console.error("Error cleaning up drawing preview:", error);
@@ -1710,36 +1738,50 @@ export default function MapLibre3D({
       // Create GeoJSON from blockages
       const blockageGeoJSON: GeoJSON.FeatureCollection = {
         type: "FeatureCollection",
-        features: blockages.map((blockage) => {
-          try {
-            console.log("📍 Processing blockage:", blockage.name, "ID:", blockage.id);
-            console.log("📍 Raw coordinates string:", blockage.coordinates);
+        features: blockages
+          .map((blockage) => {
+            try {
+              console.log(
+                "📍 Processing blockage:",
+                blockage.name,
+                "ID:",
+                blockage.id
+              );
+              console.log("📍 Raw coordinates string:", blockage.coordinates);
 
-            const coordinates = JSON.parse(blockage.coordinates);
-            console.log("📍 Parsed coordinates:", coordinates);
+              const coordinates = JSON.parse(blockage.coordinates);
+              console.log("📍 Parsed coordinates:", coordinates);
 
-            const feature = {
-              type: "Feature" as const,
-              properties: {
-                id: blockage.id,
-                name: blockage.name,
-              },
-              geometry: {
-                type: "Polygon" as const,
-                coordinates: coordinates,
-              },
-            };
+              const feature = {
+                type: "Feature" as const,
+                properties: {
+                  id: blockage.id,
+                  name: blockage.name,
+                },
+                geometry: {
+                  type: "Polygon" as const,
+                  coordinates: coordinates,
+                },
+              };
 
-            console.log("✅ Created feature:", feature);
-            return feature;
-          } catch (error) {
-            console.error("❌ Error parsing blockage coordinates:", error, blockage);
-            return null;
-          }
-        }).filter(Boolean) as GeoJSON.Feature[],
+              console.log("✅ Created feature:", feature);
+              return feature;
+            } catch (error) {
+              console.error(
+                "❌ Error parsing blockage coordinates:",
+                error,
+                blockage
+              );
+              return null;
+            }
+          })
+          .filter(Boolean) as GeoJSON.Feature[],
       };
 
-      console.log("🎨 Final GeoJSON:", JSON.stringify(blockageGeoJSON, null, 2));
+      console.log(
+        "🎨 Final GeoJSON:",
+        JSON.stringify(blockageGeoJSON, null, 2)
+      );
 
       if (blockageGeoJSON.features.length === 0) {
         console.warn("⚠️ No valid blockage features to display");
@@ -2420,7 +2462,14 @@ export default function MapLibre3D({
         () => (map.getCanvas().style.cursor = "")
       );
     };
-  }, [isMapLoaded, selectedRisk, pickingMode, startPin, endPin, isDrawingBlockage]); // Dependencies for click handlers
+  }, [
+    isMapLoaded,
+    selectedRisk,
+    pickingMode,
+    startPin,
+    endPin,
+    isDrawingBlockage,
+  ]); // Dependencies for click handlers
 
   // Handle search location zooming
   useEffect(() => {
@@ -2658,8 +2707,108 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Right-side Controls */}
-      <div className="absolute flex flex-col-reverse md:flex-row gap-2 top-2 md:top-4 right-2 transform z-[100] pointer-events-none">
+      {/* Drawing Mode Indicator - Enhanced for Mobile & Desktop */}
+      {isDrawingBlockage && (
+        <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none w-[90%] sm:w-auto max-w-md">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-lg shadow-2xl border-2 border-white animate-pulse">
+            <div className="flex items-center justify-center gap-2 md:gap-3">
+              <div className="w-2 h-2 md:w-3 md:h-3 bg-white rounded-full animate-ping"></div>
+              <div className="text-sm md:text-base font-bold">
+                🚧 Drawing Blockage Mode
+              </div>
+            </div>
+            <div className="text-xs md:text-sm mt-2 opacity-90 text-center">
+              Click on the map to add points
+            </div>
+            <div className="text-xs md:text-sm mt-1 font-semibold text-center bg-white/20 rounded px-2 py-1">
+              Points: {drawingPoints.length} / 3 minimum
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drawing Action Buttons - Enhanced for Mobile & Desktop */}
+      {isDrawingBlockage && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1001] flex flex-col sm:flex-row gap-3 sm:gap-4 w-[90%] sm:w-auto max-w-2xl pointer-events-auto">
+          {/* Cancel Button */}
+          <button
+            onClick={() => {
+              const confirmCancel = window.confirm(
+                "Are you sure you want to cancel drawing this blockage? All points will be lost."
+              );
+              if (confirmCancel) {
+                console.log("Canceling blockage drawing");
+                setIsDrawingBlockage(false);
+                setDrawingPoints([]);
+              }
+            }}
+            className="group relative flex-1 sm:flex-none bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:from-red-800 active:to-red-900 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-xl sm:rounded-2xl font-bold shadow-[0_10px_40px_rgba(220,38,38,0.4)] hover:shadow-[0_15px_50px_rgba(220,38,38,0.6)] border-2 border-white/30 transition-all duration-300 active:scale-95 hover:scale-[1.02] text-base sm:text-lg uppercase tracking-wider overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center justify-center gap-2 sm:gap-3">
+              <span className="text-xl sm:text-2xl font-bold">✕</span>
+              <span className="font-extrabold">Cancel</span>
+            </div>
+          </button>
+          {/* Confirm/Save Button */}
+          <button
+            onClick={async () => {
+              if (drawingPoints.length < 3) {
+                alert("Please add at least 3 points to create a blockage area");
+                return;
+              }
+
+              const blockageName =
+                prompt("Enter blockage name:") || "Unnamed Blockage";
+
+              if (!blockageName.trim()) {
+                alert("Blockage name cannot be empty");
+                return;
+              }
+
+              // Close the polygon by adding first point at the end
+              const closedCoordinates = [...drawingPoints, drawingPoints[0]];
+
+              // Create polygon coordinates in GeoJSON format
+              const polygonCoordinates = [closedCoordinates];
+
+              console.log("Saving blockage:", {
+                name: blockageName,
+                coordinates: polygonCoordinates,
+              });
+              await addBlockage(blockageName, polygonCoordinates);
+
+              // Clean up
+              setIsDrawingBlockage(false);
+              setDrawingPoints([]);
+
+              alert("Blockage added successfully!");
+            }}
+            disabled={drawingPoints.length < 3}
+            className={`group relative flex-1 sm:flex-none px-8 sm:px-12 py-4 sm:py-5 rounded-xl sm:rounded-2xl font-bold shadow-[0_10px_40px_rgba(0,0,0,0.3)] border-2 transition-all duration-300 active:scale-95 text-base sm:text-lg uppercase tracking-wider overflow-hidden ${
+              drawingPoints.length >= 3
+                ? "bg-gradient-to-br from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 active:from-green-800 active:to-green-900 text-white hover:shadow-[0_15px_50px_rgba(22,163,74,0.6)] border-white/30 cursor-pointer hover:scale-[1.02]"
+                : "bg-gradient-to-br from-gray-400 to-gray-500 text-gray-200 cursor-not-allowed opacity-60 border-gray-300"
+            }`}
+          >
+            {drawingPoints.length >= 3 && (
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            )}
+            <span className="relative flex items-center justify-center gap-2 sm:gap-3">
+              <span className="text-xl sm:text-2xl font-bold">✓</span>
+              <span className="font-extrabold">
+                Confirm{" "}
+                {drawingPoints.length >= 3
+                  ? ""
+                  : `(${3 - drawingPoints.length})`}
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Right-side Controls - Below Search Bar */}
+      <div className="absolute flex flex-col-reverse md:flex-row gap-2 top-25 right-2 md:right-4 z-[100] pointer-events-none">
         {/* --- ROUTE PLANNING MODAL --- */}
         <Transition appear show={isRoutingPanelOpen} as={Fragment}>
           <Dialog
@@ -2957,15 +3106,24 @@ export default function MapLibre3D({
                               </label>
                               <button
                                 onClick={() => {
-                                  console.log("Add blockage clicked - mode:", mode);
+                                  console.log(
+                                    "🚧 Add blockage clicked - mode:",
+                                    mode
+                                  );
+                                  console.log(
+                                    "🚧 Setting isDrawingBlockage to TRUE"
+                                  );
                                   setIsDrawingBlockage(true);
                                   setDrawingPoints([]);
                                   setIsRoutingPanelOpen(false);
-                                  alert("Click on the map to draw the blockage polygon.\n\nPress Enter when done (min 3 points).\nPress Escape to cancel.");
+                                  console.log(
+                                    "🚧 Drawing mode should now be active - buttons should appear"
+                                  );
                                 }}
-                                className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors shadow-sm"
+                                className="group relative text-xs px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-bold transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 overflow-hidden"
                               >
-                                + Add Blockage
+                                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                                <span className="relative">+ Add Blockage</span>
                               </button>
                             </div>
                             {blockages.length > 0 && (
@@ -2979,10 +3137,15 @@ export default function MapLibre3D({
                                       {blockage.name}
                                     </span>
                                     <button
-                                      onClick={() => removeBlockage(blockage.id)}
-                                      className="ml-2 text-red-600 hover:text-red-800 text-xs font-bold"
+                                      onClick={() =>
+                                        removeBlockage(blockage.id)
+                                      }
+                                      className="ml-2 text-red-600 hover:text-white hover:bg-red-600 w-5 h-5 rounded flex items-center justify-center transition-all duration-200 active:scale-90"
+                                      title="Remove blockage"
                                     >
-                                      ×
+                                      <span className="text-base font-bold leading-none">
+                                        ×
+                                      </span>
                                     </button>
                                   </div>
                                 ))}
@@ -2995,16 +3158,20 @@ export default function MapLibre3D({
                         <div className="grid grid-cols-2 gap-3 pt-2">
                           <button
                             onClick={clearRoute}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+                            className="group relative bg-gradient-to-br from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-800 px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 overflow-hidden"
                           >
-                            Clear
+                            <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                            <span className="relative">Clear</span>
                           </button>
                           <button
                             onClick={handleGetRoute}
                             disabled={isFetchingRoute}
-                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="group relative bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
                           >
-                            {isFetchingRoute ? "Routing..." : "Get Route"}
+                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                            <span className="relative">
+                              {isFetchingRoute ? "Routing..." : "Get Route"}
+                            </span>
                           </button>
                         </div>
                       </div>
@@ -3185,7 +3352,11 @@ export default function MapLibre3D({
           isRoutingPanelOpen ? "bg-red-100 ring-2 ring-red-500" : ""
         }`}
       >
-        <Signpost size={24} weight="bold" className={isRoutingPanelOpen ? "text-red-600" : "text-gray-700"} />
+        <Signpost
+          size={24}
+          weight="bold"
+          className={isRoutingPanelOpen ? "text-red-600" : "text-gray-700"}
+        />
       </button>
 
       {/* Legend - Bottom Right */}
