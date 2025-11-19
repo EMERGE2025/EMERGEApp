@@ -6,10 +6,44 @@ import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import { LogOut } from "lucide-react";
 import { UserCircleDashedIcon } from "@phosphor-icons/react/dist/ssr";
+import { db } from "@/utils/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 export default function NavBar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, userRole, logout } = useAuth();
+  const [adminProfile, setAdminProfile] = useState<{
+    name?: string;
+    profilePictureUrl?: string;
+  } | null>(null);
+
+  // Compress base64 image to 100x100
+  const compressBase64Image = (base64OrDataUri: string, maxSize: number = 100): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (typeof window === 'undefined') {
+        resolve(base64OrDataUri);
+        return;
+      }
+      const img = document.createElement('img');
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject('Could not get canvas context');
+          return;
+        }
+        ctx.drawImage(img, 0, 0, maxSize, maxSize);
+        // Return full data URI
+        const compressedDataUri = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(compressedDataUri);
+      };
+      img.onerror = () => reject('Failed to load image');
+      // Handle both full data URI and base64-only string
+      img.src = base64OrDataUri.startsWith('data:') ? base64OrDataUri : `data:image/jpeg;base64,${base64OrDataUri}`;
+    });
+  };
 
   const getRoleDisplayName = () => {
     if (userRole === "admin") return "Administrator";
@@ -17,6 +51,48 @@ export default function NavBar() {
     return "User";
   };
   const roleName = getRoleDisplayName();
+
+  // Fetch admin profile from ADMINISTRATORS document with real-time updates
+  useEffect(() => {
+    if (!user || userRole !== "admin") {
+      return;
+    }
+
+    const adminDocRef = doc(db, "ADMINISTRATORS", user.uid);
+
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(
+      adminDocRef,
+      async (adminDoc) => {
+        if (adminDoc.exists()) {
+          const data = adminDoc.data();
+
+          // Compress the profile picture if it exists
+          let compressedImage = data.profilePictureUrl;
+          if (data.profilePictureUrl) {
+            try {
+              compressedImage = await compressBase64Image(data.profilePictureUrl, 100);
+            } catch (error) {
+              console.error("Error compressing image:", error);
+              // Use original if compression fails
+              compressedImage = data.profilePictureUrl;
+            }
+          }
+
+          setAdminProfile({
+            name: data.name,
+            profilePictureUrl: compressedImage,
+          });
+        }
+      },
+      (error) => {
+        console.error("Error listening to admin profile:", error);
+      }
+    );
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, [user, userRole]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -90,28 +166,46 @@ export default function NavBar() {
               >
                 <div className="flex flex-col items-end min-w-0">
                   <span className="text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px] lg:max-w-[150px]">
-                    {user.displayName || user.email?.split("@")[0]}
+                    {userRole === "admin" && adminProfile?.name
+                      ? adminProfile.name
+                      : user.displayName || user.email?.split("@")[0]}
                   </span>
                   <span className="text-xs font-normal opacity-85 -mt-1 whitespace-nowrap">
                     {roleName}
                   </span>
                 </div>
                 <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden flex items-center justify-center bg-white/20 flex-shrink-0">
-                  {user.photoURL ? (
+                  {(userRole === "admin" && adminProfile?.profilePictureUrl) ||
+                  user.photoURL ? (
                     <img
-                      src={user.photoURL}
-                      alt={user.displayName || "Profile"}
+                      src={
+                        userRole === "admin" && adminProfile?.profilePictureUrl
+                          ? adminProfile.profilePictureUrl
+                          : user.photoURL || ""
+                      }
+                      alt={
+                        userRole === "admin" && adminProfile?.name
+                          ? adminProfile.name
+                          : user.displayName || "Profile"
+                      }
                       className="w-full h-full object-cover"
                       onError={(e) => {
+                        console.error("Error loading profile image");
                         e.currentTarget.style.display = "none";
-                        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        const nextElement = e.currentTarget.nextElementSibling;
+                        if (nextElement) {
+                          nextElement.classList.remove("hidden");
+                        }
                       }}
                     />
                   ) : null}
                   <UserCircleDashedIcon
-                    size={24}
-                    weight="bold"
-                    className={`text-white ${user.photoURL ? "hidden" : ""}`}
+                    className={`w-full h-full text-white ${
+                      (userRole === "admin" && adminProfile?.profilePictureUrl) ||
+                      user.photoURL
+                        ? "hidden"
+                        : ""
+                    }`}
                   />
                 </div>
               </button>
