@@ -373,9 +373,9 @@ export default function SettingsSidebar(props: SettingsSidebarProps) {
           onClick={onToggle}
           aria-label="Open Settings"
           title="Open Settings"
-          className="pointer-events-auto inline-flex items-center justify-center bg-white rounded-full w-10 h-10 shadow-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition"
+          className="pointer-events-auto inline-flex items-center justify-center bg-white/90 backdrop-blur-md rounded-lg p-2 shadow-lg border border-gray-200 hover:bg-white active:scale-95 transition min-w-[44px] min-h-[44px]"
         >
-          <SidebarSimple size={18} weight="bold" className="text-red-600" />
+          <SidebarSimple size={20} weight="bold" className="text-red-600" />
         </button>
       )}
     </div>

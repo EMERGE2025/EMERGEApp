@@ -118,7 +118,6 @@ function ResponderSidebar({
   isOpen: boolean;
   onClose: () => void;
   mode: "user" | "admin" | "responder";
-  mode: "user" | "admin" | "responder";
   pointDocId: string | null;
   pointName: string;
   allResponders: Person[];
@@ -2606,23 +2605,16 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Left stack: Back + Search on top, Sidebar below */}
-      <div className="absolute top-2 md:top-4 left-0 md:left-0 z-[110] pointer-events-none w-full max-w-md">
+      {/* Left stack (desktop/tablet): Back + Search + Sidebar */}
+      <div className="absolute top-2 md:top-4 left-0 md:left-0 z-[110] pointer-events-none w-full max-w-md hidden md:block">
         <div className="flex flex-col gap-2 pointer-events-auto pl-2">
           <div className="flex items-center gap-2 md:gap-3">
-            {/* Back button (phone/tablet responsive) */}
             <Link href="/" aria-label="Back to Home">
-              <span
-                className="inline-flex items-center justify-center bg-white text-red-600 rounded-full h-10 w-10 md:h-12 md:w-12 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition"
-              >
+              <span className="inline-flex items-center justify-center bg-white text-red-600 rounded-full h-10 w-10 md:h-12 md:w-12 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition">
                 <ArrowLeft size={18} weight="bold" />
               </span>
             </Link>
-
-            {/* Search box (responsive width & consistent radius) */}
-            <div
-              className="bg-white/90 backdrop-blur-md rounded-[40px] shadow-xl px-3 md:px-4 py-1 md:py-0 pointer-events-auto border border-white/20 h-10 md:h-12 flex items-center w-full max-w-[200px] sm:max-w-[260px] md:max-w-[420px] transition-all"
-            >
+            <div className="bg-white/90 backdrop-blur-md rounded-[40px] shadow-xl px-3 md:px-4 py-1 md:py-0 pointer-events-auto border border-white/20 h-10 md:h-12 flex items-center w-full max-w-[200px] sm:max-w-[260px] md:max-w-[420px] transition-all">
               <div className="flex items-center gap-1 md:gap-4 w-full h-full">
                 <input
                   type="text"
@@ -2643,7 +2635,7 @@ export default function MapLibre3D({
                 <button
                   onClick={onSearchSubmit}
                   disabled={isSearching}
-                  className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full h-8 w-8 md:h-6 md:w-6 flex items-center justify-center ml-2 shrink-0"
+                  className="bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-50 text-white rounded-full h-7 w-7 md:h-9 md:w-9 flex items-center justify-center ml-2 shrink-0 transition-colors"
                 >
                   {isSearching ? (
                     <div className="animate-spin w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full"></div>
@@ -2654,8 +2646,6 @@ export default function MapLibre3D({
               </div>
             </div>
           </div>
-
-          {/* Sidebar placed below */}
           <div className="mt-2">
             <SettingsSidebar
               isOpen={isSidebarOpen}
@@ -2671,9 +2661,73 @@ export default function MapLibre3D({
         </div>
       </div>
 
-      {/* Hazard Controls - top-right on mobile, centered on md+ */}
-      <div className="absolute top-14 right-2 md:top-4 md:left-1/2 md:-translate-x-1/2 md:right-auto z-[105] pointer-events-none h-10 md:h-12 flex items-center">
-        <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
+      {/* Mobile top bar: back button + search + profile/avatar */}
+      <div className="absolute top-2 left-2 right-2 z-[120] flex items-center gap-2 md:hidden pointer-events-none">
+        {/* Back button */}
+        <Link
+          href="/"
+          aria-label="Back to Home"
+          className="pointer-events-auto inline-flex items-center justify-center bg-white text-red-600 rounded-full h-10 w-10 shadow border border-gray-200 hover:bg-red-50 active:scale-95 transition"
+        >
+          <ArrowLeft size={20} weight="bold" />
+        </Link>
+        <div className="flex-1 relative pointer-events-auto">
+          <input
+            type="text"
+            className="w-full h-10 bg-white/95 backdrop-blur-md rounded-full pl-4 pr-12 text-sm text-black placeholder-gray-500 shadow-lg border border-white/40 outline-none"
+            placeholder="Search locations"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && onSearchSubmit()}
+          />
+          {/* Clear button (if text present) */}
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-14 top-1/2 -translate-y-1/2 text-gray-600"
+              aria-label="Clear search"
+            >
+              <X size={18} />
+            </button>
+          )}
+          {/* Search icon on right */}
+          <button
+            onClick={onSearchSubmit}
+            disabled={isSearching}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#E53935] hover:bg-[#D32F2F] transition-colors text-white disabled:opacity-60 w-8 h-8 rounded-full flex items-center justify-center shadow-md"
+            aria-label="Search"
+          >
+            {isSearching ? (
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+            ) : (
+              <MagnifyingGlassIcon size={16} weight="bold" />
+            )}
+          </button>
+        </div>
+        {/* Profile / login icon */}
+        <Link
+          href={user ? (mode === 'admin' ? '/admin/profile' : '/responder/profile') : '/login'}
+          aria-label={user ? 'Profile' : 'Login'}
+          className="pointer-events-auto w-10 h-10 rounded-full overflow-hidden bg-white shadow-lg border border-red-200 flex items-center justify-center"
+        >
+          {user && user.photoURL ? (
+            <img
+              src={user.photoURL}
+              alt={user.displayName || 'Profile'}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            <User size={24} className="text-red-600" />
+          )}
+        </Link>
+      </div>
+
+      {/* Hazard Controls - mobile: placed below user icon (top-14); desktop: horizontal centered */}
+      <div className="absolute top-14 right-2 md:top-4 md:left-1/2 md:-translate-x-1/2 md:right-auto z-[105] pointer-events-none flex flex-col md:flex-row items-end md:items-center gap-2">
+        <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-3 pointer-events-auto">
           {[
             { id: "flooding", label: "Flood", color: "#0ea5e9", icon: "/icons/flood icon.svg" },
             { id: "earthquake", label: "Earthquake", color: "#36A816", icon: "/icons/earthquake icon.svg" },
@@ -2684,15 +2738,17 @@ export default function MapLibre3D({
               <button
                 key={h.id}
                 onClick={() => onHazardChange(h.id)}
-                className={`group inline-flex items-center gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-sm font-medium transition shadow ${
-                  active ? "text-white" : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
-                }`}
+                className={`group inline-flex items-center justify-center rounded-full transition shadow ${
+                  active
+                    ? "text-white"
+                    : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
+                } w-6 h-6 md:w-auto md:h-auto md:px-4 md:py-2 md:gap-2 ${active ? '' : ''}`}
                 style={active ? { background: h.color } : undefined}
                 title={`${h.label} Hazard`}
               >
                 <span
                   aria-hidden
-                  className="w-4 h-4"
+                  className="w-4 h-4 md:w-4 md:h-4"
                   style={{
                     background: active ? "#ffffff" : "#6b7280",
                     WebkitMask: `url('${h.icon}') center/contain no-repeat`,
@@ -2700,12 +2756,39 @@ export default function MapLibre3D({
                     display: "inline-block",
                   }}
                 />
-                <span className="hidden sm:inline">{h.label}</span>
+                <span className="hidden md:inline text-sm font-medium">{h.label}</span>
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* Mobile Settings Sidebar restored to top-left below search/back */}
+      <div className="absolute top-14 left-2 z-[110] md:hidden pointer-events-none">
+        <div className="pointer-events-auto">
+          <SettingsSidebar
+            isOpen={isSidebarOpen}
+            onToggle={() => setIsSidebarOpen((s) => !s)}
+            isHeatmapEnabled={isHeatmapEnabled}
+            onToggleHeatmap={toggleHeatmap}
+            areMarkersVisible={areMarkersVisible}
+            onToggleMarkers={toggleMarkers}
+            clustersCount={clustersCount}
+            onClustersCountChange={setClustersCount}
+          />
+        </div>
+      </div>
+
+      {/* Legend Icon Button - Bottom Left (aligned with route planning) */}
+      <button
+        onClick={() => setIsLegendVisible(!isLegendVisible)}
+        title={isLegendVisible ? "Hide Legend" : "Show Legend"}
+        className="absolute left-4 bottom-4 z-[100] pointer-events-auto bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
+      >
+        <Info size={20} weight="bold" className={isLegendVisible ? 'text-green-600' : 'text-gray-600'} />
+      </button>
+
+      {/* Removed standalone bottom-right burger; replaced by consolidated control cluster below */}
 
       {/* Drawing Mode Indicator - Enhanced for Mobile & Desktop */}
       {isDrawingBlockage && (
@@ -2807,8 +2890,8 @@ export default function MapLibre3D({
         </div>
       )}
 
-      {/* Right-side Controls - Below Search Bar */}
-      <div className="absolute flex flex-col-reverse md:flex-row gap-2 top-25 right-2 md:right-4 z-[100] pointer-events-none">
+      {/* Overlay container spanning map for dialogs (cluster moved separately) */}
+      <div className="absolute inset-0 z-[100] pointer-events-none">
         {/* --- ROUTE PLANNING MODAL --- */}
         <Transition appear show={isRoutingPanelOpen} as={Fragment}>
           <Dialog
@@ -3183,118 +3266,25 @@ export default function MapLibre3D({
           </Dialog>
         </Transition>
 
-        {/* Map Control Button Cluster */}
-        <div className="flex flex-col gap-1 md:gap-2 pointer-events-auto">
-          <Menu as="div" className="relative">
-            <Menu.Button
-              as="button"
-              className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
-              title="Settings"
-            >
-              <List size={20} weight="bold" className="text-gray-600" />
-            </Menu.Button>
-            <Menu.Items className="absolute right-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl shadow-xl border border-white/20 z-[100] focus:outline-none">
-              <div className="p-2 space-y-1 text-gray-500">
-                {/* Heatmap Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={toggleHeatmap}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${active ? "bg-gray-100" : ""}`}
-                    >
-                      <Flame size={20} weight="bold" className={isHeatmapEnabled ? "text-orange-600" : "text-gray-600"} />
-                      <span>{isHeatmapEnabled ? "Disable Heatmap" : "Enable Heatmap"}</span>
-                    </button>
-                  )}
-                </Menu.Item>
-                {/* Marker Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={toggleMarkers}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${active ? "bg-gray-100" : ""}`}
-                    >
-                      {areMarkersVisible ? (
-                        <Eye size={16} weight="bold" className="text-blue-600" />
-                      ) : (
-                        <EyeSlash size={16} weight="bold" className="text-gray-600" />
-                      )}
-                      <span>{areMarkersVisible ? "Hide Markers" : "Show Markers"}</span>
-                    </button>
-                  )}
-                </Menu.Item>
-                {/* Legend Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={() => setIsLegendVisible(!isLegendVisible)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${active ? "bg-gray-100" : ""}`}
-                    >
-                      <Info size={16} weight="bold" className={isLegendVisible ? "text-green-600" : "text-gray-600"} />
-                      <span>{isLegendVisible ? "Hide Legend" : "Show Legend"}</span>
-                    </button>
-                  )}
-                </Menu.Item>
-                {/* 3D/2D Toggle */}
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={() => {
-                        if (!mapRef.current) return;
-                        const map = mapRef.current;
-                        const currentPitch = map.getPitch();
-                        const newPitch = currentPitch === 0 ? 60 : 0;
-                        const newBearing = currentPitch === 0 ? 180 : 0;
-                        map.easeTo({ pitch: newPitch, bearing: newBearing, duration: 1000 });
-                        setIs3D(newPitch !== 0);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${active ? "bg-gray-100" : ""}`}
-                    >
-                      <Globe size={16} weight="bold" className={is3D ? "text-blue-600" : "text-gray-600"} />
-                      <span>{is3D ? "Switch to 2D" : "Switch to 3D"}</span>
-                    </button>
-                  )}
-                </Menu.Item>
-              </div>
-            </Menu.Items>
-          </Menu>
-
+        {/* Consolidated Bottom-Right Control Cluster (ordered: +, -, 3D/2D, route) */}
+        <div className="absolute bottom-4 right-4 z-[110] flex flex-col gap-2 pointer-events-auto">
           {/* Zoom In */}
           <button
             onClick={() => mapRef.current?.zoomIn()}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
             title="Zoom In"
+            className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
             <Plus size={20} weight="bold" className="text-gray-600" />
           </button>
           {/* Zoom Out */}
           <button
             onClick={() => mapRef.current?.zoomOut()}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
             title="Zoom Out"
+            className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
             <Minus size={20} weight="bold" className="text-gray-600" />
           </button>
-
-          {/* My Location */}
-          <button
-            onClick={() => {
-              onGetCurrentLocation();
-              setShowLocationCoords(true);
-            }}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl ${
-              showLocationCoords ? "bg-red-100 text-red-700" : ""
-            }`}
-            title="My Location"
-          >
-            <Crosshair
-              size={20}
-              weight="bold"
-              className={showLocationCoords ? "text-red-600" : "text-gray-600"}
-            />
-          </button>
-
-          {/* 3D Toggle (alternate entry) */}
+          {/* 3D / 2D Toggle */}
           <button
             onClick={() => {
               if (!mapRef.current) return;
@@ -3305,9 +3295,18 @@ export default function MapLibre3D({
               map.easeTo({ pitch: newPitch, bearing: newBearing, duration: 1000 });
               setIs3D(newPitch !== 0);
             }}
-            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl`}
+            title={is3D ? 'Switch to 2D' : 'Switch to 3D'}
+            className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
-            <Globe size={20} weight="bold" className={is3D ? "text-red-600" : "text-gray-600"} />
+            <Globe size={20} weight="bold" className={is3D ? 'text-red-600' : 'text-gray-600'} />
+          </button>
+          {/* Route Planning Trigger */}
+          <button
+            onClick={() => setIsRoutingPanelOpen(true)}
+            title="Route Planning"
+            className="bg-[#E53935] hover:bg-[#D32F2F] text-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-[#E53935] hover:scale-105 active:scale-95 hover:shadow-2xl"
+          >
+            <Signpost size={20} weight="bold" />
           </button>
         </div>
       </div>
@@ -3343,21 +3342,7 @@ export default function MapLibre3D({
         </div>
       )}
 
-      {/* Route Planning Button - Bottom Right */}
-      <button
-        onClick={() => setIsRoutingPanelOpen((o) => !o)}
-        aria-label="Route Planning"
-        title="Route Planning"
-        className={`absolute bottom-4 right-4 z-[100] bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full p-4 md:p-5 transition-all duration-200 pointer-events-auto border border-white/20 hover:scale-110 active:scale-95 hover:shadow-2xl ${
-          isRoutingPanelOpen ? "bg-red-100 ring-2 ring-red-500" : ""
-        }`}
-      >
-        <Signpost
-          size={24}
-          weight="bold"
-          className={isRoutingPanelOpen ? "text-red-600" : "text-gray-700"}
-        />
-      </button>
+      {/* Route Planning Button moved into control cluster above; removed standalone */}
 
       {/* Legend - Bottom Right */}
       <div

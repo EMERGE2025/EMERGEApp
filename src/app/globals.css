@@ -2,7 +2,9 @@
 
 :root {
   /* Brand palette */
-  --brand-responder: #E53935; /* red */
+  --brand-responder: #E53935; /* primary brand red */
+  --brand-responder-dark: #D32F2F; /* hover/dark variant */
+  --brand-responder-light: #FFCDD2; /* subtle borders/backgrounds */
   --brand-flood: #1883D0;      /* blue */
   --brand-earthquake: #36A816; /* green */
   --brand-landslide: #C38811;  /* light brown */
@@ -22,6 +24,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-brand-red: var(--brand-responder);
+  --color-brand-red-dark: var(--brand-responder-dark);
+  --color-brand-red-light: var(--brand-responder-light);
   --color-brand-blue: var(--brand-flood);
   --color-brand-green: var(--brand-earthquake);
   --color-brand-brown: var(--brand-landslide);
@@ -54,12 +58,15 @@ body {
 .text-brand { color: var(--brand-text) !important; }
 
 .bg-brand-red { background-color: var(--brand-responder) !important; }
+.bg-brand-red-dark { background-color: var(--brand-responder-dark) !important; }
+.bg-brand-red-light { background-color: var(--brand-responder-light) !important; }
 .bg-brand-blue { background-color: var(--brand-flood) !important; }
 .bg-brand-green { background-color: var(--brand-earthquake) !important; }
 .bg-brand-brown { background-color: var(--brand-landslide) !important; }
 .bg-brand-white { background-color: var(--brand-white) !important; }
 
 .border-brand-red { border-color: var(--brand-responder) !important; }
+.border-brand-red-light { border-color: var(--brand-responder-light) !important; }
 .border-brand-blue { border-color: var(--brand-flood) !important; }
 .border-brand-green { border-color: var(--brand-earthquake) !important; }
 .border-brand-brown { border-color: var(--brand-landslide) !important; }

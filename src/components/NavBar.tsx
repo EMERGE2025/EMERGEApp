@@ -123,7 +123,7 @@ export default function NavBar() {
         <li>
           <Link
             href="/"
-            className="font-medium text-black hover:text-[#B92727] transition-colors"
+            className="font-medium text-black hover:text-[#E53935] transition-colors"
           >
             Home
           </Link>
@@ -131,7 +131,7 @@ export default function NavBar() {
         <li>
           <Link
             href="/hazards"
-            className="font-medium text-black hover:text-[#B92727] transition-colors"
+            className="font-medium text-black hover:text-[#E53935] transition-colors"
           >
             Risk Map
           </Link>
@@ -139,7 +139,7 @@ export default function NavBar() {
         <li>
           <Link
             href="/about"
-            className="font-medium text-black hover:text-[#B92727] transition-colors"
+            className="font-medium text-black hover:text-[#E53935] transition-colors"
           >
             About
           </Link>
@@ -148,7 +148,7 @@ export default function NavBar() {
           <li>
             <Link
               href="/admin"
-              className="font-medium text-black hover:text-[#B92727] transition-colors"
+              className="font-medium text-black hover:text-[#E53935] transition-colors"
             >
               Admin Dashboard
             </Link>
@@ -162,7 +162,7 @@ export default function NavBar() {
             {/* Desktop/Large screens: full profile dropdown */}
             <div className="relative dropdown hidden lg:block">
               <button
-                className="flex items-center bg-[#B92727] text-white rounded-xl px-3 lg:px-4 py-2 font-bold gap-2 lg:gap-3"
+                className="flex items-center bg-[#E53935] hover:bg-[#D32F2F] text-white rounded-xl px-3 lg:px-4 py-2 font-bold gap-2 lg:gap-3 transition-colors"
                 onClick={() => setProfileOpen(!profileOpen)}
               >
                 <div className="flex flex-col items-end min-w-0">
@@ -219,14 +219,14 @@ export default function NavBar() {
                           ? "/admin/profile"
                           : "/responder/profile"
                       }
-                      className="block px-4 py-2 text-black hover:text-[#B92727]"
+                      className="block px-4 py-2 text-black hover:text-[#E53935]"
                     >
                       Edit Profile
                     </Link>
                   </li>
                   <li>
                     <button
-                      className="block px-4 py-2 text-black hover:text-[#B92727] w-full text-left"
+                      className="block px-4 py-2 text-black hover:text-[#E53935] w-full text-left"
                       onClick={logout}
                     >
                       Logout
@@ -238,7 +238,7 @@ export default function NavBar() {
             {/* Mobile/Tablet: avatar-only button linking to profile */}
             <Link
               href={userRole === "admin" ? "/admin/profile" : "/responder/profile"}
-              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-full overflow-hidden bg-white border border-red-200"
+              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-full overflow-hidden bg-white border border-[#FFCDD2]"
               aria-label="Profile"
             >
               {user.photoURL ? (
@@ -252,7 +252,7 @@ export default function NavBar() {
                   }}
                 />
               ) : (
-                <UserCircleDashedIcon size={22} weight="bold" className="text-[#B92727]" />
+                <UserCircleDashedIcon size={22} weight="bold" className="text-[#E53935]" />
               )}
             </Link>
           </>
@@ -260,17 +260,17 @@ export default function NavBar() {
           <>
             {/* Desktop/Large screens: full Login button */}
             <Link href="/login" className="hidden lg:block">
-              <button className="bg-[#B92727] text-white rounded-xl px-4 md:px-10 py-2 font-bold text-sm md:text-base">
+              <button className="bg-[#E53935] hover:bg-[#D32F2F] text-white rounded-xl px-4 md:px-10 py-2 font-bold text-sm md:text-base transition-colors">
                 Login
               </button>
             </Link>
             {/* Mobile/Tablet: person icon linking to login */}
             <Link
               href="/login"
-              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-full bg-white border border-red-200"
+              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-full bg-white border border-[#FFCDD2]"
               aria-label="Login"
             >
-              <UserCircleDashedIcon size={22} weight="bold" className="text-[#B92727]" />
+              <UserCircleDashedIcon size={22} weight="bold" className="text-[#E53935]" />
             </Link>
           </>
         )}
