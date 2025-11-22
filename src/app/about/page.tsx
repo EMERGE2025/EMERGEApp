@@ -130,7 +130,7 @@ export default function AboutPage() {
                   DHOMINICK JOHN S. BILLENA
                 </div>
                 <div className="text-sm tracking-wider text-[#e53935]">
-                  Project Leader
+                  System Architect / Backend Developer
                 </div>
               </div>
 
@@ -146,7 +146,7 @@ export default function AboutPage() {
                   MAURICIO MANUEL F. BERGANCIA
                 </div>
                 <div className="text-sm tracking-wider text-[#e53935]">
-                  System Architect
+                  Lead Frontend Developer
                 </div>
               </div>
 
@@ -167,7 +167,7 @@ export default function AboutPage() {
               </div>
             </div>
 
-            <div className="flex-col justify-center gap-60 md:flex">
+            <div className=" flex flex-col justify-center md:flex-row md:gap-60 gap-y-12">
               <div className="flex flex-col items-center text-center">
                 <Image
                   src="/images/3.png"

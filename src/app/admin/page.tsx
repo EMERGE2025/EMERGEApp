@@ -5,7 +5,7 @@ import { db } from "@/utils/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import RegisterResponder from "@/components/admin/RegisterResponder";
-import ManageResponsePoints from "@/components/admin/ManageResponsePoints";
+import ResponderDataTable from "@/components/ResponderDataTable";
 import {
   MapPin,
   Users,
@@ -52,7 +52,10 @@ function StatCard({
               {icon}
             </div>
             <div className="flex-1">
-              <p className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wide">
+              <p
+                className="text-xs md:text-sm font-medType '{ locationID: string; selectedRisk: string; }' is not assignable to type 'IntrinsicAttributes & { selectedRisk?: string | undefined; }'.
+  Property 'locationID' does not exist on type 'IntrinsicAttributes & { selectedRisk?: string | undefined; }'.ts(2322)ium text-gray-500 uppercase tracking-wide"
+              >
                 {title}
               </p>
               {loading ? (
@@ -73,7 +76,6 @@ function StatCard({
 export default function AdminDashboard() {
   const { locationID } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>("manage");
-  const [selectedRisk, setSelectedRisk] = useState("flooding");
   const [stats, setStats] = useState<DashboardStats>({
     totalResponsePoints: 0,
     totalResponders: 0,
@@ -272,39 +274,10 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Hazard Type Selector (for manage tab) */}
-        {activeTab === "manage" && (
-          <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 mb-6">
-            <label className="text-sm md:text-base font-semibold text-gray-900 block mb-3">
-              Select Hazard Type:
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {["flooding", "earthquake", "landslide"].map((risk) => (
-                <button
-                  key={risk}
-                  onClick={() => setSelectedRisk(risk)}
-                  className={`px-4 md:px-5 py-2.5 text-sm md:text-base font-semibold rounded-lg transition-all duration-200 capitalize ${
-                    selectedRisk === risk
-                      ? "bg-red-600 text-white shadow-md"
-                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  {risk}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Tab Content */}
-        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 overflow-hidden">
           {activeTab === "register" && <RegisterResponder />}
-          {activeTab === "manage" && locationID && (
-            <ManageResponsePoints
-              uniqueID={locationID}
-              selectedRisk={selectedRisk}
-            />
-          )}
+          {activeTab === "manage" && <ResponderDataTable />}
         </div>
       </div>
     </div>

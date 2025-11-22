@@ -153,6 +153,8 @@ export default function ManageResponsePoints({
 
   // Fetch all responders from the 'responders' document inside the locationID collection
   useEffect(() => {
+    if (!locationID) return;
+
     console.log(
       `🔍 [ManageResponsePoints] Fetching responders for locationID: ${locationID}`
     );
@@ -164,12 +166,12 @@ export default function ManageResponsePoints({
       respondersDocRef,
       (docSnap) => {
         console.log(
-          `📡 [ManageResponsePoints] Snapshot received for ${locationID}/responders`
+          `[ManageResponsePoints] Snapshot received for ${locationID}/responders`
         );
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          console.log(`📦 [ManageResponsePoints] Document data:`, data);
+          console.log(`[ManageResponsePoints] Document data:`, data);
 
           // Get the responderList array
           const responderList = data?.responderList || [];
@@ -189,12 +191,12 @@ export default function ManageResponsePoints({
 
           setAllResponders(responders);
           console.log(
-            `✅ [ManageResponsePoints] Set ${responders.length} responders:`,
+            `[ManageResponsePoints] Set ${responders.length} responders:`,
             responders
           );
         } else {
           console.warn(
-            `⚠️ [ManageResponsePoints] No document found at ${locationID}/responders`
+            `[ManageResponsePoints] No document found at ${locationID}/responders`
           );
           setAllResponders([]);
         }
@@ -202,7 +204,7 @@ export default function ManageResponsePoints({
       },
       (error) => {
         console.error(
-          "❌ [ManageResponsePoints] Error fetching responders:",
+          "[ManageResponsePoints] Error fetching responders:",
           error
         );
         setAllResponders([]);
@@ -218,7 +220,7 @@ export default function ManageResponsePoints({
     responderId: string,
     action: "add" | "remove"
   ) => {
-    if (!selectedPoint) return;
+    if (!selectedPoint || !locationID) return;
 
     const documentId = `responder${selectedRisk}`;
     const pointRef = doc(db, locationID, documentId);
