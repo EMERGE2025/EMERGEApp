@@ -18,7 +18,6 @@ import {
   Globe,
   Plus,
   Minus,
-  ArrowDown,
   List,
   Signpost,
   Crosshair,
@@ -26,9 +25,11 @@ import {
   Car,
   User,
   CircleNotch, // FIX: Replaced Spinner with CircleNotch
+  UserCircleDashed,
+  CaretRight,
+  CaretDown,
 } from "@phosphor-icons/react/dist/ssr";
 import { Timer } from "@phosphor-icons/react";
-import { truncate } from "fs/promises";
 
 // --- NEW: FIREBASE IMPORTS ---
 import { db } from "@/utils/firebase"; // Use your correct path
@@ -319,10 +320,10 @@ function ResponderSidebar({
                   src={p.profilePictureUrl}
                   alt={p.name}
                   className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-                  onError={(e) => {
+                  onError={(e: any) => {
                     // Fallback to placeholder if image fails to load
-                    e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                    (e.target as HTMLImageElement).style.display = "none";
+                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
                   }}
                 />
               ) : null}
@@ -331,21 +332,25 @@ function ResponderSidebar({
                   p.profilePictureUrl ? "hidden" : ""
                 }`}
               >
-                <User size={14} className="text-white" />
+                <User size={14} color="white" />
               </div>
               <div className="flex-1 flex items-center justify-between gap-2">
                 <div className="opacity-90 text-[13px] font-medium text-[#111827]">{p.name}</div>
                 <div className="flex items-center gap-1">
                   {/* Expand/Collapse indicator */}
-                  <div className="text-[10px] text-zinc-500">{expandedId === p.id ? "▼" : "▶"}</div>
+                  {expandedId === p.id ? (
+                    <CaretDown size={12} color="#a1a5ab" weight="bold" />
+                  ) : (
+                    <CaretRight size={12} color="#a1a5ab" weight="bold" />
+                  )}
                   {/* Only show button if admin */}
                   {mode === "admin" && (
                     <button
-                      onClick={(e) => {
+                      onClick={(e: any) => {
                         e.stopPropagation();
                         handleAction(p.id, modeAction as "add" | "remove");
                       }}
-                      className="w-4 h-4 inline-flex items-center justify-center rounded-full text-[11px] leading-none border border-gray-500/70 text-gray-700 hover:bg-gray-700 hover:text-white transition"
+                      className="w-[24px] h-[24px] min-w-[24px] min-h-[24px] max-w-[24px] max-h-[24px] inline-flex items-center justify-center rounded-full text-[14px] font-medium leading-none border border-gray-400 text-gray-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition flex-shrink-0"
                     >
                       {modeAction === "remove" ? "×" : "+"}
                     </button>
@@ -502,7 +507,7 @@ function ResponderSidebar({
                           <div className="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
                           <div className="text-zinc-900/60 text-[12px] font-medium">{assigned.length} Selected</div>
                         </div>
-                        <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2 max-h-28 overflow-y-auto">
+                        <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2 min-h-[7rem] overflow-auto resize">
                           <ResponderChipRow list={assigned} modeAction={mode === "admin" ? "remove" : "user"} />
                         </div>
                       </div>
@@ -514,7 +519,7 @@ function ResponderSidebar({
                           <div className="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
                           <div className="text-zinc-900/60 text-[12px] font-medium">{available.length} Available</div>
                         </div>
-                        <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2 max-h-28 overflow-y-auto">
+                        <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2 min-h-[7rem] overflow-auto resize">
                           <ResponderChipRow list={available} modeAction={mode === "admin" ? "add" : "user"} />
                         </div>
                       </div>
@@ -577,7 +582,49 @@ export default function MapLibre3D({
   uniqueID: string; // --- NEW PROP ---
 }) {
   // --- AUTH CONTEXT ---
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
+
+  // --- ADMIN PROFILE STATE ---
+  const [adminProfile, setAdminProfile] = useState<{
+    name?: string;
+    profilePictureUrl?: string;
+  } | null>(null);
+
+  // Fetch admin profile from ADMINISTRATORS document with real-time updates
+  useEffect(() => {
+    if (!user || userRole !== "admin") {
+      return;
+    }
+
+    const adminDocRef = doc(db, "ADMINISTRATORS", user.uid);
+
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(
+      adminDocRef,
+      async (adminDoc) => {
+        if (adminDoc.exists()) {
+          const data = adminDoc.data();
+          setAdminProfile({
+            name: data.name,
+            profilePictureUrl: data.profilePictureUrl,
+          });
+        }
+      },
+      (error) => {
+        console.error("Error listening to admin profile:", error);
+      }
+    );
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, [user, userRole]);
+
+  // Get role display name
+  const getRoleDisplayName = () => {
+    if (userRole === "admin") return "Administrator";
+    if (userRole === "responder") return "Responder";
+    return "User";
+  };
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const currentPopupRef = useRef<maplibregl.Popup | null>(null);
@@ -2586,23 +2633,6 @@ export default function MapLibre3D({
             </button>
           </div>
         )}
-
-        {/* Scroll button */}
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
-          <button
-            type="button"
-            aria-label="Scroll to bottom"
-            title="Scroll to bottom"
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-              }
-            }}
-            className="pointer-events-auto inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-white text-red-600 shadow-lg border border-gray-200 hover:bg-red-50 active:scale-95 transition ring-1 ring-red-200"
-          >
-            <ArrowDown size={22} weight="bold" />
-          </button>
-        </div>
       </div>
 
       {/* Left stack (desktop/tablet): Back + Search + Sidebar */}
@@ -2694,35 +2724,65 @@ export default function MapLibre3D({
           <button
             onClick={onSearchSubmit}
             disabled={isSearching}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#E53935] hover:bg-[#D32F2F] transition-colors text-white disabled:opacity-60 w-8 h-8 rounded-full flex items-center justify-center shadow-md"
+            className="absolute right-1 top-1/2 -translate-y-1/2 bg-[#E53935] hover:bg-[#D32F2F] transition-colors text-white disabled:opacity-60 w-7 h-7 rounded-full flex items-center justify-center border-2 border-white"
             aria-label="Search"
           >
             {isSearching ? (
-              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+              <div className="animate-spin w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full" />
             ) : (
-              <MagnifyingGlassIcon size={16} weight="bold" />
+              <MagnifyingGlassIcon size={12} weight="bold" />
             )}
           </button>
         </div>
         {/* Profile / login icon */}
-        <Link
-          href={user ? (mode === 'admin' ? '/admin/profile' : '/responder/profile') : '/login'}
-          aria-label={user ? 'Profile' : 'Login'}
-          className="pointer-events-auto w-10 h-10 rounded-full overflow-hidden bg-white shadow-lg border border-red-200 flex items-center justify-center"
-        >
-          {user && user.photoURL ? (
-            <img
-              src={user.photoURL}
-              alt={user.displayName || 'Profile'}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
+        {user ? (
+          <Link
+            href={userRole === 'admin' ? '/admin/profile' : '/responder/profile'}
+            aria-label="Profile"
+            className="pointer-events-auto w-10 h-10 rounded-full overflow-hidden bg-white shadow-lg ring-2 ring-red-600 flex items-center justify-center"
+          >
+            {(userRole === "admin" && adminProfile?.profilePictureUrl) ||
+            user.photoURL ? (
+              <img
+                src={
+                  userRole === "admin" && adminProfile?.profilePictureUrl
+                    ? adminProfile.profilePictureUrl
+                    : user.photoURL || ""
+                }
+                alt={
+                  userRole === "admin" && adminProfile?.name
+                    ? adminProfile.name
+                    : user.displayName || "Profile"
+                }
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  const nextElement = e.currentTarget.nextElementSibling;
+                  if (nextElement) {
+                    nextElement.classList.remove("hidden");
+                  }
+                }}
+              />
+            ) : null}
+            <User
+              size={24}
+              className={`text-red-600 ${
+                (userRole === "admin" && adminProfile?.profilePictureUrl) ||
+                user.photoURL
+                  ? "hidden"
+                  : ""
+              }`}
             />
-          ) : (
-            <User size={24} className="text-red-600" />
-          )}
-        </Link>
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            aria-label="Login"
+            className="pointer-events-auto w-10 h-10 rounded-full overflow-hidden bg-[#E53935] shadow-lg flex items-center justify-center"
+          >
+            <User size={24} className="text-white" />
+          </Link>
+        )}
       </div>
 
       {/* Hazard Controls - mobile: placed below user icon (top-14); desktop: horizontal centered */}
@@ -2761,6 +2821,70 @@ export default function MapLibre3D({
             );
           })}
         </div>
+      </div>
+
+      {/* Desktop Profile button - upper right (navbar style) */}
+      <div className="absolute top-4 right-4 z-[110] pointer-events-none hidden md:block">
+        {user ? (
+          <Link
+            href={userRole === 'admin' ? '/admin/profile' : '/responder/profile'}
+            aria-label="Profile"
+            className="pointer-events-auto flex items-center bg-[#E53935] hover:bg-[#D32F2F] text-white rounded-xl px-3 lg:px-4 py-2 font-bold gap-2 lg:gap-3 transition-colors shadow-lg"
+          >
+            <div className="flex flex-col items-end min-w-0">
+              <span className="text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px] lg:max-w-[150px]">
+                {userRole === "admin" && adminProfile?.name
+                  ? adminProfile.name
+                  : user.displayName || user.email?.split("@")[0]}
+              </span>
+              <span className="text-xs font-normal opacity-85 -mt-1 whitespace-nowrap">
+                {getRoleDisplayName()}
+              </span>
+            </div>
+            <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden flex items-center justify-center bg-white/20 flex-shrink-0 ring-2 ring-red-700">
+              {(userRole === "admin" && adminProfile?.profilePictureUrl) ||
+              user.photoURL ? (
+                <img
+                  src={
+                    userRole === "admin" && adminProfile?.profilePictureUrl
+                      ? adminProfile.profilePictureUrl
+                      : user.photoURL || ""
+                  }
+                  alt={
+                    userRole === "admin" && adminProfile?.name
+                      ? adminProfile.name
+                      : user.displayName || "Profile"
+                  }
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const nextElement = e.currentTarget.nextElementSibling;
+                    if (nextElement) {
+                      nextElement.classList.remove("hidden");
+                    }
+                  }}
+                />
+              ) : null}
+              <UserCircleDashed
+                className={`w-full h-full text-white ${
+                  (userRole === "admin" && adminProfile?.profilePictureUrl) ||
+                  user.photoURL
+                    ? "hidden"
+                    : ""
+                }`}
+              />
+            </div>
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            aria-label="Login"
+            className="pointer-events-auto flex items-center bg-[#E53935] hover:bg-[#D32F2F] text-white rounded-xl px-4 py-2 font-bold gap-2 transition-colors shadow-lg"
+          >
+            <span className="text-sm">Login</span>
+            <User size={20} className="text-white" />
+          </Link>
+        )}
       </div>
 
       {/* Mobile Settings Sidebar restored to top-left below search/back */}
@@ -3272,17 +3396,19 @@ export default function MapLibre3D({
           <button
             onClick={() => mapRef.current?.zoomIn()}
             title="Zoom In"
-            className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
+            className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full md:rounded-xl p-0.5 md:p-3 transition-all duration-200 w-5 h-5 md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
-            <Plus size={20} weight="bold" className="text-gray-600" />
+            <Plus size={12} weight="bold" className="text-gray-600 md:hidden" />
+            <Plus size={20} weight="bold" className="text-gray-600 hidden md:block" />
           </button>
           {/* Zoom Out */}
           <button
             onClick={() => mapRef.current?.zoomOut()}
             title="Zoom Out"
-            className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
+            className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full md:rounded-xl p-0.5 md:p-3 transition-all duration-200 w-5 h-5 md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
-            <Minus size={20} weight="bold" className="text-gray-600" />
+            <Minus size={12} weight="bold" className="text-gray-600 md:hidden" />
+            <Minus size={20} weight="bold" className="text-gray-600 hidden md:block" />
           </button>
           {/* 3D / 2D Toggle */}
           <button
