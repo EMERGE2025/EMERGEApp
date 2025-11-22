@@ -22,6 +22,7 @@ import {
   arrayRemove,
   onSnapshot,
 } from "firebase/firestore";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Point = {
   id: string;
@@ -30,8 +31,9 @@ type Point = {
   assignedCount: number;
   assignedUIDs: string[];
 };
+
 type Responder = {
-  id: string; // Auth UID
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -96,23 +98,24 @@ function ResponderListCard({
 }
 
 export default function ManageResponsePoints({
-  uniqueID = "PH063043000",
   selectedRisk = "flooding",
 }: {
-  uniqueID?: string;
   selectedRisk?: string;
 }) {
+  const { locationID } = useAuth();
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
   const [allPoints, setAllPoints] = useState<Point[]>([]);
   const [allResponders, setAllResponders] = useState<Responder[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [allAssignedUIDs, setAllAssignedUIDs] = useState<string[]>([]); // Track all assigned responders
+  const [allAssignedUIDs, setAllAssignedUIDs] = useState<string[]>([]);
 
   // Fetch all response points from responder${risk} document
   useEffect(() => {
+    if (!locationID) return;
+
     const documentId = `responder${selectedRisk}`;
-    const pointRef = doc(db, uniqueID, documentId);
+    const pointRef = doc(db, locationID, documentId);
 
     const unsubscribe = onSnapshot(pointRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -146,19 +149,23 @@ export default function ManageResponsePoints({
     });
 
     return () => unsubscribe();
-  }, [uniqueID, selectedRisk]);
+  }, [locationID, selectedRisk]);
 
-  // Fetch all responders from the 'responders' document inside the uniqueID collection
+  // Fetch all responders from the 'responders' document inside the locationID collection
   useEffect(() => {
-    console.log(`🔍 [ManageResponsePoints] Fetching responders for uniqueID: ${uniqueID}`);
+    console.log(
+      `🔍 [ManageResponsePoints] Fetching responders for locationID: ${locationID}`
+    );
 
-    // Fetch from: uniqueID/responders document (e.g., PH063043000/responders)
-    const respondersDocRef = doc(db, uniqueID, "responders");
+    // Fetch from: locationID/responders document (e.g., PH063043000/responders)
+    const respondersDocRef = doc(db, locationID, "responders");
 
     const unsubscribe = onSnapshot(
       respondersDocRef,
       (docSnap) => {
-        console.log(`📡 [ManageResponsePoints] Snapshot received for ${uniqueID}/responders`);
+        console.log(
+          `📡 [ManageResponsePoints] Snapshot received for ${locationID}/responders`
+        );
 
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -166,7 +173,10 @@ export default function ManageResponsePoints({
 
           // Get the responderList array
           const responderList = data?.responderList || [];
-          console.log(`👥 [ManageResponsePoints] Responder list:`, responderList);
+          console.log(
+            `👥 [ManageResponsePoints] Responder list:`,
+            responderList
+          );
 
           // Map the responderList to Responder objects
           const responders: Responder[] = responderList.map((r: any) => ({
@@ -178,29 +188,40 @@ export default function ManageResponsePoints({
           }));
 
           setAllResponders(responders);
-          console.log(`✅ [ManageResponsePoints] Set ${responders.length} responders:`, responders);
+          console.log(
+            `✅ [ManageResponsePoints] Set ${responders.length} responders:`,
+            responders
+          );
         } else {
-          console.warn(`⚠️ [ManageResponsePoints] No document found at ${uniqueID}/responders`);
+          console.warn(
+            `⚠️ [ManageResponsePoints] No document found at ${locationID}/responders`
+          );
           setAllResponders([]);
         }
         setIsLoading(false);
       },
       (error) => {
-        console.error("❌ [ManageResponsePoints] Error fetching responders:", error);
+        console.error(
+          "❌ [ManageResponsePoints] Error fetching responders:",
+          error
+        );
         setAllResponders([]);
         setIsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [uniqueID]);
+  }, [locationID]);
 
   // Handle add/remove actions
-  const handleAction = async (responderId: string, action: "add" | "remove") => {
+  const handleAction = async (
+    responderId: string,
+    action: "add" | "remove"
+  ) => {
     if (!selectedPoint) return;
 
     const documentId = `responder${selectedRisk}`;
-    const pointRef = doc(db, uniqueID, documentId);
+    const pointRef = doc(db, locationID, documentId);
     const fieldPath = `${selectedPoint.key}.properties.assignedResponders`;
 
     try {
@@ -215,6 +236,23 @@ export default function ManageResponsePoints({
       }
     } catch (error) {
       console.error("Error updating responder assignment:", error);
+    }
+  };
+
+  // Handle reset all - remove all assigned responders from selected point
+  const handleResetAll = async () => {
+    if (!selectedPoint || !locationID) return;
+
+    const documentId = `responder${selectedRisk}`;
+    const pointRef = doc(db, locationID, documentId);
+    const fieldPath = `${selectedPoint.key}.properties.assignedResponders`;
+
+    try {
+      await updateDoc(pointRef, {
+        [fieldPath]: [],
+      });
+    } catch (error) {
+      console.error("Error resetting responder assignments:", error);
     }
   };
 
@@ -292,12 +330,22 @@ export default function ManageResponsePoints({
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">
               Manage: {selectedPoint.name}
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
               {/* Assigned Responders */}
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <h3 className="font-semibold text-gray-700 mb-3">
-                  Assigned Responders ({assigned.length})
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-700">
+                    Assigned Responders ({assigned.length})
+                  </h3>
+                  {assigned.length > 0 && (
+                    <button
+                      onClick={handleResetAll}
+                      className="text-xs px-3 py-1 bg-red-100 text-red-600 rounded-md hover:bg-red-200 font-medium"
+                    >
+                      Reset All
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-3">
                   {assigned.map((user) => (
                     <ResponderListCard
@@ -316,13 +364,13 @@ export default function ManageResponsePoints({
               </div>
 
               {/* Available Responders */}
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              {/* <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h3 className="font-semibold text-gray-700 mb-3">
                   Available Responders ({available.length})
-                </h3>
+                </h3> */}
 
-                {/* --- Search Bar --- */}
-                <div className="relative mb-3">
+              {/* --- Search Bar --- */}
+              {/* <div className="relative mb-3">
                   <input
                     type="text"
                     placeholder="Search available..."
@@ -334,10 +382,10 @@ export default function ManageResponsePoints({
                     size={18}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                   />
-                </div>
-                {/* --- End Search Bar --- */}
+                </div> */}
+              {/* --- End Search Bar --- */}
 
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+              {/* <div className="space-y-3 max-h-96 overflow-y-auto">
                   {available.map((user) => (
                     <ResponderListCard
                       key={user.id}
@@ -351,8 +399,8 @@ export default function ManageResponsePoints({
                       No available responders found.
                     </div>
                   )}
-                </div>
-              </div>
+                </div> */}
+              {/* </div> */}
             </div>
           </div>
         )}

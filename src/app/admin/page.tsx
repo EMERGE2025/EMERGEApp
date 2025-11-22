@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { db } from "@/utils/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { useAuth } from "@/contexts/AuthContext";
 import RegisterResponder from "@/components/admin/RegisterResponder";
 import ManageResponsePoints from "@/components/admin/ManageResponsePoints";
 import {
@@ -32,17 +33,12 @@ function StatCard({
   value,
   icon,
   color = "bg-red-600",
-  trend,
   loading = false,
 }: {
   title: string;
   value: string | number;
   icon: React.ReactNode;
   color?: string;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
   loading?: boolean;
 }) {
   return (
@@ -68,24 +64,6 @@ function StatCard({
               )}
             </div>
           </div>
-          {trend && !loading && (
-            <div className="flex items-center gap-1 text-xs">
-              <TrendUp
-                size={14}
-                className={
-                  trend.isPositive
-                    ? "text-green-500"
-                    : "text-red-500 rotate-180"
-                }
-              />
-              <span
-                className={trend.isPositive ? "text-green-600" : "text-red-600"}
-              >
-                {trend.value}%
-              </span>
-              <span className="text-gray-500">vs last month</span>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -93,6 +71,7 @@ function StatCard({
 }
 
 export default function AdminDashboard() {
+  const { locationID } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>("manage");
   const [selectedRisk, setSelectedRisk] = useState("flooding");
   const [stats, setStats] = useState<DashboardStats>({
@@ -106,19 +85,23 @@ export default function AdminDashboard() {
   // Fetch real-time statistics from Firestore
   useEffect(() => {
     async function fetchStats() {
+      if (!locationID) {
+        setStats((prev) => ({ ...prev, loading: false }));
+        return;
+      }
+
       try {
         setStats((prev) => ({ ...prev, loading: true }));
 
-        const uniqueID = "PH063043000"; // Your location ID
         const risks = ["flooding", "earthquake", "landslide"];
 
-        // Fetch response points from {uniqueID}/responder${risk} documents
+        // Fetch response points from {locationID}/responder${risk} documents
         let totalResponsePoints = 0;
         let unassignedPoints = 0;
 
         for (const risk of risks) {
           try {
-            const responderDocRef = doc(db, uniqueID, `responder${risk}`);
+            const responderDocRef = doc(db, locationID, `responder${risk}`);
             const responderDoc = await getDoc(responderDocRef);
 
             if (responderDoc.exists()) {
@@ -130,7 +113,8 @@ export default function AdminDashboard() {
                   totalResponsePoints++;
 
                   // Check if point has assigned responders
-                  const assignedResponders = value.properties.assignedResponders || [];
+                  const assignedResponders =
+                    value.properties.assignedResponders || [];
                   if (assignedResponders.length === 0) {
                     unassignedPoints++;
                   }
@@ -138,14 +122,17 @@ export default function AdminDashboard() {
               });
             }
           } catch (error) {
-            console.error(`Error fetching ${uniqueID}/responder${risk}:`, error);
+            console.error(
+              `Error fetching ${locationID}/responder${risk}:`,
+              error
+            );
           }
         }
 
-        // Fetch responders from {uniqueID}/responders document
+        // Fetch responders from {locationID}/responders document
         let totalResponders = 0;
         try {
-          const respondersDocRef = doc(db, uniqueID, "responders");
+          const respondersDocRef = doc(db, locationID, "responders");
           const respondersDoc = await getDoc(respondersDocRef);
 
           if (respondersDoc.exists()) {
@@ -154,26 +141,26 @@ export default function AdminDashboard() {
             totalResponders = responderList.length;
           }
         } catch (error) {
-          console.error(`Error fetching ${uniqueID}/responders:`, error);
+          console.error(`Error fetching ${locationID}/responders:`, error);
         }
 
-        // Count active hazards from {uniqueID}/${risk} documents
+        // Count active hazards from {locationID}/${risk} documents
         let activeHazards = 0;
         for (const risk of risks) {
           try {
-            const hazardDocRef = doc(db, uniqueID, risk);
+            const hazardDocRef = doc(db, locationID, risk);
             const hazardDoc = await getDoc(hazardDocRef);
 
             if (hazardDoc.exists()) {
               const docData = hazardDoc.data();
               // Count the number of feature keys in the document
-              const featureCount = Object.keys(docData).filter(key =>
-                docData[key]?.type === "Feature"
+              const featureCount = Object.keys(docData).filter(
+                (key) => docData[key]?.type === "Feature"
               ).length;
               activeHazards += featureCount;
             }
           } catch (error) {
-            console.error(`Error fetching ${uniqueID}/${risk}:`, error);
+            console.error(`Error fetching ${locationID}/${risk}:`, error);
           }
         }
 
@@ -194,7 +181,7 @@ export default function AdminDashboard() {
     // Refresh every 30 seconds
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [locationID]);
 
   const tabClass = (tab: AdminTab) =>
     `px-4 md:px-5 py-2.5 text-sm md:text-base font-semibold rounded-lg transition-all duration-200 ${
@@ -224,7 +211,6 @@ export default function AdminDashboard() {
             value={stats.totalResponsePoints}
             icon={<MapPin size={24} weight="duotone" />}
             color="bg-blue-600"
-            trend={{ value: 12, isPositive: true }}
             loading={stats.loading}
           />
           <StatCard
@@ -232,7 +218,6 @@ export default function AdminDashboard() {
             value={stats.totalResponders}
             icon={<Users size={24} weight="duotone" />}
             color="bg-green-600"
-            trend={{ value: 8, isPositive: true }}
             loading={stats.loading}
           />
           <StatCard
@@ -314,9 +299,9 @@ export default function AdminDashboard() {
         {/* Tab Content */}
         <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
           {activeTab === "register" && <RegisterResponder />}
-          {activeTab === "manage" && (
+          {activeTab === "manage" && locationID && (
             <ManageResponsePoints
-              uniqueID="PH063043000"
+              uniqueID={locationID}
               selectedRisk={selectedRisk}
             />
           )}

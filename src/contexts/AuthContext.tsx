@@ -11,7 +11,6 @@ import { User, onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db } from "@/utils/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-// 1. UPDATED: Add userRole to the context type
 interface AuthContextType {
   user: User | null;
   loading: boolean;

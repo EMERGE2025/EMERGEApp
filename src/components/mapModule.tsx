@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useState, Fragment, useCallback } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  Fragment,
+  useCallback,
+} from "react";
 import maplibregl, { Popup, Marker } from "maplibre-gl";
 // @ts-ignore: side-effect CSS import without type declarations
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -24,7 +30,7 @@ import {
   MapPin,
   Car,
   User,
-  CircleNotch, // FIX: Replaced Spinner with CircleNotch
+  CircleNotch,
   UserCircleDashed,
   CaretRight,
   CaretDown,
@@ -323,7 +329,9 @@ function ResponderSidebar({
                   onError={(e: any) => {
                     // Fallback to placeholder if image fails to load
                     (e.target as HTMLImageElement).style.display = "none";
-                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                    (
+                      e.target as HTMLImageElement
+                    ).nextElementSibling?.classList.remove("hidden");
                   }}
                 />
               ) : null}
@@ -335,7 +343,9 @@ function ResponderSidebar({
                 <User size={14} color="white" />
               </div>
               <div className="flex-1 flex items-center justify-between gap-2">
-                <div className="opacity-90 text-[13px] font-medium text-[#111827]">{p.name}</div>
+                <div className="opacity-90 text-[13px] font-medium text-[#111827]">
+                  {p.name}
+                </div>
                 <div className="flex items-center gap-1">
                   {/* Expand/Collapse indicator */}
                   {expandedId === p.id ? (
@@ -475,19 +485,26 @@ function ResponderSidebar({
                           <div className="absolute w-[14px] h-[3px] rounded-sm bg-white" />
                           <div className="absolute w-[3px] h-[14px] rounded-sm bg-white" />
                         </div>
-                        <div className="text-[#111827] text-[18px] font-bold">Responders</div>
+                        <div className="text-[#111827] text-[18px] font-bold">
+                          Responders
+                        </div>
                       </div>
                     </div>
-                    <div className="w-full text-[12px] text-zinc-900/60">Deploy and See Available Responders</div>
+                    <div className="w-full text-[12px] text-zinc-900/60">
+                      Deploy and See Available Responders
+                    </div>
                   </div>
 
                   <div className="self-stretch h-px border-t border-neutral-800/20"></div>
 
                   {/* Recommended */}
                   <div className="text-[12px] text-zinc-700">
-                    Recommended: <span className="text-red-600 font-semibold">{assigned.length} Responders</span>
+                    Recommended:{" "}
+                    <span className="text-red-600 font-semibold">
+                      {assigned.length} Responders
+                    </span>
                   </div>
-                  
+
                   <div className="self-stretch h-px border-t border-neutral-800/20"></div>
 
                   {/* Content Area */}
@@ -503,24 +520,38 @@ function ResponderSidebar({
                       {/* Deploy/Assigned List */}
                       <div className="flex flex-col gap-1">
                         <div className="inline-flex items-center gap-2">
-                          <div className="text-red-600 text-[12px] font-semibold">Deploy Responder(s)</div>
+                          <div className="text-red-600 text-[12px] font-semibold">
+                            Deploy Responder(s)
+                          </div>
                           <div className="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
-                          <div className="text-zinc-900/60 text-[12px] font-medium">{assigned.length} Selected</div>
+                          <div className="text-zinc-900/60 text-[12px] font-medium">
+                            {assigned.length} Selected
+                          </div>
                         </div>
                         <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2 min-h-[7rem] overflow-auto resize">
-                          <ResponderChipRow list={assigned} modeAction={mode === "admin" ? "remove" : "user"} />
+                          <ResponderChipRow
+                            list={assigned}
+                            modeAction={mode === "admin" ? "remove" : "user"}
+                          />
                         </div>
                       </div>
 
                       {/* Available List (shown for both modes; actions only in admin) */}
                       <div className="flex flex-col gap-1">
                         <div className="inline-flex items-center gap-2">
-                          <div className="text-red-600 text-[12px] font-semibold">Available Responder(s)</div>
+                          <div className="text-red-600 text-[12px] font-semibold">
+                            Available Responder(s)
+                          </div>
                           <div className="w-1 h-1 bg-zinc-900/60 rounded-full"></div>
-                          <div className="text-zinc-900/60 text-[12px] font-medium">{available.length} Available</div>
+                          <div className="text-zinc-900/60 text-[12px] font-medium">
+                            {available.length} Available
+                          </div>
                         </div>
                         <div className="p-3 rounded-lg border border-zinc-900/10 flex flex-col gap-2 min-h-[7rem] overflow-auto resize">
-                          <ResponderChipRow list={available} modeAction={mode === "admin" ? "add" : "user"} />
+                          <ResponderChipRow
+                            list={available}
+                            modeAction={mode === "admin" ? "add" : "user"}
+                          />
                         </div>
                       </div>
                     </div>
@@ -2248,8 +2279,8 @@ export default function MapLibre3D({
       const accentMap: Record<string, string> = {
         // Use brand colors
         earthquake: "#36A816", // brand-earthquake
-        flooding: "#1883D0",   // brand-flood
-        landslide: "#C38811",  // brand-landslide
+        flooding: "#1883D0", // brand-flood
+        landslide: "#C38811", // brand-landslide
       };
       const accent = accentMap[selectedRisk] || "#ef4444";
       const iconMap: Record<string, string> = {
@@ -2428,7 +2459,9 @@ export default function MapLibre3D({
 
       // No popup: open the right-side panel immediately
       try {
-        document.querySelectorAll(".maplibregl-popup").forEach((el) => el.remove());
+        document
+          .querySelectorAll(".maplibregl-popup")
+          .forEach((el) => el.remove());
         currentPopupRef.current?.remove();
         currentPopupRef.current = null;
       } catch {}
@@ -2457,7 +2490,7 @@ export default function MapLibre3D({
     // Add listeners
     map.on("click", "clusters", onClusterClick);
     map.on("click", `${selectedRisk}-risk`, onRiskClick);
-  map.on("click", `${selectedRisk}-risk`, onRiskClick);
+    map.on("click", `${selectedRisk}-risk`, onRiskClick);
     map.on("click", "responderLocation", onResponderClick);
     map.on("dragstart", onDismissPopup);
 
@@ -2483,7 +2516,7 @@ export default function MapLibre3D({
       if (!map.style) return; // Map might be unmounted
       map.off("click", "clusters", onClusterClick);
       map.off("click", `${selectedRisk}-risk`, onRiskClick);
-  map.off("click", `${selectedRisk}-risk`, onRiskClick);
+      map.off("click", `${selectedRisk}-risk`, onRiskClick);
       map.off("click", "responderLocation", onResponderClick);
       map.off("dragstart", onDismissPopup);
 
@@ -2576,10 +2609,16 @@ export default function MapLibre3D({
             <div className="bg-orange-500 text-white px-6 py-3 rounded-lg shadow-lg border-2 border-white animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-white rounded-full animate-ping"></div>
-                <div className="text-sm md:text-base font-bold">🚧 Drawing Blockage Mode</div>
+                <div className="text-sm md:text-base font-bold">
+                  🚧 Drawing Blockage Mode
+                </div>
               </div>
-              <div className="text-xs mt-1 opacity-90">Click on the map to add points (minimum 3 points required)</div>
-              <div className="text-xs mt-1 font-semibold">Points: {drawingPoints.length}</div>
+              <div className="text-xs mt-1 opacity-90">
+                Click on the map to add points (minimum 3 points required)
+              </div>
+              <div className="text-xs mt-1 font-semibold">
+                Points: {drawingPoints.length}
+              </div>
             </div>
           </div>
         )}
@@ -2601,11 +2640,14 @@ export default function MapLibre3D({
             <button
               onClick={async () => {
                 if (drawingPoints.length < 3) {
-                  alert("Please add at least 3 points to create a blockage area");
+                  alert(
+                    "Please add at least 3 points to create a blockage area"
+                  );
                   return;
                 }
 
-                const blockageName = prompt("Enter blockage name:") || "Unnamed Blockage";
+                const blockageName =
+                  prompt("Enter blockage name:") || "Unnamed Blockage";
 
                 // Close the polygon by adding first point at the end
                 const closedCoordinates = [...drawingPoints, drawingPoints[0]];
@@ -2613,7 +2655,10 @@ export default function MapLibre3D({
                 // Create polygon coordinates in GeoJSON format
                 const polygonCoordinates = [closedCoordinates];
 
-                console.log("Saving blockage:", { name: blockageName, coordinates: polygonCoordinates });
+                console.log("Saving blockage:", {
+                  name: blockageName,
+                  coordinates: polygonCoordinates,
+                });
                 await addBlockage(blockageName, polygonCoordinates);
 
                 // Clean up
@@ -2629,7 +2674,12 @@ export default function MapLibre3D({
                   : "bg-gray-400 text-gray-200 cursor-not-allowed"
               }`}
             >
-              ✓ Save Blockage {drawingPoints.length >= 3 ? "" : `(${3 - drawingPoints.length} more point${3 - drawingPoints.length === 1 ? "" : "s"})`}
+              ✓ Save Blockage{" "}
+              {drawingPoints.length >= 3
+                ? ""
+                : `(${3 - drawingPoints.length} more point${
+                    3 - drawingPoints.length === 1 ? "" : "s"
+                  })`}
             </button>
           </div>
         )}
@@ -2708,12 +2758,12 @@ export default function MapLibre3D({
             placeholder="Search locations"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && onSearchSubmit()}
+            onKeyPress={(e) => e.key === "Enter" && onSearchSubmit()}
           />
           {/* Clear button (if text present) */}
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => setSearchQuery("")}
               className="absolute right-14 top-1/2 -translate-y-1/2 text-gray-600"
               aria-label="Clear search"
             >
@@ -2737,7 +2787,9 @@ export default function MapLibre3D({
         {/* Profile / login icon */}
         {user ? (
           <Link
-            href={userRole === 'admin' ? '/admin/profile' : '/responder/profile'}
+            href={
+              userRole === "admin" ? "/admin/profile" : "/responder/profile"
+            }
             aria-label="Profile"
             className="pointer-events-auto w-10 h-10 rounded-full overflow-hidden bg-white shadow-lg ring-2 ring-red-600 flex items-center justify-center"
           >
@@ -2789,9 +2841,24 @@ export default function MapLibre3D({
       <div className="absolute top-14 right-2 md:top-4 md:left-1/2 md:-translate-x-1/2 md:right-auto z-[105] pointer-events-none flex flex-col md:flex-row items-end md:items-center gap-2">
         <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-3 pointer-events-auto">
           {[
-            { id: "flooding", label: "Flood", color: "#0ea5e9", icon: "/icons/flood icon.svg" },
-            { id: "earthquake", label: "Earthquake", color: "#36A816", icon: "/icons/earthquake icon.svg" },
-            { id: "landslide", label: "Landslide", color: "#C38811", icon: "/icons/landslide icon.svg" },
+            {
+              id: "flooding",
+              label: "Flood",
+              color: "#0ea5e9",
+              icon: "/icons/flood icon.svg",
+            },
+            {
+              id: "earthquake",
+              label: "Earthquake",
+              color: "#36A816",
+              icon: "/icons/earthquake icon.svg",
+            },
+            {
+              id: "landslide",
+              label: "Landslide",
+              color: "#C38811",
+              icon: "/icons/landslide icon.svg",
+            },
           ].map((h) => {
             const active = selectedRisk === h.id;
             return (
@@ -2802,7 +2869,9 @@ export default function MapLibre3D({
                   active
                     ? "text-white"
                     : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
-                } w-6 h-6 md:w-auto md:h-auto md:px-4 md:py-2 md:gap-2 ${active ? '' : ''}`}
+                } w-6 h-6 md:w-auto md:h-auto md:px-4 md:py-2 md:gap-2 ${
+                  active ? "" : ""
+                }`}
                 style={active ? { background: h.color } : undefined}
                 title={`${h.label} Hazard`}
               >
@@ -2816,7 +2885,9 @@ export default function MapLibre3D({
                     display: "inline-block",
                   }}
                 />
-                <span className="hidden md:inline text-sm font-medium">{h.label}</span>
+                <span className="hidden md:inline text-sm font-medium">
+                  {h.label}
+                </span>
               </button>
             );
           })}
@@ -2827,7 +2898,9 @@ export default function MapLibre3D({
       <div className="absolute top-4 right-4 z-[110] pointer-events-none hidden md:block">
         {user ? (
           <Link
-            href={userRole === 'admin' ? '/admin/profile' : '/responder/profile'}
+            href={
+              userRole === "admin" ? "/admin/profile" : "/responder/profile"
+            }
             aria-label="Profile"
             className="pointer-events-auto flex items-center bg-[#E53935] hover:bg-[#D32F2F] text-white rounded-xl px-3 lg:px-4 py-2 font-bold gap-2 lg:gap-3 transition-colors shadow-lg"
           >
@@ -2909,7 +2982,11 @@ export default function MapLibre3D({
         title={isLegendVisible ? "Hide Legend" : "Show Legend"}
         className="absolute left-4 bottom-4 z-[100] pointer-events-auto bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
       >
-        <Info size={20} weight="bold" className={isLegendVisible ? 'text-green-600' : 'text-gray-600'} />
+        <Info
+          size={20}
+          weight="bold"
+          className={isLegendVisible ? "text-green-600" : "text-gray-600"}
+        />
       </button>
 
       {/* Removed standalone bottom-right burger; replaced by consolidated control cluster below */}
@@ -3036,7 +3113,7 @@ export default function MapLibre3D({
               <div className="md:hidden fixed inset-0 bg-black/25 backdrop-blur-sm" />
             </Transition.Child>
 
-            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="fixed inset-0 overflow-scroll pointer-events-none">
               {/* Mobile: Bottom Sheet / PC: Right Sidebar */}
               <div className="flex min-h-full items-end justify-center md:items-center md:justify-end">
                 <Transition.Child
@@ -3399,7 +3476,11 @@ export default function MapLibre3D({
             className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full md:rounded-xl p-0.5 md:p-3 transition-all duration-200 w-5 h-5 md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
             <Plus size={12} weight="bold" className="text-gray-600 md:hidden" />
-            <Plus size={20} weight="bold" className="text-gray-600 hidden md:block" />
+            <Plus
+              size={20}
+              weight="bold"
+              className="text-gray-600 hidden md:block"
+            />
           </button>
           {/* Zoom Out */}
           <button
@@ -3407,8 +3488,16 @@ export default function MapLibre3D({
             title="Zoom Out"
             className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full md:rounded-xl p-0.5 md:p-3 transition-all duration-200 w-5 h-5 md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
-            <Minus size={12} weight="bold" className="text-gray-600 md:hidden" />
-            <Minus size={20} weight="bold" className="text-gray-600 hidden md:block" />
+            <Minus
+              size={12}
+              weight="bold"
+              className="text-gray-600 md:hidden"
+            />
+            <Minus
+              size={20}
+              weight="bold"
+              className="text-gray-600 hidden md:block"
+            />
           </button>
           {/* 3D / 2D Toggle */}
           <button
@@ -3418,13 +3507,21 @@ export default function MapLibre3D({
               const currentPitch = map.getPitch();
               const newPitch = currentPitch === 0 ? 60 : 0;
               const newBearing = currentPitch === 0 ? 180 : 0;
-              map.easeTo({ pitch: newPitch, bearing: newBearing, duration: 1000 });
+              map.easeTo({
+                pitch: newPitch,
+                bearing: newBearing,
+                duration: 1000,
+              });
               setIs3D(newPitch !== 0);
             }}
-            title={is3D ? 'Switch to 2D' : 'Switch to 3D'}
+            title={is3D ? "Switch to 2D" : "Switch to 3D"}
             className="bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl"
           >
-            <Globe size={20} weight="bold" className={is3D ? 'text-red-600' : 'text-gray-600'} />
+            <Globe
+              size={20}
+              weight="bold"
+              className={is3D ? "text-red-600" : "text-gray-600"}
+            />
           </button>
           {/* Route Planning Trigger */}
           <button
@@ -3444,16 +3541,26 @@ export default function MapLibre3D({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <Crosshair size={20} weight="bold" className="text-red-600" />
-                <h3 className="text-sm font-semibold text-gray-900">Current Location</h3>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Current Location
+                </h3>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-600 w-16">Latitude:</span>
-                  <span className="text-sm font-mono font-semibold text-gray-900">{userLocation.lat.toFixed(4)}°</span>
+                  <span className="text-xs font-medium text-gray-600 w-16">
+                    Latitude:
+                  </span>
+                  <span className="text-sm font-mono font-semibold text-gray-900">
+                    {userLocation.lat.toFixed(4)}°
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-600 w-16">Longitude:</span>
-                  <span className="text-sm font-mono font-semibold text-gray-900">{userLocation.lng.toFixed(4)}°</span>
+                  <span className="text-xs font-medium text-gray-600 w-16">
+                    Longitude:
+                  </span>
+                  <span className="text-sm font-mono font-semibold text-gray-900">
+                    {userLocation.lng.toFixed(4)}°
+                  </span>
                 </div>
               </div>
             </div>
@@ -3480,29 +3587,51 @@ export default function MapLibre3D({
           <Info size={14} />
           Legend
         </div>
-        <div className="text-xs text-gray-500 mb-2">Use buttons above to toggle heatmap and markers</div>
+        <div className="text-xs text-gray-500 mb-2">
+          Use buttons above to toggle heatmap and markers
+        </div>
         <div className="space-y-1">
           {/* Enhanced Heatmap Legend */}
           <div className="mb-2">
-            <div className="text-xs font-medium text-gray-600 mb-2">Combined Risk Assessment</div>
+            <div className="text-xs font-medium text-gray-600 mb-2">
+              Combined Risk Assessment
+            </div>
             <div className="space-y-1">
               <div className="w-full h-3 rounded-sm bg-gradient-to-r from-green-400 via-yellow-400 to-red-600 border border-gray-300"></div>
-              <div className="flex justify-between text-xs text-gray-600"><span>Low Risk</span><span>High Risk</span></div>
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Low Risk</span>
+                <span>High Risk</span>
+              </div>
               <div className="text-xs text-gray-500 text-center space-y-1">
                 <div>Hazard Intensity × Population Vulnerability</div>
-                <div className="text-xs text-blue-600">🔵 Low vulnerability areas</div>
-                <div className="text-xs text-red-600">🔴 High vulnerability areas</div>
+                <div className="text-xs text-blue-600">
+                  🔵 Low vulnerability areas
+                </div>
+                <div className="text-xs text-red-600">
+                  🔴 High vulnerability areas
+                </div>
               </div>
             </div>
           </div>
 
           {/* Hazard Points Legend */}
           <div className="border-t border-gray-200 pt-2">
-            <div className="text-xs font-medium text-gray-600 mb-1">Hazard Points</div>
+            <div className="text-xs font-medium text-gray-600 mb-1">
+              Hazard Points
+            </div>
             <div className="space-y-0.5">
-              <div className="flex items-center gap-1 md:gap-2"><div className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></div><span className="text-xs text-gray-600">High Risk</span></div>
-              <div className="flex items-center gap-1 md:gap-2"><div className="w-2 h-2 md:w-3 md:h-3 bg-yellow-500 rounded-full"></div><span className="text-xs text-gray-600">Medium Risk</span></div>
-              <div className="flex items-center gap-1 md:gap-2"><div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full"></div><span className="text-xs text-gray-600">Low Risk</span></div>
+              <div className="flex items-center gap-1 md:gap-2">
+                <div className="w-2 h-2 md:w-3 md:h-3 bg-red-500 rounded-full"></div>
+                <span className="text-xs text-gray-600">High Risk</span>
+              </div>
+              <div className="flex items-center gap-1 md:gap-2">
+                <div className="w-2 h-2 md:w-3 md:h-3 bg-yellow-500 rounded-full"></div>
+                <span className="text-xs text-gray-600">Medium Risk</span>
+              </div>
+              <div className="flex items-center gap-1 md:gap-2">
+                <div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full"></div>
+                <span className="text-xs text-gray-600">Low Risk</span>
+              </div>
             </div>
           </div>
         </div>
