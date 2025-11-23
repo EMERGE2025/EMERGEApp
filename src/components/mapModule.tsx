@@ -3499,6 +3499,23 @@ export default function MapLibre3D({
               className="text-gray-600 hidden md:block"
             />
           </button>
+          {/* --- MY LOCATION BUTTON --- */}
+          <button
+            onClick={() => {
+              onGetCurrentLocation();
+              setShowLocationCoords(true);
+            }}
+            className={`bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-lg md:rounded-xl p-2 md:p-3 transition-all duration-200 min-w-[44px] min-h-[44px] md:min-w-[48px] md:min-h-[48px] flex items-center justify-center border border-white/20 hover:scale-105 active:scale-95 hover:shadow-2xl ${
+              showLocationCoords ? "bg-red-100 text-red-700" : ""
+            }`}
+            title="My Location"
+          >
+            <Crosshair
+              size={20}
+              weight="bold"
+              className={showLocationCoords ? "text-red-600" : "text-gray-600"}
+            />
+          </button>
           {/* 3D / 2D Toggle */}
           <button
             onClick={() => {

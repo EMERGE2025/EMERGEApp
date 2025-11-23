@@ -185,6 +185,10 @@ export default function ResponderDataTable() {
       // Map all responders with their assignment info (if any)
       const allResponders: Responder[] = allRespondersData.map((r: any) => {
         const assignment = assignmentMap.get(r.uid);
+        // Determine status based on assignment - if assigned to a point, status is "assigned"
+        const computedStatus: ResponderStatus = assignment
+          ? "assigned"
+          : (r.status || "available");
         return {
           uid: r.uid,
           name: r.name || "Unknown",
@@ -194,7 +198,7 @@ export default function ResponderDataTable() {
           profilePictureUrl: r.profilePictureUrl,
           personality: r.personality,
           skills: r.skills || { hard: [], soft: [] },
-          status: r.status || "available",
+          status: computedStatus,
           contact: r.contact || "",
           assignedTo: assignment,
         };
