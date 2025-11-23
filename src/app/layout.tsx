@@ -21,7 +21,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "EMERGE",
-  description: "Emergency Responder Allocation System for Hazard Mapping and Planning in Santa Barbara, Iloilo",
+  description:
+    "Emergency Responder Allocation System for Hazard Mapping and Planning in Santa Barbara, Iloilo",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -36,9 +37,7 @@ export const metadata: Metadata = {
       { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [
-      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
-    ],
+    apple: [{ url: "/icon-192x192.png", sizes: "192x192", type: "image/png" }],
   },
 };
 
@@ -74,7 +73,6 @@ export default function RootLayout({
             <HideableNav />
             <main className="pb-16 md:pb-0">{children}</main>
             <InstallPrompt />
-            <Footer />
           </HazardProvider>
         </AuthProvider>
       </body>
