@@ -40,6 +40,7 @@ export default function UpdatePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMessages, setUploadMessages] = useState<string>("");
   const [logs, setLogs] = useState<string>("");
+  const [numTeams, setNumTeams] = useState<number>(5);
 
   useEffect(() => {
     // Only fetch logs if the user is an admin
@@ -157,7 +158,11 @@ export default function UpdatePage() {
   }
 
   // Build a month-ordered list for the History UI (label current month as "This Month")
-  const groupedMonths: { key: string; label: string; entries: HistoryEntry[] }[] = [];
+  const groupedMonths: {
+    key: string;
+    label: string;
+    entries: HistoryEntry[];
+  }[] = [];
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonthName = now.toLocaleString("en-US", { month: "long" });
@@ -283,6 +288,7 @@ export default function UpdatePage() {
       formData.append("boundary_name", "ADM4_EN");
       formData.append("username", user.displayName || user.email || "Unknown");
       formData.append("user_id", user.uid);
+      formData.append("num_teams", numTeams.toString());
 
       try {
         const response = await fetch("http://127.0.0.1:8000/upload", {
@@ -331,7 +337,7 @@ export default function UpdatePage() {
 
   // --- 4. RENDER ADMIN CONTENT ---
   return (
-  <main className="min-h-screen bg-brand-white p-6">
+    <main className="min-h-screen bg-brand-white p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -358,6 +364,43 @@ export default function UpdatePage() {
               <p className="text-sm text-gray-500">
                 Upload the latest data to get the most accurate placement
               </p>
+            </div>
+
+            {/* Number of Responder Teams */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Number of Responder Teams
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Set the number of responder teams to be considered for placement
+                optimization
+              </p>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={numTeams}
+                  onChange={(e) => setNumTeams(parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-red"
+                />
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={numTeams}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    if (value >= 1 && value <= 50) {
+                      setNumTeams(value);
+                    } else if (e.target.value === "") {
+                      setNumTeams(1);
+                    }
+                  }}
+                  className="w-20 px-3 py-2 border text-black border-gray-300 rounded-lg text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent"
+                />
+                <span className="text-sm text-black">teams</span>
+              </div>
             </div>
 
             {/* Data Upload Cards */}
@@ -673,7 +716,7 @@ export default function UpdatePage() {
               </h2>
               <p className="text-sm text-gray-600 mb-6">View recent updates</p>
 
-              <div className="space-y-6">
+              <div className="space-y-6 max-h-screen overflow-y-scroll overflow-x-clip">
                 {Object.keys(historyData).length > 0 ? (
                   Object.entries(historyData).map(([year, months]) => (
                     <div key={year}>
