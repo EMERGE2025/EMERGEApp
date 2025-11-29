@@ -713,6 +713,9 @@ export default function MapLibre3D({
   const [blockages, setBlockages] = useState<Blockage[]>([]);
   const [isDrawingBlockage, setIsDrawingBlockage] = useState(false);
   const [drawingPoints, setDrawingPoints] = useState<number[][]>([]);
+  const [showBlockageNameModal, setShowBlockageNameModal] = useState(false);
+  const [blockageName, setBlockageName] = useState("");
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
 
   // --- UPDATED RESPONDER STATE ---
   const [isResponderSidebarOpen, setIsResponderSidebarOpen] = useState(false);
@@ -1358,6 +1361,37 @@ export default function MapLibre3D({
       console.error("❌ Error adding blockage:", err);
       alert(`Error adding blockage: ${err}`);
     }
+  };
+
+  const handleSaveBlockage = async () => {
+    const name = blockageName.trim() || "Unnamed Blockage";
+
+    // Close the polygon by adding first point at the end
+    const closedCoordinates = [...drawingPoints, drawingPoints[0]];
+
+    // Create polygon coordinates in GeoJSON format
+    const polygonCoordinates = [closedCoordinates];
+
+    console.log("Saving blockage:", {
+      name,
+      coordinates: polygonCoordinates,
+    });
+
+    await addBlockage(name, polygonCoordinates);
+
+    // Clean up
+    setIsDrawingBlockage(false);
+    setDrawingPoints([]);
+    setShowBlockageNameModal(false);
+    setBlockageName("");
+
+    // Show success notification
+    setShowSuccessNotification(true);
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+      setShowSuccessNotification(false);
+    }, 3000);
   };
 
   const removeBlockage = async (blockageId: string) => {
@@ -2017,24 +2051,68 @@ export default function MapLibre3D({
           });
         }
 
-        map
-          .loadImage(`/icons/${hazard}.png`) // FIX: Absolute path
-          .then((res) => {
-            const image = res.data;
-            if (!map.hasImage(hazard)) map.addImage(hazard, image);
-            if (!map.getLayer(`${hazard}-risk`)) {
-              map.addLayer({
-                id: `${hazard}-risk`,
-                type: "symbol",
-                source: `${hazard}-risk`,
-                filter: ["!", ["has", "point_count"]],
-                layout: { "icon-image": hazard, "icon-size": 0.5 },
-              });
-            }
-          })
-          .catch((error) =>
-            console.error("Failed to load hazard image:", error)
-          );
+        // Special handling for all_risks - load all hazard icons
+        if (hazard === "all_risks") {
+          // Load all three hazard icons
+          const hazardTypes = ["flooding", "earthquake", "landslide"];
+          Promise.all(
+            hazardTypes.map((type) =>
+              map.loadImage(`/icons/${type}.png`).then((res) => {
+                if (!map.hasImage(type)) {
+                  map.addImage(type, res.data);
+                }
+              })
+            )
+          )
+            .then(() => {
+              // Add layer with data-driven icon based on hazard_type property
+              if (!map.getLayer(`${hazard}-risk`)) {
+                map.addLayer({
+                  id: `${hazard}-risk`,
+                  type: "symbol",
+                  source: `${hazard}-risk`,
+                  filter: ["!", ["has", "point_count"]],
+                  layout: {
+                    "icon-image": [
+                      "match",
+                      ["get", "hazard_type"],
+                      "flooding",
+                      "flooding",
+                      "earthquake",
+                      "earthquake",
+                      "landslide",
+                      "landslide",
+                      "flooding", // fallback
+                    ],
+                    "icon-size": 0.5,
+                  },
+                });
+              }
+            })
+            .catch((error) =>
+              console.error("Failed to load all_risks hazard images:", error)
+            );
+        } else {
+          // Normal single hazard handling
+          map
+            .loadImage(`/icons/${hazard}.png`) // FIX: Absolute path
+            .then((res) => {
+              const image = res.data;
+              if (!map.hasImage(hazard)) map.addImage(hazard, image);
+              if (!map.getLayer(`${hazard}-risk`)) {
+                map.addLayer({
+                  id: `${hazard}-risk`,
+                  type: "symbol",
+                  source: `${hazard}-risk`,
+                  filter: ["!", ["has", "point_count"]],
+                  layout: { "icon-image": hazard, "icon-size": 0.5 },
+                });
+              }
+            })
+            .catch((error) =>
+              console.error("Failed to load hazard image:", error)
+            );
+        }
 
         if (!map.getLayer("clusters")) {
           map.addLayer({
@@ -2274,6 +2352,7 @@ export default function MapLibre3D({
         earthquake: "Earthquake Risk",
         flooding: "Flood Risk",
         landslide: "Landslide Risk",
+        all_risks: "All Risks Combined",
       };
       const hazardTitle = hazardNameMap[selectedRisk] || `${selectedRisk} Risk`;
       const accentMap: Record<string, string> = {
@@ -2281,11 +2360,13 @@ export default function MapLibre3D({
         earthquake: "#36A816", // brand-earthquake
         flooding: "#1883D0", // brand-flood
         landslide: "#C38811", // brand-landslide
+        all_risks: "#E53935", // brand-responder (red for all risks)
       };
       const accent = accentMap[selectedRisk] || "#ef4444";
       const iconMap: Record<string, string> = {
         flooding: "/icons/flood icon.svg",
         landslide: "/icons/landslide icon.svg",
+        all_risks: "/icons/risk severity threshold icon.svg",
         earthquake: "/icons/earthquake icon.svg",
       };
       const iconPath = iconMap[selectedRisk] || `/icons/${selectedRisk}.svg`; // FIX: Absolute path
@@ -2631,41 +2712,17 @@ export default function MapLibre3D({
                 console.log("Canceling blockage drawing");
                 setIsDrawingBlockage(false);
                 setDrawingPoints([]);
-                alert("Blockage drawing cancelled");
               }}
               className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg border-2 border-white transition-all active:scale-95"
             >
               ✕ Cancel
             </button>
             <button
-              onClick={async () => {
+              onClick={() => {
                 if (drawingPoints.length < 3) {
-                  alert(
-                    "Please add at least 3 points to create a blockage area"
-                  );
                   return;
                 }
-
-                const blockageName =
-                  prompt("Enter blockage name:") || "Unnamed Blockage";
-
-                // Close the polygon by adding first point at the end
-                const closedCoordinates = [...drawingPoints, drawingPoints[0]];
-
-                // Create polygon coordinates in GeoJSON format
-                const polygonCoordinates = [closedCoordinates];
-
-                console.log("Saving blockage:", {
-                  name: blockageName,
-                  coordinates: polygonCoordinates,
-                });
-                await addBlockage(blockageName, polygonCoordinates);
-
-                // Clean up
-                setIsDrawingBlockage(false);
-                setDrawingPoints([]);
-
-                alert("Blockage added successfully!");
+                setShowBlockageNameModal(true);
               }}
               disabled={drawingPoints.length < 3}
               className={`px-6 py-3 rounded-lg font-semibold shadow-lg border-2 border-white transition-all active:scale-95 ${
@@ -2859,6 +2916,12 @@ export default function MapLibre3D({
               color: "#C38811",
               icon: "/icons/landslide icon.svg",
             },
+            {
+              id: "all_risks",
+              label: "All Risks",
+              color: "#E53935",
+              icon: "/icons/risk severity threshold icon.svg",
+            },
           ].map((h) => {
             const active = selectedRisk === h.id;
             return (
@@ -3017,14 +3080,9 @@ export default function MapLibre3D({
           {/* Cancel Button */}
           <button
             onClick={() => {
-              const confirmCancel = window.confirm(
-                "Are you sure you want to cancel drawing this blockage? All points will be lost."
-              );
-              if (confirmCancel) {
-                console.log("Canceling blockage drawing");
-                setIsDrawingBlockage(false);
-                setDrawingPoints([]);
-              }
+              console.log("Canceling blockage drawing");
+              setIsDrawingBlockage(false);
+              setDrawingPoints([]);
             }}
             className="group relative flex-1 sm:flex-none bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:from-red-800 active:to-red-900 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-xl sm:rounded-2xl font-bold shadow-[0_10px_40px_rgba(220,38,38,0.4)] hover:shadow-[0_15px_50px_rgba(220,38,38,0.6)] border-2 border-white/30 transition-all duration-300 active:scale-95 hover:scale-[1.02] text-base sm:text-lg uppercase tracking-wider overflow-hidden"
           >
@@ -3036,37 +3094,11 @@ export default function MapLibre3D({
           </button>
           {/* Confirm/Save Button */}
           <button
-            onClick={async () => {
+            onClick={() => {
               if (drawingPoints.length < 3) {
-                alert("Please add at least 3 points to create a blockage area");
                 return;
               }
-
-              const blockageName =
-                prompt("Enter blockage name:") || "Unnamed Blockage";
-
-              if (!blockageName.trim()) {
-                alert("Blockage name cannot be empty");
-                return;
-              }
-
-              // Close the polygon by adding first point at the end
-              const closedCoordinates = [...drawingPoints, drawingPoints[0]];
-
-              // Create polygon coordinates in GeoJSON format
-              const polygonCoordinates = [closedCoordinates];
-
-              console.log("Saving blockage:", {
-                name: blockageName,
-                coordinates: polygonCoordinates,
-              });
-              await addBlockage(blockageName, polygonCoordinates);
-
-              // Clean up
-              setIsDrawingBlockage(false);
-              setDrawingPoints([]);
-
-              alert("Blockage added successfully!");
+              setShowBlockageNameModal(true);
             }}
             disabled={drawingPoints.length < 3}
             className={`group relative flex-1 sm:flex-none px-8 sm:px-12 py-4 sm:py-5 rounded-xl sm:rounded-2xl font-bold shadow-[0_10px_40px_rgba(0,0,0,0.3)] border-2 transition-all duration-300 active:scale-95 text-base sm:text-lg uppercase tracking-wider overflow-hidden ${
@@ -3664,6 +3696,176 @@ export default function MapLibre3D({
         pointName={selectedResponderData?.name || "Loading..."}
         selectedRisk={selectedRisk}
       />
+
+      {/* Blockage Name Modal */}
+      <Transition appear show={showBlockageNameModal} as={Fragment}>
+        <Dialog
+          as="div"
+          className="relative z-[300]"
+          onClose={() => {
+            setShowBlockageNameModal(false);
+            setBlockageName("");
+          }}
+        >
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <Dialog.Title
+                      as="h3"
+                      className="text-xl font-bold text-brand-text"
+                    >
+                      Name Your Blockage
+                    </Dialog.Title>
+                    <button
+                      onClick={() => {
+                        setShowBlockageNameModal(false);
+                        setBlockageName("");
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X size={24} weight="bold" />
+                    </button>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-4">
+                    Enter a descriptive name for this blockage area to help
+                    identify it later.
+                  </p>
+
+                  <input
+                    type="text"
+                    value={blockageName}
+                    onChange={(e) => setBlockageName(e.target.value)}
+                    placeholder="e.g., Road Closure - Main St"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 focus:outline-none transition-all text-brand-text placeholder:text-gray-400"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && blockageName.trim()) {
+                        handleSaveBlockage();
+                      }
+                    }}
+                    autoFocus
+                  />
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setShowBlockageNameModal(false);
+                        setBlockageName("");
+                      }}
+                      className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveBlockage}
+                      disabled={!blockageName.trim()}
+                      className={`flex-1 px-4 py-3 font-semibold rounded-lg transition-all active:scale-95 ${
+                        blockageName.trim()
+                          ? "bg-brand-red hover:bg-brand-red-dark text-white shadow-lg"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      }`}
+                    >
+                      Save Blockage
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Success Notification */}
+      <Transition appear show={showSuccessNotification} as={Fragment}>
+        <Dialog
+          as="div"
+          className="relative z-[300]"
+          onClose={() => setShowSuccessNotification(false)}
+        >
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl transition-all">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                      <svg
+                        className="w-8 h-8 text-green-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+                    <Dialog.Title
+                      as="h3"
+                      className="text-xl font-bold text-brand-text mb-2"
+                    >
+                      Blockage Added!
+                    </Dialog.Title>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Your blockage area has been successfully created.
+                    </p>
+                    <button
+                      onClick={() => setShowSuccessNotification(false)}
+                      className="px-6 py-2 bg-brand-red hover:bg-brand-red-dark text-white font-semibold rounded-lg transition-all active:scale-95"
+                    >
+                      Got it
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
     </React.Fragment>
   );
 }

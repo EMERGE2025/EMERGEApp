@@ -3,20 +3,29 @@ import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: '/:path*',
-          destination: '/docs/:path*',
-          has: [
-            {
-              type: 'host',
-              value: 'docs.projectemerge.org'
-            }
-          ]
-        }
-      ]
-    };
+    return [
+      // Rewrite root path and other non-asset paths for docs subdomain
+      {
+        source: '/',
+        destination: '/docs',
+        has: [
+          {
+            type: 'host',
+            value: 'docs.projectemerge.org'
+          }
+        ]
+      },
+      {
+        source: '/:path((?!_next|icons|static|favicon.ico).*)',
+        destination: '/docs/:path',
+        has: [
+          {
+            type: 'host',
+            value: 'docs.projectemerge.org'
+          }
+        ]
+      }
+    ];
   },
   images: {
     remotePatterns: [
