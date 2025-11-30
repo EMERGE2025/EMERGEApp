@@ -74,7 +74,7 @@ interface ClusterFeature extends maplibregl.MapGeoJSONFeature {
     [key: string]: any;
   };
 }
-export type iconType = "earthquake" | "landslide" | "flood" | "responder";
+export type iconType = "landslide" | "flood" | "responder";
 export type mapType = "liberty" | "positron" | "bright";
 type GJ = GeoJSON.FeatureCollection | GeoJSON.Feature | string;
 interface BoundaryEntry {
@@ -2046,7 +2046,7 @@ export default function MapLibre3D({
         // Special handling for all_risks - load all hazard icons
         if (hazard === "all_risks") {
           // Load all three hazard icons
-          const hazardTypes = ["flooding", "earthquake", "landslide"];
+          const hazardTypes = ["flooding", "landslide"];
           Promise.all(
             hazardTypes.map((type) =>
               map.loadImage(`/icons/${type}.png`).then((res) => {
@@ -2069,8 +2069,10 @@ export default function MapLibre3D({
                       "match",
                       ["get", "hazard_type"],
                       "flooding",
-                      "earthquake",
+                      "flooding",
                       "landslide",
+                      "landslide",
+                      "flooding",
                     ],
                     "icon-size": 0.5,
                   },

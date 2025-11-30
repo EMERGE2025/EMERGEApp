@@ -216,7 +216,6 @@ export default function HomePage() {
               { src: "/cict-logo.PNG", alt: "CICT" },
               { src: "/sb-logo.png", alt: "Santa Barbara" },
               { src: "/sbdrrmo.jpg", alt: "SBDRRMO" },
-              { src: "/trrdmo.jpg", alt: "TRRDMO" },
             ].map((p) => (
               <div
                 key={p.alt}
