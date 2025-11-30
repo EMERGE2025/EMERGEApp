@@ -215,7 +215,8 @@ export default function HomePage() {
               { src: "/wvsu-logo.PNG", alt: "WVSU" },
               { src: "/cict-logo.PNG", alt: "CICT" },
               { src: "/sb-logo.png", alt: "Santa Barbara" },
-              { src: "/sbdrrmo.jpg", alt: "SBDRRMO" },
+              { src: "/alerto.png", alt: "SBDRRMO" },
+              { src: "/cs.png", alt: "WVSU-CS" },
             ].map((p) => (
               <div
                 key={p.alt}
