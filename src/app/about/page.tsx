@@ -203,6 +203,25 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+      <section className="w-full bg-[#f5f6fa] py-5 sm:py-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="bg-white shadow-lg rounded-xl p-8 md:p-10 border border-gray-100 text-center hover:shadow-xl transition-all duration-300">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#1C1C1C] mb-4">
+              Want to Understand More about the System?
+            </h2>
+            <p className="text-base sm:text-lg text-[#374151] mb-8 max-w-2xl mx-auto">
+              Visit our comprehensive documentation to learn more about EMERGE's
+              features, architecture, and how to make the most of the system.
+            </p>
+            <Link
+              className="inline-block bg-[#b92727] text-white px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold rounded-lg transition-all duration-300 hover:bg-[#8a1d1d] hover:shadow-md"
+              href={"https://docs.projectemerge.org"}
+            >
+              View Documentation
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

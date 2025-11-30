@@ -99,13 +99,13 @@ export default function ResponderProfilePage() {
         return;
       }
 
-      console.log("🔍 Fetching profile for user:", user.uid);
+      console.log("Fetching profile for user:", user.uid);
 
       try {
         // Hardcoded locationID for now - you can make this dynamic later
         const locationID = "PH063043000";
 
-        console.log(`📡 Fetching from ${locationID}/responders`);
+        console.log(`Fetching from ${locationID}/responders`);
 
         // Fetch from the responders document
         const respondersDocRef = doc(db, locationID, "responders");
@@ -118,18 +118,18 @@ export default function ResponderProfilePage() {
         }
 
         const data = respondersDoc.data();
-        console.log("📦 Responders document data:", data);
+        console.log("Responders document data:", data);
 
         const responderList = data?.responderList || [];
-        console.log(`👥 Found ${responderList.length} responders in list`);
+        console.log(`Found ${responderList.length} responders in list`);
 
         // Find the current user in the list
         const currentResponder = responderList.find(
           (r: any) => r.uid === user.uid
         );
 
-        console.log("🔍 Looking for UID:", user.uid);
-        console.log("✅ Found responder:", currentResponder);
+        console.log("Looking for UID:", user.uid);
+        console.log("Found responder:", currentResponder);
 
         if (currentResponder) {
           const profileData: ResponderProfile = {
@@ -143,11 +143,11 @@ export default function ResponderProfilePage() {
             skills: currentResponder.skills || { hard: [], soft: [] },
           };
 
-          console.log("✅ Profile loaded successfully:", profileData);
+          console.log("Profile loaded successfully:", profileData);
           setProfile(profileData);
           setEditedProfile(profileData);
         } else {
-          console.error("❌ Current user not found in responderList");
+          console.error("Current user not found in responderList");
           console.log(
             "Available UIDs:",
             responderList.map((r: any) => r.uid)
@@ -156,7 +156,7 @@ export default function ResponderProfilePage() {
 
         setLoading(false);
       } catch (error) {
-        console.error("❌ Error fetching profile:", error);
+        console.error("Error fetching profile:", error);
         setLoading(false);
       }
     });

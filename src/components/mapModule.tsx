@@ -1246,11 +1246,11 @@ export default function MapLibre3D({
 
           if (docSnap.exists()) {
             const data = docSnap.data();
-            console.log(`📦 [${mode}] Document data:`, data);
+            console.log(`[${mode}] Document data:`, data);
 
             // Get the responderList array
             const responderList = data?.responderList || [];
-            console.log(`👥 [${mode}] Responder list found:`, responderList);
+            console.log(`[${mode}] Responder list found:`, responderList);
 
             // Map the responderList to Person objects
             const responders: Person[] = responderList.map((r: any) => ({
@@ -1265,18 +1265,18 @@ export default function MapLibre3D({
 
             setAllResponders(responders);
             console.log(
-              `✅ [${mode}] Successfully set ${responders.length} responders:`,
+              `[${mode}] Successfully set ${responders.length} responders:`,
               responders
             );
           } else {
             console.warn(
-              `⚠️ [${mode}] No responders document found at ${uniqueID}/responders`
+              `[${mode}] No responders document found at ${uniqueID}/responders`
             );
             setAllResponders([]);
           }
         },
         (error) => {
-          console.error(`❌ [${mode}] Error fetching responders:`, error);
+          console.error(`[${mode}] Error fetching responders:`, error);
           setAllResponders([]);
         }
       );
@@ -1292,7 +1292,7 @@ export default function MapLibre3D({
   // --- FETCH BLOCKAGES FROM FIREBASE ---
   useEffect(() => {
     if (!uniqueID) {
-      console.log("⏭️ Skipping blockage fetch - no uniqueID");
+      console.log("Skipping blockage fetch - no uniqueID");
       return;
     }
 
@@ -1305,16 +1305,16 @@ export default function MapLibre3D({
           const blockageList = data?.blockages || [];
           setBlockages(blockageList);
           console.log(
-            `🚧 Fetched ${blockageList.length} blockages:`,
+            `Fetched ${blockageList.length} blockages:`,
             blockageList
           );
         } else {
-          console.log("📝 No blockage document found");
+          console.log("No blockage document found");
           setBlockages([]);
         }
       },
       (error) => {
-        console.error("❌ Error fetching blockages:", error);
+        console.error("Error fetching blockages:", error);
         setBlockages([]);
       }
     );
@@ -1325,7 +1325,7 @@ export default function MapLibre3D({
   // --- BLOCKAGE MANAGEMENT FUNCTIONS ---
   const addBlockage = async (name: string, coordinates: number[][][]) => {
     if (!uniqueID || !user) {
-      console.error("❌ Cannot add blockage: missing uniqueID or user");
+      console.error("Cannot add blockage: missing uniqueID or user");
       return;
     }
 
@@ -1349,16 +1349,16 @@ export default function MapLibre3D({
         await updateDoc(blockageDocRef, {
           blockages: [...existingBlockages, newBlockage],
         });
-        console.log("✅ Blockage added successfully");
+        console.log("Blockage added successfully");
       } else {
         // Document doesn't exist, create it
         await setDoc(blockageDocRef, {
           blockages: [newBlockage],
         });
-        console.log("✅ Blockage document created with first blockage");
+        console.log("Blockage document created with first blockage");
       }
     } catch (err) {
-      console.error("❌ Error adding blockage:", err);
+      console.error("Error adding blockage:", err);
       alert(`Error adding blockage: ${err}`);
     }
   };
@@ -1410,10 +1410,10 @@ export default function MapLibre3D({
         await updateDoc(blockageDocRef, {
           blockages: updatedBlockages,
         });
-        console.log("✅ Blockage removed successfully");
+        console.log("Blockage removed successfully");
       }
     } catch (error) {
-      console.error("❌ Error removing blockage:", error);
+      console.error("Error removing blockage:", error);
     }
   };
 
@@ -1588,7 +1588,7 @@ export default function MapLibre3D({
 
       try {
         const { lng, lat } = e.lngLat;
-        console.log("✏️ Drawing point:", {
+        console.log("Drawing point:", {
           lng,
           lat,
           currentPoints: drawingPoints.length,
@@ -1598,11 +1598,11 @@ export default function MapLibre3D({
         setDrawingPoints(newPoints);
 
         console.log(
-          "✅ Point added successfully. Total points:",
+          "Point added successfully. Total points:",
           newPoints.length
         );
       } catch (error) {
-        console.error("❌ Error in handleMapClick:", error);
+        console.error("Error in handleMapClick:", error);
       }
     };
 
@@ -1636,7 +1636,7 @@ export default function MapLibre3D({
     // };
 
     if (isDrawingBlockage) {
-      console.log("🎨 Drawing mode activated - attaching click handler");
+      console.log("Drawing mode activated - attaching click handler");
       console.log("Map object exists:", !!map);
       console.log("Map loaded:", isMapLoaded);
 
@@ -1648,17 +1648,17 @@ export default function MapLibre3D({
       // Change cursor to crosshair when drawing
       if (map.getCanvas()) {
         map.getCanvas().style.cursor = "crosshair";
-        console.log("✅ Cursor changed to crosshair, ready to draw!");
+        console.log("Cursor changed to crosshair, ready to draw!");
       }
 
       // Test if clicks are being captured
       const testHandler = (e: any) => {
-        console.log("🖱️ MAP CLICKED! Position:", e.lngLat);
+        console.log("MAP CLICKED! Position:", e.lngLat);
       };
       map.on("click", testHandler);
 
       return () => {
-        console.log("🧹 Cleaning up drawing handlers");
+        console.log("Cleaning up drawing handlers");
         map.off("click", handleMapClick);
         map.off("click", testHandler);
         // Keyboard handler removed
@@ -1690,7 +1690,7 @@ export default function MapLibre3D({
     const drawingPolygonLayerId = "drawing-preview-polygon";
 
     try {
-      // Remove existing preview layers
+      // Remove existing preview layers to avoid conflict
       if (map.getLayer(drawingPolygonLayerId))
         map.removeLayer(drawingPolygonLayerId);
       if (map.getLayer(drawingLineLayerId)) map.removeLayer(drawingLineLayerId);
@@ -1745,7 +1745,6 @@ export default function MapLibre3D({
         features: features,
       };
 
-      // Add source
       map.addSource(drawingSourceId, {
         type: "geojson",
         data: geoJSON,
@@ -1794,13 +1793,9 @@ export default function MapLibre3D({
         },
       });
 
-      console.log(
-        "✏️ Drawing preview updated:",
-        drawingPoints.length,
-        "points"
-      );
+      console.log("Drawing preview updated:", drawingPoints.length, "points");
     } catch (error) {
-      console.error("❌ Error updating drawing preview:", error);
+      console.error("Error updating drawing preview:", error);
     }
 
     return () => {
@@ -1844,7 +1839,7 @@ export default function MapLibre3D({
         return;
       }
 
-      console.log("🗺️ Displaying blockages:", blockages);
+      console.log("Displaying blockages:", blockages);
 
       // Create GeoJSON from blockages
       const blockageGeoJSON: GeoJSON.FeatureCollection = {
@@ -1853,15 +1848,15 @@ export default function MapLibre3D({
           .map((blockage) => {
             try {
               console.log(
-                "📍 Processing blockage:",
+                "Processing blockage:",
                 blockage.name,
                 "ID:",
                 blockage.id
               );
-              console.log("📍 Raw coordinates string:", blockage.coordinates);
+              console.log("Raw coordinates string:", blockage.coordinates);
 
               const coordinates = JSON.parse(blockage.coordinates);
-              console.log("📍 Parsed coordinates:", coordinates);
+              console.log("Parsed coordinates:", coordinates);
 
               const feature = {
                 type: "Feature" as const,
@@ -1875,11 +1870,11 @@ export default function MapLibre3D({
                 },
               };
 
-              console.log("✅ Created feature:", feature);
+              console.log("Created feature:", feature);
               return feature;
             } catch (error) {
               console.error(
-                "❌ Error parsing blockage coordinates:",
+                "Error parsing blockage coordinates:",
                 error,
                 blockage
               );
@@ -1889,13 +1884,10 @@ export default function MapLibre3D({
           .filter(Boolean) as GeoJSON.Feature[],
       };
 
-      console.log(
-        "🎨 Final GeoJSON:",
-        JSON.stringify(blockageGeoJSON, null, 2)
-      );
+      console.log("Final GeoJSON:", JSON.stringify(blockageGeoJSON, null, 2));
 
       if (blockageGeoJSON.features.length === 0) {
-        console.warn("⚠️ No valid blockage features to display");
+        console.warn("No valid blockage features to display");
         return;
       }
 
@@ -1949,9 +1941,9 @@ export default function MapLibre3D({
         map.getCanvas().style.cursor = "";
       });
 
-      console.log("✅ Blockages displayed successfully");
+      console.log("Blockages displayed successfully");
     } catch (error) {
-      console.error("❌ Error displaying blockages on map:", error);
+      console.error("Error displaying blockages on map:", error);
     }
   }, [blockages, isMapLoaded]);
 
@@ -2077,12 +2069,8 @@ export default function MapLibre3D({
                       "match",
                       ["get", "hazard_type"],
                       "flooding",
-                      "flooding",
-                      "earthquake",
                       "earthquake",
                       "landslide",
-                      "landslide",
-                      "flooding", // fallback
                     ],
                     "icon-size": 0.5,
                   },
@@ -2903,12 +2891,6 @@ export default function MapLibre3D({
               label: "Flood",
               color: "#0ea5e9",
               icon: "/icons/flood icon.svg",
-            },
-            {
-              id: "earthquake",
-              label: "Earthquake",
-              color: "#36A816",
-              icon: "/icons/earthquake icon.svg",
             },
             {
               id: "landslide",
